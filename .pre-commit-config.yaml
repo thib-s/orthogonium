@@ -54,13 +54,13 @@ repos:
   #     - id: commitizen
   #       stages: [commit-msg]
 
-  - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.5.1
-    hooks:
-      - id: insert-license
-        name: insert MIT license
-        exclude: ^(docs/source)
-        files: \.py$
-        args:
-          - --license-filepath
-          - LICENSES/headers/MIT-Clause.txt
+  # - repo: https://github.com/Lucas-C/pre-commit-hooks
+  #   rev: v1.5.1
+  #   hooks:
+  #     - id: insert-license
+  #       name: insert MIT license
+  #       exclude: ^(docs/source)
+  #       files: \.py$
+  #       args:
+  #         - --license-filepath
+  #         - LICENSES/headers/MIT-Clause.txt
