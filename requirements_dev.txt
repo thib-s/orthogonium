@@ -1,0 +1,12 @@
+setuptools
+pre-commit
+tox
+black
+pytest
+pylint
+mkdocs
+mkdocs-material
+mkdocstrings[python]
+mknotebooks
+bump2version
+wandb
