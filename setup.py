@@ -47,7 +47,7 @@ if os.path.exists(readme_path):
     with open(readme_path) as fp:
         readme_contents = fp.read().strip()
 
-with open(os.path.join(this_directory, "deel/lipdp/VERSION")) as f:
+with open(os.path.join(this_directory, "flashlipschitz/VERSION")) as f:
     version = f.read().strip()
 
 setup(

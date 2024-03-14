@@ -10,3 +10,4 @@ mkdocstrings[python]
 mknotebooks
 bump2version
 wandb
+torchsummary
