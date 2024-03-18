@@ -14,8 +14,8 @@ def conv_singular_values_numpy(kernel, input_shape):
     Hanie Sedghi, Vineet Gupta, and Philip M. Long. The singular values of convolutional layers.
     In International Conference on Learning Representations, 2019.
     """
-    kernel = np.transpose(kernel, [2, 3, 0, 1])
-    transforms = np.fft.fft2(kernel, input_shape, axes=[0, 1])
+    kernel = np.transpose(kernel, [0, 3, 4, 1, 2])
+    transforms = np.fft.fft2(kernel, input_shape, axes=[1, 2])
     svs = np.linalg.svd(transforms, compute_uv=False, full_matrices=False)
     stable_rank = np.sum(np.mean(svs)) / (svs.max() ** 2)
     return svs.min(), svs.max(), stable_rank
@@ -37,32 +37,31 @@ class L2Normalize(nn.Module):
 
 
 class BatchedPowerIteration(nn.Module):
-    def __init__(self, num_kernels, cout, cin, power_it_niter=3, eps=1e-12):
+    def __init__(self, kernel_shape, power_it_niter=3, eps=1e-12):
+        """
+        This module is a batched version of the Power Iteration algorithm.
+        It is used to normalize the kernel of a convolutional layer.
+
+        Args:
+            kernel_shape (tuple): shape of the kernel, the last dimension will be normalized.
+            power_it_niter (int, optional): number of iterations. Defaults to 3.
+            eps (float, optional): small value to avoid division by zero. Defaults to 1e-12.
+        """
         super(BatchedPowerIteration, self).__init__()
-        self.num_kernels = num_kernels
-        self.cin = cin
-        self.cout = cout
+        self.kernel_shape = kernel_shape
         self.power_it_niter = power_it_niter
         self.eps = eps
         # init u
-        if self.num_kernels is not None:
-            self.u = nn.Parameter(
-                torch.Tensor(torch.randn(num_kernels, cout, 1)),
-                requires_grad=False,
-            )
-            self.v = nn.Parameter(
-                torch.Tensor(torch.randn(num_kernels, cin, 1)),
-                requires_grad=False,
-            )
-        else:
-            self.u = nn.Parameter(
-                torch.Tensor(torch.randn(cout, 1)),
-                requires_grad=False,
-            )
-            self.v = nn.Parameter(
-                torch.Tensor(torch.randn(cin, 1)),
-                requires_grad=False,
-            )
+        # u will be kernel_shape[:-2] + (kernel_shape[:-2], 1)
+        # v will be kernel_shape[:-2] + (kernel_shape[:-1], 1,)
+        self.u = nn.Parameter(
+            torch.Tensor(torch.randn(*kernel_shape[:-2], kernel_shape[-2], 1)),
+            requires_grad=False,
+        )
+        self.v = nn.Parameter(
+            torch.Tensor(torch.randn(*kernel_shape[:-2], kernel_shape[-1], 1)),
+            requires_grad=False,
+        )
         parametrize.register_parametrization(self, "u", L2Normalize(dim=(-2)))
         parametrize.register_parametrization(self, "v", L2Normalize(dim=(-2)))
 
@@ -158,28 +157,34 @@ def fast_matrix_conv(m1, m2, groups=1):
 
 def block_orth(p1, p2):
     assert p1.shape == p2.shape
-    n = p1.size(0)
+    g, n, n2 = p1.shape
     eye = torch.eye(n, device=p1.device, dtype=p1.dtype)
-    return torch.einsum(
-        "bij,cjk->ikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
+    res = torch.einsum(
+        "bgij,cgjk->gikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
     )
+    res = res.reshape(g * n, n, 2, 2)
+    return res
 
 
 class ConvolutionOrthogonalGenerator(nn.Module):
     def __init__(
         self,
         kernel_size,
+        groups,
     ):
         super(ConvolutionOrthogonalGenerator, self).__init__()
         self.kernel_size = kernel_size
+        self.groups = groups
 
     def forward(self, PQ):
         # we can rewrite PQ@PQ.t as an einsum
-        PQ = torch.einsum("ijl,ikl->ijk", PQ, PQ)
+        PQ = torch.einsum("gijl,gikl->gijk", PQ, PQ)
         # PQ = PQ @ PQ.transpose(-1, -2)
-        p = block_orth(PQ[0], PQ[1])
+        p = block_orth(PQ[:, 0], PQ[:, 1])
         for _ in range(0, self.kernel_size - 2):
-            p = fast_matrix_conv(p, block_orth(PQ[_ * 2], PQ[_ * 2 + 1]))
+            p = fast_matrix_conv(
+                p, block_orth(PQ[:, _ * 2], PQ[:, _ * 2 + 1]), self.groups
+            )
         return p
 
     def right_inverse(self, kernel):
@@ -199,24 +204,25 @@ class BCOP(nn.Module):
         stride=1,
         padding="circular",
         bias=True,
+        groups=1,
         pi_iters=3,
         bjorck_beta=0.5,
         bjorck_nbp_iters=25,
         bjorck_bp_iters=10,
-        override_min_channels=None,
+        override_max_channels=None,
     ):
         """New parametrization of BCOP. It is in fact a sequence of 3 convolutions:
-        - a 1x1 RKO convolution with in_channels inputs and min_channels outputs
+        - a 1x1 RKO convolution with in_channels inputs and max_channels outputs
             parametrized with RKO. It is orthogonal as it is a 1x1 convolution
-        - a (k-s+1)x(k-s+1) BCOP conv with min_channels inputs and outputs
-        - a sxs RKO convolution with stride s, min_channels inputs and out_channels outputs.
+        - a (k-s+1)x(k-s+1) BCOP conv with max_channels inputs and outputs
+        - a sxs RKO convolution with stride s, max_channels inputs and out_channels outputs.
 
         Depending on the context (kernel size, stride, number of in/out channels) this method
         may only use 1 or 2 of the 3 described convolutions. Fusing the kernels result in a
         single kxk kernel with in_channels inputs and out_channels outputs with stride s.
 
-        where min_channels = min(in_channels, out_channels) or overrided value
-        when override_min_channels is not None.
+        where max_channels = min(in_channels, out_channels) or overrided value
+        when override_max_channels is not None.
 
         Args:
             in_channels (int): number of input channels
@@ -227,40 +233,58 @@ class BCOP(nn.Module):
                     handled by torch.nn.functional.pad, but most common are
                     "same", "valid" or "circular". Defaults to "circular".
             bias (bool, optional): enable bias. Defaults to True.
+            groups (int, optional): number of groups. Defaults to 1.
             pi_iters (int, optional): number of iterations used to normalize kernel. Defaults to 3.
             bjorck_beta (float, optional): beta factor used in Björk&Bowie algorithm. Must be
                     between 0 and 0.5. Defaults to 0.5.
             bjorck_nbp_iters (int, optional): number of iteration without backpropagation. Defaults to 25.
             bjorck_bp_iters (int, optional): number of iterations with backpropagation. Defaults to 10.
-            override_min_channels (int, optional): allow to ovveride the number of channels in the
+            override_max_channels (int, optional): allow to ovveride the number of channels in the
                     main convolution (which is set to min(in_channels, out_channels) by default).
                     It can be used to overparametrize the convolution (when set to greater values)
                     or to create rank deficient convolutions. Defaults to None.
         """
         super(BCOP, self).__init__()
+        # raise runtime error if kernel size >= stride
+        if kernel_size < stride:
+            raise RuntimeError("kernel size must be smaller than stride")
+        if padding not in ["same", "valid", "circular"]:
+            raise RuntimeError("padding must be 'same', 'valid' or 'circular'")
+        if bjorck_beta < 0 or bjorck_beta > 0.5:
+            raise RuntimeError("bjorck_beta must be between 0 and 0.5")
+        if max(in_channels, out_channels) % groups != 0:
+            raise RuntimeError(
+                "in_channels and out_channels must be divisible by groups"
+            )
+        if ((max(in_channels, out_channels) // groups) < 2) and (kernel_size != stride):
+            raise RuntimeError("inner conv must have at least 2 channels")
+
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.min_channels = (
-            override_min_channels
-            if override_min_channels is not None
-            else min(self.out_channels, self.in_channels)
+        self.max_channels = (
+            override_max_channels
+            if override_max_channels is not None
+            else max(self.out_channels, self.in_channels)
         )
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
         self.mainconv_kernel_size = self.kernel_size - (stride - 1)
         self.num_kernels = 2 * self.mainconv_kernel_size
+        self.groups = groups
         self.bjorck_bp_iters = bjorck_bp_iters
         self.bjorck_nbp_iters = bjorck_nbp_iters
         self.bjorck_beta = bjorck_beta
         self.pi_iters = pi_iters
 
-        if (self.in_channels != self.min_channels) and (
-            self.kernel_size != self.stride
-        ):
+        if (self.in_channels != self.max_channels) or (self.kernel_size == 1):
             # we have to add a preconvolution to reduce the number of channels
             self.preconv_weight = nn.Parameter(
-                torch.Tensor(self.min_channels, self.in_channels),
+                torch.Tensor(
+                    self.groups,
+                    self.max_channels // self.groups,
+                    self.in_channels // self.groups,
+                ),
                 requires_grad=True,
             )
             torch.nn.init.orthogonal_(self.preconv_weight)
@@ -268,7 +292,8 @@ class BCOP(nn.Module):
                 self,
                 "preconv_weight",
                 BatchedPowerIteration(
-                    None, self.min_channels, self.in_channels, self.pi_iters
+                    self.preconv_weight.shape,
+                    self.pi_iters,
                 ),
             )
             parametrize.register_parametrization(
@@ -287,7 +312,10 @@ class BCOP(nn.Module):
         if self.kernel_size != self.stride:
             self.mainconv_weight = nn.Parameter(
                 torch.Tensor(
-                    self.num_kernels, self.min_channels, self.min_channels // 2
+                    self.groups,
+                    self.num_kernels,
+                    self.max_channels // self.groups,
+                    self.max_channels // (self.groups * 2),
                 ),
                 requires_grad=True,
             )
@@ -296,9 +324,7 @@ class BCOP(nn.Module):
                 self,
                 "mainconv_weight",
                 BatchedPowerIteration(
-                    self.num_kernels,
-                    self.min_channels,
-                    self.min_channels // 2,
+                    self.mainconv_weight.shape,
                     self.pi_iters,
                 ),
             )
@@ -315,31 +341,38 @@ class BCOP(nn.Module):
             parametrize.register_parametrization(
                 self,
                 "mainconv_weight",
-                ConvolutionOrthogonalGenerator(self.mainconv_kernel_size),
+                ConvolutionOrthogonalGenerator(self.mainconv_kernel_size, self.groups),
                 unsafe=True,
             )
         else:
             self.mainconv_weight = None
         # declare the postconvolution
-        if (self.out_channels != self.min_channels) or (stride > 1):
+        if (self.out_channels != self.max_channels) or (stride > 1):
             self.postconv_weight = nn.Parameter(
-                torch.Tensor(self.out_channels, self.min_channels, stride, stride),
+                torch.Tensor(
+                    groups,
+                    self.out_channels // groups,
+                    (self.max_channels * stride * stride) // groups,
+                ),
                 requires_grad=True,
             )
             torch.nn.init.orthogonal_(self.postconv_weight)
             parametrize.register_parametrization(
                 self,
                 "postconv_weight",
-                RKO(
-                    out_channels=out_channels,
-                    in_channels=self.min_channels,
-                    kernel_size=stride,
-                    scale=1.0,
-                    power_it_niter=pi_iters,
-                    eps=1e-12,
-                    beta=bjorck_beta,
-                    backprop_iters=bjorck_bp_iters,
-                    non_backprop_iters=bjorck_nbp_iters,
+                BatchedPowerIteration(
+                    self.postconv_weight.shape,
+                    self.pi_iters,
+                ),
+            )
+            parametrize.register_parametrization(
+                self,
+                "postconv_weight",
+                BatchedBjorckOrthogonalization(
+                    self.postconv_weight.shape,
+                    self.bjorck_beta,
+                    self.bjorck_bp_iters,
+                    self.bjorck_nbp_iters,
                 ),
             )
         else:
@@ -363,14 +396,32 @@ class BCOP(nn.Module):
                 self.postconv_weight,
                 self.in_channels,
                 self.out_channels,
-                self.min_channels,
+                self.max_channels,
+                self.stride,
+                self.groups,
             )
         self.register_buffer("weight_buffer", self.weight)
 
     def singular_values(self):
+        if self.padding != "circular":
+            print(
+                f"padding {self.padding} not supported, return min and max"
+                f"singular values as if it was 'circular' padding "
+                f"(overestimate the values)."
+            )
         if self.stride == 1:
             sv_min, sv_max, stable_rank = conv_singular_values_numpy(
-                self.weight.detach().cpu().numpy(), self._input_shape
+                self.weight.detach()
+                .cpu()
+                .reshape(
+                    self.groups,
+                    self.out_channels // self.groups,
+                    self.in_channels // self.groups,
+                    self.kernel_size,
+                    self.kernel_size,
+                )
+                .numpy(),
+                self._input_shape,
             )
         else:
             print("unable to compute full spectrum return min and max singular values")
@@ -379,7 +430,14 @@ class BCOP(nn.Module):
             stable_ranks = []
             if self.preconv_weight is not None:
                 svs = np.linalg.svd(
-                    self.preconv_weight.detach().cpu().numpy(),
+                    self.preconv_weight.detach()
+                    .cpu()
+                    .reshape(
+                        self.groups,
+                        self.max_channels // self.groups,
+                        self.in_channels // self.groups,
+                    )
+                    .numpy(),
                     compute_uv=False,
                     full_matrices=True,
                 )
@@ -388,7 +446,17 @@ class BCOP(nn.Module):
                 stable_ranks.append(np.sum(np.mean(svs)) / (svs.max() ** 2))
             if self.mainconv_weight is not None:
                 sv_min, sv_max, s_r = conv_singular_values_numpy(
-                    self.mainconv_weight.detach().cpu().numpy(), self._input_shape
+                    self.mainconv_weight.detach()
+                    .cpu()
+                    .reshape(
+                        self.groups,
+                        self.max_channels // self.groups,
+                        self.max_channels // self.groups,
+                        self.mainconv_kernel_size,
+                        self.mainconv_kernel_size,
+                    )
+                    .numpy(),
+                    self._input_shape,
                 )
                 sv_min = sv_min * sv_min
                 sv_max = sv_max * sv_max
@@ -396,7 +464,9 @@ class BCOP(nn.Module):
             if self.postconv_weight is not None:
                 svs = np.linalg.svd(
                     self.postconv_weight.view(
-                        self.out_channels, self.min_channels * self.stride * self.stride
+                        self.groups,
+                        self.out_channels // self.groups,
+                        (self.max_channels * self.stride * self.stride) // self.groups,
                     )
                     .detach()
                     .cpu()
@@ -412,17 +482,34 @@ class BCOP(nn.Module):
 
     @staticmethod
     def merge_kernels(
-        preconv_weight, mainconv_weight, postconv_weight, cin, cout, min_c
+        preconv_weight,
+        mainconv_weight,
+        postconv_weight,
+        cin,
+        cout,
+        min_c,
+        stride,
+        groups,
     ):
         if preconv_weight is not None:
-            preconv_weight = preconv_weight.view(min_c, cin, 1, 1)
+            preconv_weight = preconv_weight.view(min_c, cin // groups, 1, 1)
+        if postconv_weight is not None:
+            # reshape from (groups, cout // groups, min_c // groups * stride * stride)
+            # to (cout, min_c // groups, stride, stride)
+            postconv_weight = postconv_weight.view(
+                cout, min_c // groups, stride, stride
+            )
         if cin <= min_c:
             return fast_matrix_conv(
-                fast_matrix_conv(preconv_weight, mainconv_weight), postconv_weight
+                fast_matrix_conv(preconv_weight, mainconv_weight, groups),
+                postconv_weight,
+                groups,
             )
         else:
             return fast_matrix_conv(
-                preconv_weight, fast_matrix_conv(mainconv_weight, postconv_weight)
+                preconv_weight,
+                fast_matrix_conv(mainconv_weight, postconv_weight, groups),
+                groups,
             )
 
     def forward(self, x):
@@ -434,7 +521,9 @@ class BCOP(nn.Module):
                 self.postconv_weight,
                 self.in_channels,
                 self.out_channels,
-                self.min_channels,
+                self.max_channels,
+                self.stride,
+                self.groups,
             )
             self.weight = weight
         else:
@@ -451,9 +540,13 @@ class BCOP(nn.Module):
                 ),
                 mode=self.padding,
             )
-            z = F.conv2d(x_pad, weight, padding="valid", stride=self.stride)
+            z = F.conv2d(
+                x_pad, weight, padding="valid", groups=self.groups, stride=self.stride
+            )
         else:
-            z = F.conv2d(x, weight, padding=self.padding, stride=self.stride)
+            z = F.conv2d(
+                x, weight, padding=self.padding, groups=self.groups, stride=self.stride
+            )
         if self.enable_bias:
             z = z + self.bias.view(1, -1, 1, 1)
         return z
@@ -480,9 +573,7 @@ class RKO(nn.Module):
         self.register_module(
             "pi",
             BatchedPowerIteration(
-                num_kernels=None,
-                cin=in_channels * kernel_size * kernel_size,
-                cout=out_channels,
+                kernel_shape=(out_channels, in_channels * kernel_size * kernel_size),
                 power_it_niter=power_it_niter,
                 eps=eps,
             ),
@@ -571,7 +662,7 @@ class OrthoLinear(nn.Linear):
         parametrize.register_parametrization(
             self,
             "weight",
-            BatchedPowerIteration(None, self.out_features, self.in_features),
+            BatchedPowerIteration((self.out_features, self.in_features)),
         )
         parametrize.register_parametrization(
             self, "weight", BatchedBjorckOrthogonalization(self.weight.shape)
