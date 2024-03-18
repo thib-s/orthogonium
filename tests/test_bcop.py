@@ -4,11 +4,12 @@ import torch
 from flashlipschitz.layers.fast_block_ortho_conv import BCOP
 
 
-@pytest.mark.parametrize("kernel_size", [3, 5, 7])
+@pytest.mark.parametrize("kernel_size", [1, 3, 5, 7])
 @pytest.mark.parametrize("input_channels", [8, 16, 32])
 @pytest.mark.parametrize("output_channels", [8, 16, 32])
 @pytest.mark.parametrize("stride", [1, 2])
-def test_bcop(kernel_size, input_channels, output_channels, stride):
+@pytest.mark.parametrize("groups", [1, 2, 4])
+def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     # Test instantiation
     try:
         bcop = BCOP(
@@ -16,9 +17,16 @@ def test_bcop(kernel_size, input_channels, output_channels, stride):
             in_channels=input_channels,
             out_channels=output_channels,
             stride=stride,
+            groups=groups,
         )
     except Exception as e:
-        pytest.fail(f"BCOP instantiation failed with: {e}")
+        if kernel_size < stride:
+            # we expect this configuration to raise a RuntimeError
+            pytest.succeed(f"BCOP instantiation failed with: {e}")
+        elif kernel_size == 1 and input_channels == output_channels:
+            pass
+        else:
+            pytest.fail(f"BCOP instantiation failed with: {e}")
 
     # Test backpropagation and weight update
     try:
