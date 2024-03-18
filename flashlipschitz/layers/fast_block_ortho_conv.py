@@ -1,14 +1,12 @@
-import torch.nn.functional as F
-import torch.nn as nn
-import torch
-import numpy as np
 import math
-import time
-from einops import rearrange
+from typing import Optional
+
 import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_2_t
-from typing import Optional
 
 
 def conv_singular_values_numpy(kernel, input_shape):
@@ -134,7 +132,7 @@ class GradPassthroughBjorck(torch.autograd.Function):
         return grad_input, None, None
 
 
-def fast_matrix_conv(m1, m2):
+def fast_matrix_conv(m1, m2, groups=1):
     if m1 is None:
         return m2
     if m2 is None:
@@ -143,39 +141,27 @@ def fast_matrix_conv(m1, m2):
     # m2 is nb*m*l1*l2
     m, n, k1, k2 = m1.shape
     nb, mb, l1, l2 = m2.shape
-    assert m == mb
+    assert m == mb * groups
 
     # Rearrange m1 for conv
-    # we put the n dimension in the depth dimension
-    # and the m dimension in the channel dimension
-    # to ensure NCDHW format
-    m1 = m1.unsqueeze(0)  # 1*m*n*k1*k2
+    m1 = m1.transpose(0, 1)  # n*m*k1*k2
 
     # Rearrange m2 for conv
-    # we transpose the spatial dimensions
-    # and put the m dimension in the channel dimension
-    # to ensure the kernel format: ic, oc, d, k1, k2
-    # we expect the tensor to have shape mb*nb*1*l2*l1
-    m2 = m2.transpose(0, 1)  # m*nb*l1*l2
-    m2 = m2.unsqueeze(2)  # m*nb*1*l1*l2
+    m2 = m2.flip(-2, -1)
 
-    # Run conv, output shape 1*nb*n*(k+l-1)*(k+l-1)
-    r2 = torch.nn.functional.conv_transpose3d(m1, m2)
+    # Run conv, output shape nb*n*(k+l-1)*(k+l-1)
+    r2 = torch.nn.functional.conv2d(m1, m2, groups=groups, padding=(l1 - 1, l2 - 1))
 
     # Rearrange result
-    r2 = r2.squeeze(0)  # nb*n*(k+l-1)*(k+l-1)
-    return r2
+    return r2.transpose(0, 1)  # n*nb*(k+l-1)*(k+l-1)
 
 
 def block_orth(p1, p2):
     assert p1.shape == p2.shape
     n = p1.size(0)
     eye = torch.eye(n, device=p1.device, dtype=p1.dtype)
-    return torch.stack(
-        [
-            torch.stack([p1.mm(p2), p1.mm(eye - p2)]),
-            torch.stack([(eye - p1).mm(p2), (eye - p1).mm(eye - p2)]),
-        ]
+    return torch.einsum(
+        "bij,cjk->ikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
     )
 
 
@@ -187,28 +173,14 @@ class ConvolutionOrthogonalGenerator(nn.Module):
         super(ConvolutionOrthogonalGenerator, self).__init__()
         self.kernel_size = kernel_size
 
-    @staticmethod
-    def fast_matrix_conv(m1, m2):
-        """modified version of fast_matrix_conv to avoid the transpose operation"""
-        k1, k2, n, m = m1.shape
-        l1, l2, mb, nb = m2.shape
-        assert m == mb
-        m1 = m1.unsqueeze(0)  # 1*k1*k2*n*m
-        m1 = m1.permute(0, 4, 3, 1, 2)  # 1*n*k1*k1*m
-        m2 = m2.permute(2, 3, 0, 1)  # m*nb*l1*l2
-        m2 = m2.unsqueeze(2)  # m*nb*1*l1*l2
-        r2 = F.conv_transpose3d(m1, m2)
-        r2 = r2.squeeze(0).permute(2, 3, 1, 0)  # (k+l-1)*(k+l-1)*n*m
-        return r2
-
     def forward(self, PQ):
         # we can rewrite PQ@PQ.t as an einsum
-        # PQ = torch.einsum("ijl,ikl->ijk", PQ, PQ)
-        PQ = PQ @ PQ.transpose(-1, -2)
+        PQ = torch.einsum("ijl,ikl->ijk", PQ, PQ)
+        # PQ = PQ @ PQ.transpose(-1, -2)
         p = block_orth(PQ[0], PQ[1])
         for _ in range(0, self.kernel_size - 2):
-            p = self.fast_matrix_conv(p, block_orth(PQ[_ * 2], PQ[_ * 2 + 1]))
-        return p.permute(2, 3, 0, 1)
+            p = fast_matrix_conv(p, block_orth(PQ[_ * 2], PQ[_ * 2 + 1]))
+        return p
 
     def right_inverse(self, kernel):
         ci, co, k1, k2 = kernel.shape
