@@ -1,33 +1,30 @@
+import argparse
+import math
+import time
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-import numpy as np
-import time
-import math
-import argparse
-
-from flashlipschitz.layers.fast_block_ortho_conv import (
-    BCOP,
-    OrthoLinear,
-    ScaledAvgPool2d,
-)
-from flashlipschitz.layers.custom_activations import (
-    MaxMin,
-    HouseHolder,
-    HouseHolder_Order_2,
-    Abs,
-)
-
-# from deel import torchlip as tl  ## copy pasted code from the lib to reduce dependencies
 from torchsummary import summary
 
-#### run this to reach 83% on cifar10 in less than 10 minutes on a single GPU
-#### python train_convmixer_91.py --epochs=25 --batch-size=512 --lr-max=5e-4 --ra-n=0 --ra-m=0 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=128 --amp-enabled
-#### run this to reach 92% (each epoch is 2x longer)
-#### python train_convmixer.py --epochs=200 --lr-max=5e-4 --ra-n=2 --ra-m=12 --wd=5e-4 --scale=1.0 --jitter=0 --reprob=0 --conv-ks=3 --hdim=256
-#### python train_convmixer_91.py --epochs=200 --batch-size=1024 --lr-max=5e-4 --ra-n=2 --ra-m=12 --wd=5e-4 --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=512  --amp-enabled
+from flashlipschitz.layers.custom_activations import Abs
+from flashlipschitz.layers.custom_activations import HouseHolder
+from flashlipschitz.layers.custom_activations import HouseHolder_Order_2
+from flashlipschitz.layers.custom_activations import MaxMin
+from flashlipschitz.layers.fast_block_ortho_conv import BCOP
+from flashlipschitz.layers.fast_block_ortho_conv import OrthoLinear
+from flashlipschitz.layers.fast_block_ortho_conv import ScaledAvgPool2d
+
+# from deel import torchlip as tl  ## copy pasted code from the lib to reduce dependencies
+
+#### run this to reach 84% on cifar10 in less than 10 minutes on a single GPU
+#### python train_convmixer.py --epochs=25 --batch-size=512 --lr-max=5e-4 --ra-n=0 --ra-m=0 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=128 --amp-enabled
+
+#### run this to reach 86% and 64% VRA (each epoch is waaaaay much longer)
+#### python train_convmixer.py --epochs=200 --batch-size=512 --lr-max=5e-4 --ra-n=2 --ra-m=12 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=512 --gamma=10.0 --amp-enabled
 
 parser = argparse.ArgumentParser()
 
@@ -46,6 +43,8 @@ parser.add_argument("--stages", default=2, type=int)
 parser.add_argument("--psize", default=2, type=int)
 parser.add_argument("--conv-ks", default=5, type=int)
 parser.add_argument("--expand-factor", default=2, type=int)
+parser.add_argument("--bjorck-nbp-iters", default=0, type=int)
+parser.add_argument("--bjorck-bp-iters", default=10, type=int)
 
 parser.add_argument("--wd", default=1e-5, type=float)
 parser.add_argument("--clip-norm", action="store_true")
@@ -87,8 +86,8 @@ def BasicCNN(dim, depth, kernel_size=5, patch_size=2, expand_factor=2, n_classes
             padding="valid",
             bias=False,
             pi_iters=3,
-            bjorck_bp_iters=2,
-            bjorck_nbp_iters=5,
+            bjorck_bp_iters=args.bjorck_bp_iters,
+            bjorck_nbp_iters=args.bjorck_nbp_iters,
         ),
         # MaxMin(),
         *[
@@ -100,8 +99,8 @@ def BasicCNN(dim, depth, kernel_size=5, patch_size=2, expand_factor=2, n_classes
                     padding="same",
                     bias=False,
                     pi_iters=3,
-                    bjorck_bp_iters=2,
-                    bjorck_nbp_iters=5,
+                    bjorck_bp_iters=args.bjorck_bp_iters,
+                    bjorck_nbp_iters=args.bjorck_nbp_iters,
                     override_min_channels=expand_factor * dim,
                 ),
                 # Oddly MaxMin works better than HouseHolder
@@ -116,8 +115,8 @@ def BasicCNN(dim, depth, kernel_size=5, patch_size=2, expand_factor=2, n_classes
                     padding="same",
                     bias=False,
                     pi_iters=3,
-                    bjorck_bp_iters=2,
-                    bjorck_nbp_iters=5,
+                    bjorck_bp_iters=args.bjorck_bp_iters,
+                    bjorck_nbp_iters=args.bjorck_nbp_iters,
                     override_min_channels=expand_factor * dim,
                 ),
                 # once we got back to dim don't add MaxMin
