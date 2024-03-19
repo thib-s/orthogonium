@@ -15,8 +15,8 @@ from flashlipschitz.layers.custom_activations import HouseHolder
 from flashlipschitz.layers.custom_activations import HouseHolder_Order_2
 from flashlipschitz.layers.custom_activations import MaxMin
 from flashlipschitz.layers.fast_block_ortho_conv import BCOP
-from flashlipschitz.layers.fast_block_ortho_conv import OrthoLinear
-from flashlipschitz.layers.fast_block_ortho_conv import ScaledAvgPool2d
+from flashlipschitz.layers.pooling import ScaledAvgPool2d
+from flashlipschitz.layers.rko_conv import OrthoLinear
 
 # from deel import torchlip as tl  ## copy pasted code from the lib to reduce dependencies
 
@@ -24,7 +24,7 @@ from flashlipschitz.layers.fast_block_ortho_conv import ScaledAvgPool2d
 #### python train_convmixer.py --epochs=25 --batch-size=512 --lr-max=5e-4 --ra-n=0 --ra-m=0 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=128 --amp-enabled
 
 #### run this to reach 86% and 64% VRA (each epoch is waaaaay much longer)
-#### python train_convmixer.py --epochs=200 --batch-size=512 --lr-max=5e-4 --ra-n=2 --ra-m=12 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=512 --gamma=10.0 --amp-enabled
+#### python train_convmixer.py --name LeGros --epochs=250 --batch-size=512 --lr-max=5e-4 --ra-n=2 --ra-m=10 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=512 --gamma=20.0 --amp-enabled
 
 parser = argparse.ArgumentParser()
 
@@ -101,7 +101,6 @@ def BasicCNN(dim, depth, kernel_size=5, patch_size=2, expand_factor=2, n_classes
                     pi_iters=3,
                     bjorck_bp_iters=args.bjorck_bp_iters,
                     bjorck_nbp_iters=args.bjorck_nbp_iters,
-                    override_min_channels=expand_factor * dim,
                 ),
                 # Oddly MaxMin works better than HouseHolder
                 # also as these activations are pairwise
@@ -117,7 +116,6 @@ def BasicCNN(dim, depth, kernel_size=5, patch_size=2, expand_factor=2, n_classes
                     pi_iters=3,
                     bjorck_bp_iters=args.bjorck_bp_iters,
                     bjorck_nbp_iters=args.bjorck_nbp_iters,
-                    override_min_channels=expand_factor * dim,
                 ),
                 # once we got back to dim don't add MaxMin
             )
@@ -282,3 +280,11 @@ def print_sv(layer):
 
 
 model.apply(print_sv)
+
+print("saving model")
+torch.save(
+    model.state_dict(), f"{args.name}_acc_{test_acc/m:.2f}_vra_{test_vra/m:.2f}.pth"
+)
+# save args
+with open(f"{args.name}_args.txt", "w") as f:
+    f.write(str(args))
