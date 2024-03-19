@@ -1,12 +1,8 @@
-import math
-from typing import Optional
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.utils.parametrize as parametrize
-from torch.nn.common_types import _size_2_t
 
 
 def conv_singular_values_numpy(kernel, input_shape):
@@ -403,12 +399,12 @@ class BCOP(nn.Module):
         self.register_buffer("weight_buffer", self.weight)
 
     def singular_values(self):
-        if self.padding != "circular":
-            print(
-                f"padding {self.padding} not supported, return min and max"
-                f"singular values as if it was 'circular' padding "
-                f"(overestimate the values)."
-            )
+        # if self.padding != "circular":
+        #     print(
+        #         f"padding {self.padding} not supported, return min and max"
+        #         f"singular values as if it was 'circular' padding "
+        #         f"(overestimate the values)."
+        #     )
         if self.stride == 1:
             sv_min, sv_max, stable_rank = conv_singular_values_numpy(
                 self.weight.detach()
@@ -550,183 +546,3 @@ class BCOP(nn.Module):
         if self.enable_bias:
             z = z + self.bias.view(1, -1, 1, 1)
         return z
-
-
-class RKO(nn.Module):
-    def __init__(
-        self,
-        out_channels,
-        in_channels,
-        kernel_size,
-        scale,
-        power_it_niter=3,
-        eps=1e-12,
-        beta=0.5,
-        backprop_iters=3,
-        non_backprop_iters=10,
-    ):
-        super(RKO, self).__init__()
-        self.out_channels = out_channels
-        self.in_channels = in_channels
-        self.kernel_size = kernel_size
-        self.scale = scale
-        self.register_module(
-            "pi",
-            BatchedPowerIteration(
-                kernel_shape=(out_channels, in_channels * kernel_size * kernel_size),
-                power_it_niter=power_it_niter,
-                eps=eps,
-            ),
-        )
-        self.register_module(
-            "bjorck",
-            BatchedBjorckOrthogonalization(
-                weight_shape=(out_channels, in_channels * kernel_size * kernel_size),
-                beta=beta,
-                backprop_iters=backprop_iters,
-                non_backprop_iters=non_backprop_iters,
-            ),
-        )
-
-    def forward(self, X):
-        X = X.reshape(
-            self.out_channels, self.in_channels * self.kernel_size * self.kernel_size
-        )
-        X = self.pi(X)
-        X = self.bjorck(X)
-        X = X.reshape(
-            self.out_channels, self.in_channels, self.kernel_size, self.kernel_size
-        )
-        return X / self.scale
-
-    def right_inverse(self, X):
-        return X
-
-
-class RKOConv2d(nn.Conv2d):
-    def __init__(
-        self,
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride=1,
-        padding="valid",
-        bias=True,
-        pi_kwargs={},
-        bjorck_kwargs={},
-        scale=1.0,
-    ):
-        super(RKOConv2d, self).__init__(
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride=stride,
-            padding=padding,
-            bias=bias,
-        )
-        torch.nn.init.orthogonal_(self.weight)
-        self.scale = scale / math.sqrt(kernel_size * kernel_size)
-        parametrize.register_parametrization(
-            self,
-            "weight",
-            RKO(
-                out_channels,
-                in_channels,
-                kernel_size,
-                self.scale,
-                **pi_kwargs,
-                **bjorck_kwargs,
-            ),
-        )
-
-    def forward(self, X):
-        # self._input_shape = X.shape[2:]
-        return super(RKOConv2d, self).forward(X)
-
-    def singular_values(self):
-        # Implements interface required by LipschitzModuleL2
-        sv_min, sv_max, stable_rank = conv_singular_values_numpy(
-            self.weight.detach().cpu().numpy(), self._input_shape
-        )
-        return sv_min, sv_max, stable_rank
-
-
-class OrthoLinear(nn.Linear):
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
-        super(OrthoLinear, self).__init__(*args, **kwargs)
-        torch.nn.init.orthogonal_(self.weight)
-        parametrize.register_parametrization(
-            self,
-            "weight",
-            BatchedPowerIteration((self.out_features, self.in_features)),
-        )
-        parametrize.register_parametrization(
-            self, "weight", BatchedBjorckOrthogonalization(self.weight.shape)
-        )
-
-    def singular_values(self):
-        svs = np.linalg.svd(
-            self.weight.detach().cpu().numpy(), full_matrices=False, compute_uv=False
-        )
-        stable_rank = np.sum(np.mean(svs)) / (svs.max() ** 2)
-        return svs.min(), svs.max(), stable_rank
-
-
-class ScaledAvgPool2d(nn.AvgPool2d):
-    def __init__(
-        self,
-        kernel_size: _size_2_t,
-        stride: Optional[_size_2_t] = None,
-        padding: _size_2_t = 0,
-        ceil_mode: bool = False,
-        count_include_pad: bool = True,
-        divisor_override: bool = None,
-        k_coef_lip: float = 1.0,
-    ):
-        """
-        Layer from the deel-torchlip project: https://github.com/deel-ai/deel-torchlip/blob/master/deel/torchlip/modules/pooling.py
-        Average pooling operation for spatial data, but with a lipschitz bound.
-
-        Args:
-            kernel_size: The size of the window.
-            stride: The stride of the window. Must be None or equal to
-                ``kernel_size``. Default value is ``kernel_size``.
-            padding: Implicit zero-padding to be added on both sides. Must
-                be zero.
-            ceil_mode: When True, will use ceil instead of floor to compute the output
-                shape.
-            count_include_pad: When True, will include the zero-padding in the averaging
-                calculation.
-            divisor_override: If specified, it will be used as divisor, otherwise
-                ``kernel_size`` will be used.
-            k_coef_lip: The Lipschitz factor to ensure. The output will be scaled
-                by this factor.
-
-        This documentation reuse the body of the original torch.nn.AveragePooling2D
-        doc.
-        """
-        torch.nn.AvgPool2d.__init__(
-            self,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-            ceil_mode=ceil_mode,
-            count_include_pad=count_include_pad,
-            divisor_override=divisor_override,
-        )
-        if isinstance(kernel_size, tuple):
-            self.scalingFactor = math.sqrt(np.prod(np.asarray(kernel_size)))
-        else:
-            self.scalingFactor = kernel_size
-
-        if self.stride != self.kernel_size:
-            raise RuntimeError("stride must be equal to kernel_size.")
-        if np.sum(self.padding) != 0:
-            raise RuntimeError(f"{type(self)} does not support padding.")
-
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return torch.nn.AvgPool2d.forward(self, input) * self.scalingFactor
