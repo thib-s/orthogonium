@@ -22,7 +22,8 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     except Exception as e:
         if kernel_size < stride:
             # we expect this configuration to raise a RuntimeError
-            pytest.succeed(f"BCOP instantiation failed with: {e}")
+            # pytest.skip(f"BCOP instantiation failed with: {e}")
+            return
         elif kernel_size == 1 and input_channels == output_channels:
             pass
         else:
