@@ -4,10 +4,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.utils.parametrize as parametrize
-from flash_lipschitz.flashlipschitz.layers.fast_block_ortho_conv import (
+
+from flashlipschitz.layers.fast_block_ortho_conv import (
     BatchedBjorckOrthogonalization,
 )
-from flash_lipschitz.flashlipschitz.layers.fast_block_ortho_conv import (
+from flashlipschitz.layers.fast_block_ortho_conv import (
     BatchedPowerIteration,
 )
 

@@ -1,7 +1,10 @@
-from flashlipschitz.layers.fast_block_ortho_conv import BCOP
-from flashlipschitz.layers.block_ortho_conv import BCOP as BCOP_old
 import torch
-from torch.profiler import profile, record_function, ProfilerActivity
+from torch.profiler import profile
+from torch.profiler import ProfilerActivity
+from torch.profiler import record_function
+
+from flashlipschitz.layers.block_ortho_conv import BCOP as BCOP_old
+from flashlipschitz.layers.fast_block_ortho_conv import FlashBCOP as BCOP
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -45,11 +48,11 @@ for in_channels in [128, 256]:
         output = conv_layer(random_input)
         # Perform a backward pass to compute gradients
         output.backward(torch.randn_like(output).to(device))
-    # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=2))
-    # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
-    print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
-    # prof.export_chrome_trace("trace_bcop_new.json")
-    print(prof.key_averages().total_average())
+    # # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=2))
+    # # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+    # print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
+    # # prof.export_chrome_trace("trace_bcop_new.json")
+    # print(prof.key_averages().total_average())
     # print(prof)
     print(
         # f"cpu_time:{prof.key_averages().self_cpu_time_total}",
@@ -70,7 +73,7 @@ for in_channels in [128, 256]:
 # with torch.no_grad():
 #     conv_layer.weight += 0.05 * conv_layer.weight.grad
 
-random_input = torch.randn(batch_size, input_channels, input_height, input_width).to(
+random_input = torch.randn(batch_size, in_channels, input_height, input_width).to(
     device
 )
 
@@ -78,8 +81,8 @@ random_input = torch.randn(batch_size, input_channels, input_height, input_width
 output = conv_layer(random_input)
 # print(conv_layer.weight.max())
 # recheck singular values
-sv_min, sv_max = conv_layer.singular_values()
-print(f"min sv: {sv_min}, max sv: {sv_max}")
+sv_min, sv_max, stable_rank = conv_layer.singular_values()
+print(f"min sv: {sv_min:.4f}, max sv: {sv_max:.4f} stable rank: {stable_rank:.4f}")
 
 ##
 ## compare with old implem

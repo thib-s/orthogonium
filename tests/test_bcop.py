@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from flashlipschitz.layers.fast_block_ortho_conv import BCOP
+from flashlipschitz.layers.fast_block_ortho_conv import FlashBCOP
 
 
 @pytest.mark.parametrize("kernel_size", [1, 3, 5, 7])
@@ -12,7 +12,7 @@ from flashlipschitz.layers.fast_block_ortho_conv import BCOP
 def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     # Test instantiation
     try:
-        bcop = BCOP(
+        bcop = FlashBCOP(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,

@@ -18,7 +18,7 @@ THRESHOLD = 1e-5
 @pytest.mark.parametrize("channels_2", [8, 16])
 @pytest.mark.parametrize("channels_3", [8, 16])
 @pytest.mark.parametrize("stride", [1, 2])
-@pytest.mark.parametrize("padding", ["valid", "circular"])
+@pytest.mark.parametrize("padding", ["valid-circular", "same-circular"])
 @pytest.mark.parametrize("groups", [1, 4])
 def test_conv2d_operations(
     kernel_size_1,
@@ -30,64 +30,54 @@ def test_conv2d_operations(
     padding,
     groups,
 ):
+    padding, padding_mode = padding.split("-")
+    padding = 0 if stride != 1 else padding
     # Initialize your kernels
     img_shape = (128, channels_1, 32, 32)
     kernel1_shape = (channels_2, channels_1 // groups, kernel_size_1, kernel_size_1)
     kernel2_shape = (channels_3, channels_2 // groups, kernel_size_2, kernel_size_2)
     kernel_1 = torch.randn(kernel1_shape)
     kernel_2 = torch.randn(kernel2_shape)
-    kernel_merged = fast_matrix_conv(kernel_1, kernel_2, groups=groups)
+    conv_1 = torch.nn.Conv2d(
+        channels_1,
+        channels_2,
+        kernel_size_1,
+        stride=1,
+        padding=padding,
+        padding_mode=padding_mode,
+        groups=groups,
+        bias=False,
+    )
+    conv_1.weight.data = kernel_1
+    conv_2 = torch.nn.Conv2d(
+        channels_2,
+        channels_3,
+        kernel_size_2,
+        stride=stride,
+        padding=padding,
+        padding_mode=padding_mode,
+        groups=groups,
+        bias=False,
+    )
+    conv_2.weight.data = kernel_2
 
+    kernel_merged = fast_matrix_conv(kernel_1, kernel_2, groups=groups)
+    conv_merged = torch.nn.Conv2d(
+        channels_1,
+        channels_3,
+        kernel_merged.shape[-1],
+        stride=stride,
+        padding=padding,
+        padding_mode=padding_mode,
+        groups=groups,
+        bias=False,
+    )
+    conv_merged.weight.data = kernel_merged
     # Initialize a dummy image based on img_shape
     img = torch.randn(img_shape)
 
     # Perform your convolution operations as in the original code
-    if padding not in [None, "same", "valid"]:
-        img_padded = F.pad(
-            img,
-            (
-                kernel_1.shape[-2] // 2,
-                kernel_1.shape[-1] // 2,
-            )
-            * 2,
-            mode=padding,
-        )
-        res_1 = F.conv2d(img_padded, kernel_1, stride=1, groups=groups, padding="valid")
-    else:
-        res_1 = F.conv2d(img, kernel_1, stride=1, groups=groups, padding=padding)
-    if padding not in [None, "same", "valid"]:
-        res_1_padded = F.pad(
-            res_1,
-            (
-                kernel_2.shape[-2] // 2,
-                kernel_2.shape[-1] // 2,
-            )
-            * 2,
-            mode=padding,
-        )
-        res_1 = F.conv2d(
-            res_1_padded, kernel_2, stride=1, groups=groups, padding="valid"
-        )
-    else:
-        res_1 = F.conv2d(res_1, kernel_2, stride=stride, groups=groups, padding=padding)
-
-    if padding not in [None, "same", "valid"]:
-        img_padded = F.pad(
-            img,
-            (
-                kernel_merged.shape[-2] // 2,
-                kernel_merged.shape[-1] // 2,
-            )
-            * 2,
-            mode=padding,
-        )
-        res_2 = F.conv2d(
-            img_padded, kernel_merged, stride=1, groups=groups, padding="valid"
-        )
-    else:
-        res_2 = F.conv2d(
-            img, kernel_merged, stride=stride, groups=groups, padding=padding
-        )
-    # Use an assert statement to check if the result meets your expectation
-    # For example, checking if the difference between res_1 and res_2 is below a threshold
+    res_1 = conv_1(img)
+    res_1 = conv_2(res_1)
+    res_2 = conv_merged(img)
     assert torch.mean(torch.square(res_1 - res_2)) < THRESHOLD

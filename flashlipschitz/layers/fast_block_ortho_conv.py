@@ -10,10 +10,12 @@ def conv_singular_values_numpy(kernel, input_shape):
     Hanie Sedghi, Vineet Gupta, and Philip M. Long. The singular values of convolutional layers.
     In International Conference on Learning Representations, 2019.
     """
-    kernel = np.transpose(kernel, [0, 3, 4, 1, 2])
-    transforms = np.fft.fft2(kernel, input_shape, axes=[1, 2])
-    svs = np.linalg.svd(transforms, compute_uv=False, full_matrices=False)
-    stable_rank = np.sum(np.mean(svs)) / (svs.max() ** 2)
+    kernel = np.transpose(kernel, [0, 3, 4, 1, 2])  # g, k1, k2, ci, co
+    transforms = np.fft.fft2(kernel, input_shape, axes=[1, 2])  # g, k1, k2, ci, co
+    svs = np.linalg.svd(
+        transforms, compute_uv=False, full_matrices=False
+    )  # g, k1, k2, min(ci, co)
+    stable_rank = np.mean(svs) / (svs.max() ** 2)
     return svs.min(), svs.max(), stable_rank
 
 
@@ -167,10 +169,27 @@ class ConvolutionOrthogonalGenerator(nn.Module):
         self,
         kernel_size,
         groups,
+        has_projector=False,
+        transpose=False,
     ):
+        """This module is used to generate orthogonal kernels for the BCOP layer. It takes
+        as input a matrix PQ of shape (groups, 2*kernel_size, c, c//2) and returns a kernel
+        of shape (c, c, kernel_size, kernel_size) that is orthogonal.
+
+        Args:
+            kernel_size (int): size of the kernel.
+            groups (int): number of groups in the convolution.
+            has_projector (bool, optional): when set to True, PQ also include a projection
+                matrix (i.e. a 1x1 convolution that allows to change the number of channels).
+                Defaults to False.
+            transpose (bool, optional): When set to True, the returned kernel is transposed.
+                Defaults to False.
+        """
         super(ConvolutionOrthogonalGenerator, self).__init__()
         self.kernel_size = kernel_size
         self.groups = groups
+        self.has_projector = has_projector
+        self.transpose = transpose
 
     def forward(self, PQ):
         # we can rewrite PQ@PQ.t as an einsum
@@ -181,17 +200,15 @@ class ConvolutionOrthogonalGenerator(nn.Module):
             p = fast_matrix_conv(
                 p, block_orth(PQ[:, _ * 2], PQ[:, _ * 2 + 1]), self.groups
             )
+        if self.has_projector:
+            p = torch.einsum("gmnkl,gmn->gmnkl", p, PQ[:, -1])
+        if self.transpose:
+            # we do not perform flip since it does not affect orthogonality
+            p = p.transpose(1, 2)
         return p
 
-    def right_inverse(self, kernel):
-        ci, co, k1, k2 = kernel.shape
-        assert k1 == k2
-        assert ci == co
-        kernel = kernel.permute(2, 3, 0, 1)
-        return kernel[:2, :, ci, : co // 2]
 
-
-class BCOP(nn.Module):
+class FlashBCOP(nn.Module):
     def __init__(
         self,
         in_channels,
@@ -240,7 +257,7 @@ class BCOP(nn.Module):
                     It can be used to overparametrize the convolution (when set to greater values)
                     or to create rank deficient convolutions. Defaults to None.
         """
-        super(BCOP, self).__init__()
+        super(FlashBCOP, self).__init__()
         # raise runtime error if kernel size >= stride
         if kernel_size < stride:
             raise RuntimeError("kernel size must be smaller than stride")
@@ -386,7 +403,7 @@ class BCOP(nn.Module):
 
         # buffer to store cached weight
         with torch.no_grad():
-            self.weight = BCOP.merge_kernels(
+            self.weight = FlashBCOP.merge_kernels(
                 self.preconv_weight,
                 self.mainconv_weight,
                 self.postconv_weight,
@@ -399,12 +416,12 @@ class BCOP(nn.Module):
         self.register_buffer("weight_buffer", self.weight)
 
     def singular_values(self):
-        # if self.padding != "circular":
-        #     print(
-        #         f"padding {self.padding} not supported, return min and max"
-        #         f"singular values as if it was 'circular' padding "
-        #         f"(overestimate the values)."
-        #     )
+        if self.padding != "circular":
+            print(
+                f"padding {self.padding} not supported, return min and max"
+                f"singular values as if it was 'circular' padding "
+                f"(overestimate the values)."
+            )
         if self.stride == 1:
             sv_min, sv_max, stable_rank = conv_singular_values_numpy(
                 self.weight.detach()
@@ -511,7 +528,7 @@ class BCOP(nn.Module):
     def forward(self, x):
         self._input_shape = x.shape[2:]
         if self.training:
-            weight = BCOP.merge_kernels(
+            weight = FlashBCOP.merge_kernels(
                 self.preconv_weight,
                 self.mainconv_weight,
                 self.postconv_weight,

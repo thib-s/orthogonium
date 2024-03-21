@@ -14,7 +14,7 @@ from flashlipschitz.layers.custom_activations import Abs
 from flashlipschitz.layers.custom_activations import HouseHolder
 from flashlipschitz.layers.custom_activations import HouseHolder_Order_2
 from flashlipschitz.layers.custom_activations import MaxMin
-from flashlipschitz.layers.fast_block_ortho_conv import BCOP
+from flashlipschitz.layers.fast_block_ortho_conv import FlashBCOP
 from flashlipschitz.layers.pooling import ScaledAvgPool2d
 from flashlipschitz.layers.rko_conv import OrthoLinear
 
@@ -78,7 +78,7 @@ def VRA(output, class_indices, L=1.0, eps=36 / 255, return_certs=False):
 
 def BasicCNN(dim, depth, kernel_size=5, patch_size=2, expand_factor=2, n_classes=10):
     return nn.Sequential(
-        BCOP(
+        FlashBCOP(
             in_channels=3,
             out_channels=dim,
             kernel_size=patch_size,
@@ -92,7 +92,7 @@ def BasicCNN(dim, depth, kernel_size=5, patch_size=2, expand_factor=2, n_classes
         # MaxMin(),
         *[
             nn.Sequential(
-                BCOP(
+                FlashBCOP(
                     in_channels=dim,
                     out_channels=expand_factor * dim,
                     kernel_size=kernel_size,
@@ -107,7 +107,7 @@ def BasicCNN(dim, depth, kernel_size=5, patch_size=2, expand_factor=2, n_classes
                 # doubling the number of channels drastically improves
                 # performances
                 MaxMin(),
-                BCOP(
+                FlashBCOP(
                     in_channels=expand_factor * dim,
                     out_channels=dim,
                     kernel_size=kernel_size,
@@ -192,12 +192,23 @@ model = nn.DataParallel(model).cuda()
 # model.compile()  ## TODO: make the modules compilable !!!!
 summary(model, (3, 32, 32))
 
-lr_schedule = lambda t: np.interp(
+# lr_schedule = lambda t: np.interp(
+#     [t],
+#     # [0, args.epochs * 2 // 5, args.epochs * 4 // 5, args.epochs],
+#     [0, 5, 15, args.epochs],
+#     [1e-6, args.lr_max, args.lr_max / 20.0, 0],
+# )[0]
+gamma_schedule = lambda t: np.interp(
     [t],
     # [0, args.epochs * 2 // 5, args.epochs * 4 // 5, args.epochs],
-    [0, 5, 15, args.epochs],
-    [0, args.lr_max, args.lr_max / 20.0, 0],
+    [0, args.epochs],
+    [1e-5, args.gamma],
 )[0]
+# use cosine lr schedule
+lr_schedule = (
+    lambda t: 1e-7 + args.lr_max * (1 + math.cos(math.pi * t / args.epochs)) / 2
+)
+
 
 opt = optim.AdamW(
     model.parameters(), lr=args.lr_max, weight_decay=args.wd, betas=(0.9, 0.99)
@@ -209,6 +220,8 @@ criterion = (
 if args.amp_enabled:
     scaler = torch.cuda.amp.GradScaler()
 
+std = torch.tensor(cifar10_std).cuda()
+L = 1 / torch.max(std)
 
 for epoch in range(args.epochs):
     start = time.time()
@@ -218,17 +231,18 @@ for epoch in range(args.epochs):
         X, y = X.cuda(), y.cuda()
 
         lr = lr_schedule(epoch + (i + 1) / len(trainloader))
+        gamma = gamma_schedule(epoch + (i + 1) / len(trainloader))
         opt.param_groups[0].update(lr=lr)
 
         opt.zero_grad()
         if args.amp_enabled:
             with torch.cuda.amp.autocast():
                 output = model(X)
-                certs = VRA(output, y, L=1.0, eps=36 / 255, return_certs=True)
+                certs = VRA(output, y, L=L, eps=36 / 255, return_certs=True)
                 # loss = criterion(output, y)
                 loss = (
-                    -criterion(output, nn.functional.one_hot(y, 10))
-                    - args.gamma * torch.clamp(certs, min=0.0, max=36 / 255)
+                    -(1.0 - gamma) * criterion(output, nn.functional.one_hot(y, 10))
+                    - gamma * torch.clamp(certs, min=0.0, max=36 / 255)
                 ).mean()
 
             scaler.scale(loss).backward()
@@ -239,7 +253,7 @@ for epoch in range(args.epochs):
             scaler.update()
         else:
             output = model(X)
-            certs = VRA(output, y, L=1.0, eps=36 / 255, return_certs=True)
+            certs = VRA(output, y, L=L, eps=36 / 255, return_certs=True)
             # loss = criterion(output, y)
             loss = (
                 -criterion(output, nn.functional.one_hot(y, 10))
@@ -251,7 +265,7 @@ for epoch in range(args.epochs):
             opt.step()
         train_loss += loss.item() * y.size(0)
         train_acc += (output.max(1)[1] == y).sum().item()
-        train_vra += VRA(output, y, L=1.0, eps=36 / 255).sum().item()
+        train_vra += VRA(output, y, L=L, eps=36 / 255).sum().item()
         n += y.size(0)
 
     model.eval()
@@ -262,10 +276,10 @@ for epoch in range(args.epochs):
             with torch.cuda.amp.autocast():
                 output = model(X)
             test_acc += (output.max(1)[1] == y).sum().item()
-            test_vra += VRA(output, y, L=1.0, eps=36 / 255).sum().item()
+            test_vra += VRA(output, y, L=L, eps=36 / 255).sum().item()
             m += y.size(0)
     print(
-        f"[{args.name}] Epoch: {epoch} | Train Acc: {train_acc/n:.4f}, Test Acc: {test_acc/m:.4f}, Test VRA: {test_vra/m:.4f}, Time: {time.time() - start:.1f}, lr: {lr:.6f}"
+        f"[{args.name}] Epoch: {epoch} | Train Acc: {train_acc/n:.4f}, Test Acc: {test_acc/m:.4f}, Test VRA: {test_vra/m:.4f}, Time: {time.time() - start:.1f}, lr: {lr:.6f}, gamma: {gamma:.2f}"
     )
 print("#" * 40)
 print("training finished, computing singular values of each layer")
