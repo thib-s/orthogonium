@@ -1,8 +1,17 @@
+from math import ceil
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.utils.parametrize as parametrize
+from torch.nn.common_types import _size_1_t
+from torch.nn.common_types import _size_2_t
+from torch.nn.common_types import _size_3_t
 
 
 def conv_singular_values_numpy(kernel, input_shape):
@@ -101,10 +110,12 @@ class BatchedBjorckOrthogonalization(nn.Module):
 
     def forward(self, w):
         for _ in range(self.backprop_iters):
-            # w = (1 + self.beta) * w - self.beta * self.wwtw_op(w)
-            w_t_w = w.transpose(-1, -2) @ w
-            w = (1 + self.beta) * w - self.beta * w @ w_t_w
-        w = GradPassthroughBjorck.apply(w, self.beta, self.non_backprop_iters)
+            w = (1 + self.beta) * w - self.beta * self.wwtw_op(w)
+            # w_t_w = w.transpose(-1, -2) @ w
+            # w = (1 + self.beta) * w - self.beta * w @ w_t_w
+        w = GradPassthroughBjorck.apply(
+            w, self.beta, self.non_backprop_iters, self.wwtw_op
+        )
         return w
 
     def right_inverse(self, w):
@@ -113,10 +124,11 @@ class BatchedBjorckOrthogonalization(nn.Module):
 
 class GradPassthroughBjorck(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, w, beta, iters):
+    def forward(ctx, w, beta, iters, wwtw_op):
         for _ in range(iters):
-            w_t_w = w.transpose(-1, -2) @ w
-            w = (1 + beta) * w - beta * w @ w_t_w
+            w = (1 + beta) * w - beta * wwtw_op(w)
+            # w_t_w = w.transpose(-1, -2) @ w
+            # w = (1 + self.beta) * w - self.beta * w @ w_t_w
         return w
 
     @staticmethod
@@ -126,7 +138,7 @@ class GradPassthroughBjorck(torch.autograd.Function):
         grad_input = (
             grad_output.clone()
         )  # For illustration, this just passes the gradient through.
-        return grad_input, None, None
+        return grad_input, None, None, None
 
 
 def fast_matrix_conv(m1, m2, groups=1):
@@ -164,7 +176,7 @@ def block_orth(p1, p2):
     return res
 
 
-class ConvolutionOrthogonalGenerator(nn.Module):
+class BCOPTrivializer(nn.Module):
     def __init__(
         self,
         kernel_size,
@@ -185,7 +197,7 @@ class ConvolutionOrthogonalGenerator(nn.Module):
             transpose (bool, optional): When set to True, the returned kernel is transposed.
                 Defaults to False.
         """
-        super(ConvolutionOrthogonalGenerator, self).__init__()
+        super(BCOPTrivializer, self).__init__()
         self.kernel_size = kernel_size
         self.groups = groups
         self.has_projector = has_projector
@@ -208,34 +220,36 @@ class ConvolutionOrthogonalGenerator(nn.Module):
         return p
 
 
-class FlashBCOP(nn.Module):
+class FlashBCOP(nn.Conv2d):
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride=1,
-        padding="circular",
-        bias=True,
-        groups=1,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: _size_2_t,
+        stride: _size_2_t = 1,
+        padding: Union[str, _size_2_t] = "same",
+        dilation: _size_2_t = 1,
+        groups: int = 1,
+        bias: bool = True,
+        padding_mode: str = "circular",
         pi_iters=3,
         bjorck_beta=0.5,
-        bjorck_nbp_iters=25,
-        bjorck_bp_iters=10,
-        override_max_channels=None,
+        bjorck_nbp_iters=0,
+        bjorck_bp_iters=25,
+        override_inner_channels=None,
     ):
         """New parametrization of BCOP. It is in fact a sequence of 3 convolutions:
-        - a 1x1 RKO convolution with in_channels inputs and max_channels outputs
+        - a 1x1 RKO convolution with in_channels inputs and inner_channels outputs
             parametrized with RKO. It is orthogonal as it is a 1x1 convolution
-        - a (k-s+1)x(k-s+1) BCOP conv with max_channels inputs and outputs
-        - a sxs RKO convolution with stride s, max_channels inputs and out_channels outputs.
+        - a (k-s+1)x(k-s+1) BCOP conv with inner_channels inputs and outputs
+        - a sxs RKO convolution with stride s, inner_channels inputs and out_channels outputs.
 
         Depending on the context (kernel size, stride, number of in/out channels) this method
         may only use 1 or 2 of the 3 described convolutions. Fusing the kernels result in a
         single kxk kernel with in_channels inputs and out_channels outputs with stride s.
 
-        where max_channels = min(in_channels, out_channels) or overrided value
-        when override_max_channels is not None.
+        where inner_channels = max(in_channels, out_channels) or overrided value
+        when override_inner_channels is not None.
 
         Args:
             in_channels (int): number of input channels
@@ -252,33 +266,45 @@ class FlashBCOP(nn.Module):
                     between 0 and 0.5. Defaults to 0.5.
             bjorck_nbp_iters (int, optional): number of iteration without backpropagation. Defaults to 25.
             bjorck_bp_iters (int, optional): number of iterations with backpropagation. Defaults to 10.
-            override_max_channels (int, optional): allow to ovveride the number of channels in the
-                    main convolution (which is set to min(in_channels, out_channels) by default).
-                    It can be used to overparametrize the convolution (when set to greater values)
-                    or to create rank deficient convolutions. Defaults to None.
         """
-        super(FlashBCOP, self).__init__()
+        if (padding == "same") and (stride != 1):
+            padding = kernel_size // 2 if kernel_size != stride else 0
+        super(FlashBCOP, self).__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+        )
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        if override_inner_channels is not None:
+            self.inner_channels = override_inner_channels
+        else:
+            if (stride**2) * in_channels >= out_channels:
+                self.inner_channels = in_channels
+            else:
+                self.inner_channels = out_channels // (stride**2)
+
         # raise runtime error if kernel size >= stride
         if kernel_size < stride:
-            raise RuntimeError("kernel size must be smaller than stride")
-        if padding not in ["same", "valid", "circular"]:
-            raise RuntimeError("padding must be 'same', 'valid' or 'circular'")
+            raise RuntimeError(
+                "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
+            )
         if bjorck_beta < 0 or bjorck_beta > 0.5:
             raise RuntimeError("bjorck_beta must be between 0 and 0.5")
-        if max(in_channels, out_channels) % groups != 0:
+        if (in_channels % groups != 0) and (out_channels % groups != 0):
             raise RuntimeError(
                 "in_channels and out_channels must be divisible by groups"
             )
-        if ((max(in_channels, out_channels) // groups) < 2) and (kernel_size != stride):
+        if dilation != 1:
+            raise RuntimeError("dilation not supported")
+        if ((self.inner_channels // groups) < 2) and (kernel_size != stride):
             raise RuntimeError("inner conv must have at least 2 channels")
-
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.max_channels = (
-            override_max_channels
-            if override_max_channels is not None
-            else max(self.out_channels, self.in_channels)
-        )
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
@@ -290,12 +316,12 @@ class FlashBCOP(nn.Module):
         self.bjorck_beta = bjorck_beta
         self.pi_iters = pi_iters
 
-        if (self.in_channels != self.max_channels) or (self.kernel_size == 1):
+        if (self.in_channels != self.inner_channels) or (self.kernel_size == 1):
             # we have to add a preconvolution to reduce the number of channels
             self.preconv_weight = nn.Parameter(
                 torch.Tensor(
                     self.groups,
-                    self.max_channels // self.groups,
+                    self.inner_channels // self.groups,
                     self.in_channels // self.groups,
                 ),
                 requires_grad=True,
@@ -327,8 +353,8 @@ class FlashBCOP(nn.Module):
                 torch.Tensor(
                     self.groups,
                     self.num_kernels,
-                    self.max_channels // self.groups,
-                    self.max_channels // (self.groups * 2),
+                    self.inner_channels // self.groups,
+                    self.inner_channels // (self.groups * 2),
                 ),
                 requires_grad=True,
             )
@@ -354,18 +380,18 @@ class FlashBCOP(nn.Module):
             parametrize.register_parametrization(
                 self,
                 "mainconv_weight",
-                ConvolutionOrthogonalGenerator(self.mainconv_kernel_size, self.groups),
+                BCOPTrivializer(self.mainconv_kernel_size, self.groups),
                 unsafe=True,
             )
         else:
             self.mainconv_weight = None
         # declare the postconvolution
-        if (self.out_channels != self.max_channels) or (stride > 1):
+        if (self.out_channels != self.inner_channels) or (stride > 1):
             self.postconv_weight = nn.Parameter(
                 torch.Tensor(
                     groups,
                     self.out_channels // groups,
-                    (self.max_channels * stride * stride) // groups,
+                    (self.inner_channels * stride * stride) // groups,
                 ),
                 requires_grad=True,
             )
@@ -391,29 +417,22 @@ class FlashBCOP(nn.Module):
         else:
             self.postconv_weight = None
 
-        # Bias parameters in the convolution
-        self.enable_bias = bias
-        if bias:
-            self.bias = nn.Parameter(
-                torch.Tensor(self.out_channels), requires_grad=True
-            )
-            torch.nn.init.zeros_(self.bias)
-        else:
-            self.bias = None
-
+        # self.weight is a Parameter that is not trainable
+        self.weight.requires_grad = False
         # buffer to store cached weight
         with torch.no_grad():
-            self.weight = FlashBCOP.merge_kernels(
+            # assign the weight to the cached weight
+            self.weight.data = FlashBCOP.merge_kernels(
                 self.preconv_weight,
                 self.mainconv_weight,
                 self.postconv_weight,
                 self.in_channels,
                 self.out_channels,
-                self.max_channels,
+                self.inner_channels,
                 self.stride,
                 self.groups,
             )
-        self.register_buffer("weight_buffer", self.weight)
+        # self.register_buffer("weight_buffer", self.weight)
 
     def singular_values(self):
         if self.padding != "circular":
@@ -447,7 +466,7 @@ class FlashBCOP(nn.Module):
                     .cpu()
                     .reshape(
                         self.groups,
-                        self.max_channels // self.groups,
+                        self.inner_channels // self.groups,
                         self.in_channels // self.groups,
                     )
                     .numpy(),
@@ -463,8 +482,8 @@ class FlashBCOP(nn.Module):
                     .cpu()
                     .reshape(
                         self.groups,
-                        self.max_channels // self.groups,
-                        self.max_channels // self.groups,
+                        self.inner_channels // self.groups,
+                        self.inner_channels // self.groups,
                         self.mainconv_kernel_size,
                         self.mainconv_kernel_size,
                     )
@@ -479,7 +498,8 @@ class FlashBCOP(nn.Module):
                     self.postconv_weight.view(
                         self.groups,
                         self.out_channels // self.groups,
-                        (self.max_channels * self.stride * self.stride) // self.groups,
+                        (self.inner_channels * self.stride * self.stride)
+                        // self.groups,
                     )
                     .detach()
                     .cpu()
@@ -534,32 +554,11 @@ class FlashBCOP(nn.Module):
                 self.postconv_weight,
                 self.in_channels,
                 self.out_channels,
-                self.max_channels,
+                self.inner_channels,
                 self.stride,
                 self.groups,
             )
-            self.weight = weight
+            self.weight.data = weight.data
         else:
-            weight = self.weight
-        # apply cyclic padding to the input and perform a standard convolution
-        if self.padding not in [None, "same", "valid"]:
-            x_pad = F.pad(
-                x,
-                (
-                    self.kernel_size // 2,
-                    self.kernel_size // 2,
-                    self.kernel_size // 2,
-                    self.kernel_size // 2,
-                ),
-                mode=self.padding,
-            )
-            z = F.conv2d(
-                x_pad, weight, padding="valid", groups=self.groups, stride=self.stride
-            )
-        else:
-            z = F.conv2d(
-                x, weight, padding=self.padding, groups=self.groups, stride=self.stride
-            )
-        if self.enable_bias:
-            z = z + self.bias.view(1, -1, 1, 1)
-        return z
+            weight = self.weight.data
+        return self._conv_forward(x, weight, self.bias)
