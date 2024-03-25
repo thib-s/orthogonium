@@ -8,22 +8,23 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-from torchsummary import summary
+from torchinfo import summary
 
+from flashlipschitz.layers import FlashBCOP
+from flashlipschitz.layers import MaxMin
+from flashlipschitz.layers import OrthoLinear
+from flashlipschitz.layers import ScaledAvgPool2d
+from flashlipschitz.layers import UnitNormLinear
 from flashlipschitz.layers.custom_activations import Abs
 from flashlipschitz.layers.custom_activations import HouseHolder
 from flashlipschitz.layers.custom_activations import HouseHolder_Order_2
-from flashlipschitz.layers.custom_activations import MaxMin
-from flashlipschitz.layers.fast_block_ortho_conv import FlashBCOP
-from flashlipschitz.layers.pooling import ScaledAvgPool2d
-from flashlipschitz.layers.rko_conv import OrthoLinear
 
 # from deel import torchlip as tl  ## copy pasted code from the lib to reduce dependencies
 
-#### run this to reach 84% on cifar10 in less than 10 minutes on a single GPU
+#### run this to reach 82% on cifar10 in less than 10 minutes on a single GPU
 #### python train_convmixer.py --epochs=25 --batch-size=512 --lr-max=5e-4 --ra-n=0 --ra-m=0 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=128 --amp-enabled
 
-#### run this to reach 86% and 64% VRA (each epoch is waaaaay much longer)
+#### run this to reach better results (each epoch is waaaaay much longer)
 #### python train_convmixer.py --name LeGros --epochs=250 --batch-size=512 --lr-max=5e-4 --ra-n=2 --ra-m=10 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=512 --gamma=20.0 --amp-enabled
 
 parser = argparse.ArgumentParser()
@@ -130,13 +131,13 @@ def BasicCNN(dim, depth, kernel_size=5, patch_size=2, expand_factor=2, n_classes
         # ),
         ## scaledAvgPool2d is AvgPool2d but with a sqrt(w*h)
         ## factor, as it would be 1/sqrt(w,h) lip otherwise
-        ScaledAvgPool2d(
-            (32 // patch_size, 32 // patch_size),
+        nn.AvgPool2d(
+            32 // patch_size,
             None,
-            # k_coef_lip=1 / (32 // patch_size) ** 2,
+            divisor_override=32 // patch_size,
         ),
         nn.Flatten(),
-        OrthoLinear(
+        UnitNormLinear(
             dim,
             n_classes,
             # k_coef_lip=1 / (dim / n_classes),
@@ -189,8 +190,8 @@ model = BasicCNN(
 )
 
 model = nn.DataParallel(model).cuda()
+summary(model, (args.batch_size, 3, 32, 32))
 # model.compile()  ## TODO: make the modules compilable !!!!
-summary(model, (3, 32, 32))
 
 # lr_schedule = lambda t: np.interp(
 #     [t],
@@ -221,7 +222,7 @@ if args.amp_enabled:
     scaler = torch.cuda.amp.GradScaler()
 
 std = torch.tensor(cifar10_std).cuda()
-L = 1 / torch.max(std)
+L = 2 / torch.max(std)
 
 for epoch in range(args.epochs):
     start = time.time()
@@ -279,7 +280,7 @@ for epoch in range(args.epochs):
             test_vra += VRA(output, y, L=L, eps=36 / 255).sum().item()
             m += y.size(0)
     print(
-        f"[{args.name}] Epoch: {epoch} | Train Acc: {train_acc/n:.4f}, Test Acc: {test_acc/m:.4f}, Test VRA: {test_vra/m:.4f}, Time: {time.time() - start:.1f}, lr: {lr:.6f}, gamma: {gamma:.2f}"
+        f"[{args.name}] Epoch: {epoch} | Train Acc: {train_acc/n:.4f}, Train VRA: {train_vra/n:.4f}, Test Acc: {test_acc/m:.4f}, Test VRA: {test_vra/m:.4f}, Time: {time.time() - start:.1f}, lr: {lr:.6f}, gamma: {gamma:.2f}"
     )
 print("#" * 40)
 print("training finished, computing singular values of each layer")
