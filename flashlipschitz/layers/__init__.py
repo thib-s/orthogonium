@@ -8,3 +8,4 @@ from .normalization import LayerCentering
 from .pooling import ScaledAvgPool2d
 from .rko_conv import OrthoLinear
 from .rko_conv import RKOConv2d
+from .rko_conv import UnitNormLinear
