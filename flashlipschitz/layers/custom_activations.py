@@ -1,9 +1,8 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Function
-
-import numpy as np
 
 
 class Abs(nn.Module):
@@ -15,13 +14,14 @@ class Abs(nn.Module):
 
 
 class MaxMin(nn.Module):
-    def __init__(self):
+    def __init__(self, axis=1):
+        self.axis = axis
         super(MaxMin, self).__init__()
 
-    def forward(self, z, axis=1):
-        a, b = z.split(z.shape[axis] // 2, axis)
+    def forward(self, z):
+        a, b = z.split(z.shape[self.axis] // 2, self.axis)
         c, d = torch.max(a, b), torch.min(a, b)
-        return torch.cat([c, d], dim=axis)
+        return torch.cat([c, d], dim=self.axis)
 
 
 class HouseHolder(nn.Module):
