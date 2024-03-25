@@ -316,7 +316,14 @@ class FlashBCOP(nn.Conv2d):
         self.bjorck_beta = bjorck_beta
         self.pi_iters = pi_iters
 
-        if (self.in_channels != self.inner_channels) or (self.kernel_size == 1):
+        self.preconv_enabled = (self.in_channels != self.inner_channels) or (
+            self.kernel_size == 1
+        )
+        self.mainconv_enabled = self.kernel_size != self.stride
+        self.postconv_enabled = (self.out_channels != self.inner_channels) or (
+            stride > 1
+        )
+        if self.preconv_enabled:
             # we have to add a preconvolution to reduce the number of channels
             self.preconv_weight = nn.Parameter(
                 torch.Tensor(
@@ -346,9 +353,9 @@ class FlashBCOP(nn.Conv2d):
                 ),
             )
         else:
-            self.preconv_weight = None
+            self.preconv_weight = nn.Parameter(None)
         # then declare the main convolution unconstrained weights
-        if self.kernel_size != self.stride:
+        if self.mainconv_enabled:
             self.mainconv_weight = nn.Parameter(
                 torch.Tensor(
                     self.groups,
@@ -384,9 +391,9 @@ class FlashBCOP(nn.Conv2d):
                 unsafe=True,
             )
         else:
-            self.mainconv_weight = None
+            self.mainconv_weight = nn.Parameter(None)
         # declare the postconvolution
-        if (self.out_channels != self.inner_channels) or (stride > 1):
+        if self.postconv_enabled:
             self.postconv_weight = nn.Parameter(
                 torch.Tensor(
                     groups,
@@ -415,24 +422,12 @@ class FlashBCOP(nn.Conv2d):
                 ),
             )
         else:
-            self.postconv_weight = None
+            self.postconv_weight = nn.Parameter(None)
 
         # self.weight is a Parameter that is not trainable
         self.weight.requires_grad = False
-        # buffer to store cached weight
         with torch.no_grad():
-            # assign the weight to the cached weight
-            self.weight.data = FlashBCOP.merge_kernels(
-                self.preconv_weight,
-                self.mainconv_weight,
-                self.postconv_weight,
-                self.in_channels,
-                self.out_channels,
-                self.inner_channels,
-                self.stride,
-                self.groups,
-            )
-        # self.register_buffer("weight_buffer", self.weight)
+            self.weight.data = self.merge_kernels()
 
     def singular_values(self):
         if self.padding != "circular":
@@ -460,7 +455,7 @@ class FlashBCOP(nn.Conv2d):
             sv_min = 1
             sv_max = 1
             stable_ranks = []
-            if self.preconv_weight is not None:
+            if self.preconv_enabled:
                 svs = np.linalg.svd(
                     self.preconv_weight.detach()
                     .cpu()
@@ -476,7 +471,7 @@ class FlashBCOP(nn.Conv2d):
                 sv_min = sv_min * svs.min()
                 sv_max = sv_max * svs.max()
                 stable_ranks.append(np.sum(np.mean(svs)) / (svs.max() ** 2))
-            if self.mainconv_weight is not None:
+            if self.mainconv_enabled:
                 sv_min, sv_max, s_r = conv_singular_values_numpy(
                     self.mainconv_weight.detach()
                     .cpu()
@@ -493,7 +488,7 @@ class FlashBCOP(nn.Conv2d):
                 sv_min = sv_min * sv_min
                 sv_max = sv_max * sv_max
                 stable_ranks.append(s_r)
-            if self.postconv_weight is not None:
+            if self.postconv_enabled:
                 svs = np.linalg.svd(
                     self.postconv_weight.view(
                         self.groups,
@@ -513,52 +508,49 @@ class FlashBCOP(nn.Conv2d):
             stable_rank = np.mean(stable_ranks)
         return sv_min, sv_max, stable_rank
 
-    @staticmethod
     def merge_kernels(
-        preconv_weight,
-        mainconv_weight,
-        postconv_weight,
-        cin,
-        cout,
-        min_c,
-        stride,
-        groups,
+        self,
     ):
-        if preconv_weight is not None:
-            preconv_weight = preconv_weight.view(min_c, cin // groups, 1, 1)
-        if postconv_weight is not None:
+        if self.preconv_enabled:  # check is tensor is None
+            preconv_weight = self.preconv_weight.view(
+                self.inner_channels, self.in_channels // self.groups, 1, 1
+            )
+        else:
+            preconv_weight = None
+        if self.postconv_enabled:
             # reshape from (groups, cout // groups, min_c // groups * stride * stride)
             # to (cout, min_c // groups, stride, stride)
-            postconv_weight = postconv_weight.view(
-                cout, min_c // groups, stride, stride
+            postconv_weight = self.postconv_weight.view(
+                self.out_channels,
+                self.inner_channels // self.groups,
+                self.stride,
+                self.stride,
             )
-        if cin <= min_c:
+        else:
+            postconv_weight = None
+        if self.mainconv_enabled:
+            mainconv_weight = self.mainconv_weight
+        else:
+            mainconv_weight = None
+        if self.in_channels <= self.inner_channels:
             return fast_matrix_conv(
-                fast_matrix_conv(preconv_weight, mainconv_weight, groups),
+                fast_matrix_conv(preconv_weight, mainconv_weight, self.groups),
                 postconv_weight,
-                groups,
+                self.groups,
             )
         else:
             return fast_matrix_conv(
                 preconv_weight,
-                fast_matrix_conv(mainconv_weight, postconv_weight, groups),
-                groups,
+                fast_matrix_conv(mainconv_weight, postconv_weight, self.groups),
+                self.groups,
             )
 
     def forward(self, x):
         self._input_shape = x.shape[2:]
-        if self.training:
-            weight = FlashBCOP.merge_kernels(
-                self.preconv_weight,
-                self.mainconv_weight,
-                self.postconv_weight,
-                self.in_channels,
-                self.out_channels,
-                self.inner_channels,
-                self.stride,
-                self.groups,
-            )
-            self.weight.data = weight.data
-        else:
-            weight = self.weight.data
+        # todo: somehow caching the weight is not working in distributed training context
+        # if self.training:
+        weight = self.merge_kernels()
+        self.weight.data = weight
+        # else:
+        #     weight = self.merge_kernels()
         return self._conv_forward(x, weight, self.bias)
