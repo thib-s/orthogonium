@@ -145,3 +145,35 @@ class OrthoLinear(nn.Linear):
         )
         stable_rank = np.sum(np.mean(svs)) / (svs.max() ** 2)
         return svs.min(), svs.max(), stable_rank
+
+
+class L2Normalization(nn.Module):
+    def __init__(self, dim=1):
+        super(L2Normalization, self).__init__()
+        self.dim = dim
+
+    def forward(self, x):
+        return x / (torch.norm(x, dim=self.dim, keepdim=True) + 1e-8)
+
+
+class UnitNormLinear(nn.Linear):
+    def __init__(
+        self,
+        *args,
+        **kwargs,
+    ):
+        """LInear layer where each output unit is normalized to have Frobenius norm 1"""
+        super(UnitNormLinear, self).__init__(*args, **kwargs)
+        torch.nn.init.orthogonal_(self.weight)
+        parametrize.register_parametrization(
+            self,
+            "weight",
+            L2Normalization(dim=1),
+        )
+
+    def singular_values(self):
+        svs = np.linalg.svd(
+            self.weight.detach().cpu().numpy(), full_matrices=False, compute_uv=False
+        )
+        stable_rank = np.sum(np.mean(svs)) / (svs.max() ** 2)
+        return svs.min(), svs.max(), stable_rank
