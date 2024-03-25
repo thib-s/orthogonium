@@ -3,34 +3,190 @@ import torch.nn as nn
 
 from flashlipschitz.classparam import ClassParam
 from flashlipschitz.layers import FlashBCOP
+from flashlipschitz.layers import HouseHolder
+from flashlipschitz.layers import HouseHolder_Order_2
 from flashlipschitz.layers import LayerCentering
 from flashlipschitz.layers import MaxMin
 from flashlipschitz.layers import OrthoLinear
 from flashlipschitz.layers import ScaledAvgPool2d
+from flashlipschitz.layers import UnitNormLinear
+from flashlipschitz.layers.sll_layer import SDPBasedLipschitzConv
 
-ARCHS = {
-    "PatchBasedExapandedCNN-S": dict(
-        dim=128,
-        depth=8,
-        kernel_size=5,
-        patch_size=2,
-        expand_factor=2,
+
+class ConcatResidual(nn.Module):
+    def __init__(self, fn):
+        super().__init__()
+        self.fn = fn
+
+    def forward(self, x):
+        # split x
+        x1, x2 = x.chunk(2, dim=1)
+        # apply function
+        out = self.fn(x2)
+        # concat and return
+        return torch.cat([x1, out], dim=1)
+
+
+def SplitConcatNet(
+    img_shape=(3, 224, 224),
+    n_classes=1000,
+    expand_factor=2,
+    block_depth=2,
+    kernel_size=3,
+    embedding_dim=1024,
+    groups=8,
+    conv=ClassParam(
+        FlashBCOP,
+        bias=False,
+        kernel_size=3,
+        padding="same",
+        padding_mode="zeros",
+        pi_iters=3,
+        bjorck_beta=0.5,
+        bjorck_bp_iters=10,
+        bjorck_nbp_iters=0,
     ),
-    "PatchBasedExapandedCNN-L": dict(
-        dim=256,
-        depth=8,
-        kernel_size=5,
-        patch_size=2,
+    act=ClassParam(MaxMin),
+    lin=ClassParam(UnitNormLinear, bias=False),
+    norm=ClassParam(LayerCentering, dim=1),
+):
+    def resblock(in_channels, out_channels, n_blocks, conv, act, norm):
+        layers = []
+        if in_channels != out_channels:
+            layers.append(
+                conv(in_channels, out_channels, kernel_size=kernel_size, stride=2)
+            )
+        # layers.append(act())
+        layers.append(norm() if norm is not None else nn.Identity())
+        for _ in range(n_blocks):
+            # layers.append(
+            #     Residual(
+            #         nn.ConcatResidual(
+            #             *[
+            #                 conv(
+            #                     out_channels // 2,
+            #                     expand_factor * out_channels // 2,
+            #                     kernel_size=kernel_size,
+            #                     groups=groups,
+            #                 ),
+            #                 norm() if norm is not None else nn.Identity(),
+            #                 act(),
+            #                 conv(
+            #                     expand_factor * out_channels // 2,
+            #                     out_channels // 2,
+            #                     kernel_size=kernel_size,
+            #                     groups=groups,
+            #                 ),
+            #                 norm() if norm is not None else nn.Identity(),
+            #             ]
+            #         )
+            #     )
+            # )
+
+            layers.append(
+                conv(out_channels, out_channels, kernel_size=kernel_size, groups=groups)
+            )
+            layers.append(norm() if norm is not None else nn.Identity())
+            layers.append(act())
+            layers.append(conv(out_channels, out_channels, kernel_size=1))
+            # layers.append(act())
+            layers.append(norm() if norm is not None else nn.Identity())
+        return layers
+
+    layers = [
+        conv(
+            in_channels=img_shape[0],
+            out_channels=embedding_dim // 8,
+            kernel_size=7,
+            stride=4,
+        ),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        # nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+        *resblock(embedding_dim // 8, embedding_dim // 8, block_depth, conv, act, norm),
+        *resblock(embedding_dim // 8, embedding_dim // 4, block_depth, conv, act, norm),
+        *resblock(embedding_dim // 4, embedding_dim // 2, block_depth, conv, act, norm),
+        *resblock(embedding_dim // 2, embedding_dim, block_depth, conv, act, norm),
+        nn.AvgPool2d(7, divisor_override=7),
+        # nn.AdaptiveAvgPool2d((1, 1)),
+        nn.Flatten(),
+        lin(embedding_dim, n_classes),
+    ]
+    return nn.Sequential(*layers)
+
+
+SplitConcatNetConfigs = {
+    "M": dict(
         expand_factor=2,
-    ),
-    "PatchBasedExapandedCNN-XL": dict(
-        dim=512,
-        depth=8,
-        kernel_size=5,
-        patch_size=2,
-        expand_factor=2,
+        block_depth=2,
+        kernel_size=3,
+        embedding_dim=2048,
+        groups=32,
+        conv=ClassParam(
+            FlashBCOP,
+            bias=False,
+            kernel_size=3,
+            padding="same",
+            padding_mode="zeros",
+            pi_iters=3,
+            bjorck_beta=0.5,
+            bjorck_bp_iters=3,
+            bjorck_nbp_iters=5,
+        ),
+        act=ClassParam(MaxMin),
+        lin=ClassParam(UnitNormLinear, bias=False),
+        norm=ClassParam(LayerCentering, dim=1),
     ),
 }
+
+
+def LipResNet(
+    img_shape=(3, 224, 224),
+    n_classes=1000,
+    stridedconv=ClassParam(
+        FlashBCOP,
+        bias=False,
+        padding="same",
+        padding_mode="circular",
+        pi_iters=3,
+        bjorck_beta=0.5,
+        bjorck_bp_iters=10,
+        bjorck_nbp_iters=0,
+    ),
+    skipconv=ClassParam(
+        SDPBasedLipschitzConv,
+        inner_dim_factor=2,
+    ),
+    act=ClassParam(MaxMin),
+    lin=ClassParam(OrthoLinear, bias=False),
+    norm=ClassParam(LayerCentering, dim=-3),
+):
+    layers = [
+        stridedconv(in_channels=img_shape[0], out_channels=64, kernel_size=7, stride=4),
+        # act(),
+        norm() if norm is not None else nn.Identity(),
+        # nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+        *ResNetBlock(64, 64, 3, stridedconv, skipconv, act, norm),
+        *ResNetBlock(64, 128, 4, stridedconv, skipconv, act, norm),
+        *ResNetBlock(128, 256, 6, stridedconv, skipconv, act, norm),
+        *ResNetBlock(256, 512, 3, stridedconv, skipconv, act, norm),
+        # nn.AvgPool2d(7, divisor_override=7),
+        nn.AdaptiveAvgPool2d((1, 1)),
+        nn.Flatten(),
+        lin(512, n_classes),
+    ]
+    return nn.Sequential(*layers)
+
+
+def ResNetBlock(in_channels, out_channels, n_blocks, stridedconvn, skipconv, act, norm):
+    layers = []
+    if in_channels != out_channels:
+        layers.append(stridedconvn(in_channels, out_channels, kernel_size=3, stride=2))
+    # layers.append(act())
+    layers.append(norm() if norm is not None else nn.Identity())
+    for _ in range(n_blocks):
+        layers.append(skipconv(cin=out_channels))
+    return layers
 
 
 def PatchBasedCNN(
@@ -303,3 +459,11 @@ def StagedCNN(
     layers.append(lin(in_channels, n_classes))
 
     return nn.Sequential(*layers)
+
+
+MODELS = {
+    "SplitConcatNet-M": lambda: SplitConcatNet(
+        img_shape=(3, 224, 224), n_classes=1000, **SplitConcatNetConfigs["M"]
+    ),
+    "LipResNet": LipResNet,
+}
