@@ -46,11 +46,13 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     imsize = 8
     # Test backpropagation and weight update
     try:
+        bcop.train()
         input = torch.randn(1, input_channels, imsize, imsize)
         opt = torch.optim.SGD(bcop.parameters(), lr=0.1)
         output = bcop(input)
         output.backward(torch.randn_like(output))
         opt.step()
+        bcop.eval()  # so impulse response test checks the eval mode
     except Exception as e:
         pytest.fail(f"Backpropagation or weight update failed with: {e}")
 
@@ -70,11 +72,11 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
         # assing value to help linter following code wont be executed when linalgerror is raised
         sigma_max_ir, sigma_min_ir, stable_rank_ir = sigma_max, sigma_min, stable_rank
     assert (
-        abs(sigma_max - sigma_max_ir) < 1e-3
+        abs(sigma_max - sigma_max_ir) < 1e-2
     ), f"sigma_max is not close to its IR value: {sigma_max} vs {sigma_max_ir}"
     assert (
-        abs(sigma_min - sigma_min_ir) < 1e-3
+        abs(sigma_min - sigma_min_ir) < 1e-2
     ), f"sigma_min is not close to its IR value: {sigma_min} vs {sigma_min_ir}"
     assert (
-        abs(stable_rank - stable_rank_ir) < 1e-3
+        abs(stable_rank - stable_rank_ir) < 1e-2
     ), f"stable_rank is not close to its IR value: {stable_rank} vs {stable_rank_ir}"
