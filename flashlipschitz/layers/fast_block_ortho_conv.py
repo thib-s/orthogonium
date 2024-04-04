@@ -7,11 +7,13 @@ from typing import Union
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_1_t
 from torch.nn.common_types import _size_2_t
 from torch.nn.common_types import _size_3_t
+
+from flashlipschitz.layers.reparametrizers import BatchedBjorckOrthogonalization
+from flashlipschitz.layers.reparametrizers import BatchedPowerIteration
 
 
 def conv_singular_values_numpy(kernel, input_shape):
@@ -26,119 +28,6 @@ def conv_singular_values_numpy(kernel, input_shape):
     )  # g, k1, k2, min(ci, co)
     stable_rank = np.mean(svs) / (svs.max() ** 2)
     return svs.min(), svs.max(), stable_rank
-
-
-class L2Normalize(nn.Module):
-    def __init__(self, dim=(2, 3)):
-        super(L2Normalize, self).__init__()
-        self.dim = dim
-
-    def forward(self, kernel):
-        norm = torch.sqrt(torch.sum(kernel**2, dim=self.dim, keepdim=True))
-        return kernel / (norm + 1e-12)
-
-    def right_inverse(self, kernel):
-        # we assume that the kernel is normalized
-        norm = torch.sqrt(torch.sum(kernel**2, dim=self.dim, keepdim=True))
-        return kernel / (norm + 1e-12)
-
-
-class BatchedPowerIteration(nn.Module):
-    def __init__(self, kernel_shape, power_it_niter=3, eps=1e-12):
-        """
-        This module is a batched version of the Power Iteration algorithm.
-        It is used to normalize the kernel of a convolutional layer.
-
-        Args:
-            kernel_shape (tuple): shape of the kernel, the last dimension will be normalized.
-            power_it_niter (int, optional): number of iterations. Defaults to 3.
-            eps (float, optional): small value to avoid division by zero. Defaults to 1e-12.
-        """
-        super(BatchedPowerIteration, self).__init__()
-        self.kernel_shape = kernel_shape
-        self.power_it_niter = power_it_niter
-        self.eps = eps
-        # init u
-        # u will be kernel_shape[:-2] + (kernel_shape[:-2], 1)
-        # v will be kernel_shape[:-2] + (kernel_shape[:-1], 1,)
-        self.u = nn.Parameter(
-            torch.Tensor(torch.randn(*kernel_shape[:-2], kernel_shape[-2], 1)),
-            requires_grad=False,
-        )
-        self.v = nn.Parameter(
-            torch.Tensor(torch.randn(*kernel_shape[:-2], kernel_shape[-1], 1)),
-            requires_grad=False,
-        )
-        parametrize.register_parametrization(self, "u", L2Normalize(dim=(-2)))
-        parametrize.register_parametrization(self, "v", L2Normalize(dim=(-2)))
-
-    def forward(self, X, init_u=None, n_iters=3, return_uv=True):
-        for _ in range(n_iters):
-            self.v = X.transpose(-1, -2) @ self.u
-            self.u = X @ self.v
-        # stop gradient on u and v
-        u = self.u.detach()
-        v = self.v.detach()
-        # but keep gradient on s
-        s = u.transpose(-1, -2) @ X @ v
-        return X / (s + self.eps)
-
-    def right_inverse(self, normalized_kernel):
-        # we assume that the kernel is normalized
-        return normalized_kernel
-
-
-class BatchedBjorckOrthogonalization(nn.Module):
-    def __init__(self, weight_shape, beta=0.5, backprop_iters=3, non_backprop_iters=10):
-        self.weight_shape = weight_shape
-        self.beta = beta
-        self.backprop_iters = backprop_iters
-        self.non_backprop_iters = non_backprop_iters
-        if weight_shape[-2] < weight_shape[-1]:
-            self.wwtw_op = BatchedBjorckOrthogonalization.wwt_w_op
-        else:
-            self.wwtw_op = BatchedBjorckOrthogonalization.w_wtw_op
-        super(BatchedBjorckOrthogonalization, self).__init__()
-
-    @staticmethod
-    def w_wtw_op(w):
-        return w @ (w.transpose(-1, -2) @ w)
-
-    @staticmethod
-    def wwt_w_op(w):
-        return (w @ w.transpose(-1, -2)) @ w
-
-    def forward(self, w):
-        for _ in range(self.backprop_iters):
-            w = (1 + self.beta) * w - self.beta * self.wwtw_op(w)
-            # w_t_w = w.transpose(-1, -2) @ w
-            # w = (1 + self.beta) * w - self.beta * w @ w_t_w
-        w = GradPassthroughBjorck.apply(
-            w, self.beta, self.non_backprop_iters, self.wwtw_op
-        )
-        return w
-
-    def right_inverse(self, w):
-        return w
-
-
-class GradPassthroughBjorck(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, w, beta, iters, wwtw_op):
-        for _ in range(iters):
-            w = (1 + beta) * w - beta * wwtw_op(w)
-            # w_t_w = w.transpose(-1, -2) @ w
-            # w = (1 + self.beta) * w - self.beta * w @ w_t_w
-        return w
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        # Backward pass logic goes here.
-        # You can retrieve saved variables using saved_tensors = ctx.saved_tensors.
-        grad_input = (
-            grad_output.clone()
-        )  # For illustration, this just passes the gradient through.
-        return grad_input, None, None, None
 
 
 def fast_matrix_conv(m1, m2, groups=1):
@@ -220,7 +109,7 @@ class BCOPTrivializer(nn.Module):
         return p
 
 
-class FlashBCOP(nn.Conv2d):
+class FlashBCOP(nn.Module):
     def __init__(
         self,
         in_channels: int,
@@ -234,8 +123,8 @@ class FlashBCOP(nn.Conv2d):
         padding_mode: str = "circular",
         pi_iters=3,
         bjorck_beta=0.5,
-        bjorck_nbp_iters=0,
-        bjorck_bp_iters=25,
+        bjorck_nbp_iters=5,
+        bjorck_bp_iters=5,
         override_inner_channels=None,
     ):
         """New parametrization of BCOP. It is in fact a sequence of 3 convolutions:
@@ -270,16 +159,22 @@ class FlashBCOP(nn.Conv2d):
         if (padding == "same") and (stride != 1):
             padding = kernel_size // 2 if kernel_size != stride else 0
         super(FlashBCOP, self).__init__(
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            groups,
-            bias,
-            padding_mode,
+            # in_channels,
+            # out_channels,
+            # kernel_size,
+            # stride,
+            # padding,
+            # dilation,
+            # groups,
+            # bias,
+            # padding_mode,
         )
+        self.padding_mode = padding_mode
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        self.dilation = dilation
+        self.groups = groups
         self.in_channels = in_channels
         self.out_channels = out_channels
         if override_inner_channels is not None:
@@ -315,7 +210,7 @@ class FlashBCOP(nn.Conv2d):
         self.bjorck_nbp_iters = bjorck_nbp_iters
         self.bjorck_beta = bjorck_beta
         self.pi_iters = pi_iters
-
+        # compute criteria to enable or disable each of the 3 subconvolutions
         self.preconv_enabled = (self.in_channels != self.inner_channels) or (
             self.kernel_size == 1
         )
@@ -323,6 +218,7 @@ class FlashBCOP(nn.Conv2d):
         self.postconv_enabled = (self.out_channels != self.inner_channels) or (
             stride > 1
         )
+        # declare each of the 3 subconvolutions if needed
         if self.preconv_enabled:
             # we have to add a preconvolution to reduce the number of channels
             self.preconv_weight = nn.Parameter(
@@ -353,7 +249,7 @@ class FlashBCOP(nn.Conv2d):
                 ),
             )
         else:
-            self.preconv_weight = nn.Parameter(None)
+            self.preconv_weight = None
         # then declare the main convolution unconstrained weights
         if self.mainconv_enabled:
             self.mainconv_weight = nn.Parameter(
@@ -391,7 +287,7 @@ class FlashBCOP(nn.Conv2d):
                 unsafe=True,
             )
         else:
-            self.mainconv_weight = nn.Parameter(None)
+            self.mainconv_weight = None
         # declare the postconvolution
         if self.postconv_enabled:
             self.postconv_weight = nn.Parameter(
@@ -422,12 +318,17 @@ class FlashBCOP(nn.Conv2d):
                 ),
             )
         else:
-            self.postconv_weight = nn.Parameter(None)
+            self.postconv_weight = None
 
         # self.weight is a Parameter that is not trainable
-        self.weight.requires_grad = False
-        with torch.no_grad():
-            self.weight.data = self.merge_kernels()
+        # self.weight.requires_grad = False
+        # with torch.no_grad():
+        #     self.weight.data = self.merge_kernels()
+        if bias:
+            self.bias = nn.Parameter(torch.Tensor(out_channels))
+            nn.init.zeros_(self.bias)
+        else:
+            self.register_parameter("bias", None)
 
     def singular_values(self):
         if self.padding != "circular":
@@ -545,12 +446,28 @@ class FlashBCOP(nn.Conv2d):
                 self.groups,
             )
 
+    def _conv_forward(self, input, weight, bias):
+        if self.padding_mode != "zeros":
+            return torch.nn.functional.conv2d(
+                torch.nn.functional.pad(
+                    input, (self.kernel_size // 2,) * 4, mode=self.padding_mode
+                ),
+                weight=weight,
+                bias=bias,
+                stride=self.stride,
+                dilation=self.dilation,
+                groups=self.groups,
+            )
+        return torch.nn.functional.conv2d(
+            input, weight, bias, self.stride, self.padding, self.dilation, self.groups
+        )
+
     def forward(self, x):
         self._input_shape = x.shape[2:]
         # todo: somehow caching the weight is not working in distributed training context
         # if self.training:
         weight = self.merge_kernels()
-        self.weight.data = weight
+        # self.weight = weight
         # else:
         #     weight = self.merge_kernels()
         return self._conv_forward(x, weight, self.bias)

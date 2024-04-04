@@ -5,10 +5,10 @@ import torch
 import torch.nn as nn
 import torch.nn.utils.parametrize as parametrize
 
-from flashlipschitz.layers.fast_block_ortho_conv import (
+from flashlipschitz.layers.reparametrizers import (
     BatchedBjorckOrthogonalization,
 )
-from flashlipschitz.layers.fast_block_ortho_conv import (
+from flashlipschitz.layers.reparametrizers import (
     BatchedPowerIteration,
 )
 
