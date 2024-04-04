@@ -16,7 +16,7 @@ from flashlipschitz.layers.sll_layer import SDPBasedLipschitzConv
 class ConcatResidual(nn.Module):
     def __init__(self, fn):
         super().__init__()
-        self.fn = fn
+        self.add_module("fn", fn)
 
     def forward(self, x):
         # split x
@@ -32,18 +32,17 @@ def SplitConcatNet(
     n_classes=1000,
     expand_factor=2,
     block_depth=2,
-    kernel_size=3,
+    kernel_size=5,
     embedding_dim=1024,
-    groups=8,
+    groups=16,
     conv=ClassParam(
         FlashBCOP,
         bias=False,
-        kernel_size=3,
         padding="same",
         padding_mode="zeros",
         pi_iters=3,
         bjorck_beta=0.5,
-        bjorck_bp_iters=10,
+        bjorck_bp_iters=8,
         bjorck_nbp_iters=0,
     ),
     act=ClassParam(MaxMin),
@@ -54,43 +53,41 @@ def SplitConcatNet(
         layers = []
         if in_channels != out_channels:
             layers.append(
-                conv(in_channels, out_channels, kernel_size=kernel_size, stride=2)
+                conv(
+                    in_channels,
+                    out_channels,
+                    kernel_size=kernel_size,
+                    stride=2,
+                    padding=kernel_size // 2,
+                )
             )
         # layers.append(act())
         layers.append(norm() if norm is not None else nn.Identity())
         for _ in range(n_blocks):
-            # layers.append(
-            #     Residual(
-            #         nn.ConcatResidual(
-            #             *[
-            #                 conv(
-            #                     out_channels // 2,
-            #                     expand_factor * out_channels // 2,
-            #                     kernel_size=kernel_size,
-            #                     groups=groups,
-            #                 ),
-            #                 norm() if norm is not None else nn.Identity(),
-            #                 act(),
-            #                 conv(
-            #                     expand_factor * out_channels // 2,
-            #                     out_channels // 2,
-            #                     kernel_size=kernel_size,
-            #                     groups=groups,
-            #                 ),
-            #                 norm() if norm is not None else nn.Identity(),
-            #             ]
-            #         )
-            #     )
-            # )
-
             layers.append(
-                conv(out_channels, out_channels, kernel_size=kernel_size, groups=groups)
+                conv(
+                    out_channels,
+                    expand_factor * out_channels,
+                    kernel_size=kernel_size,
+                    groups=groups,
+                )
             )
             layers.append(norm() if norm is not None else nn.Identity())
             layers.append(act())
-            layers.append(conv(out_channels, out_channels, kernel_size=1))
-            # layers.append(act())
-            layers.append(norm() if norm is not None else nn.Identity())
+            # layers.append(
+            #     conv(
+            #         expand_factor * out_channels,
+            #         out_channels,
+            #         kernel_size=kernel_size,
+            #         groups=groups,
+            #     )
+            # )
+            if groups > 1:
+                layers.append(
+                    conv(expand_factor * out_channels, out_channels, kernel_size=1)
+                )
+                # layers.append(act())
+                layers.append(norm() if norm is not None else nn.Identity())
         return layers
 
     layers = [
@@ -99,6 +96,7 @@ def SplitConcatNet(
             out_channels=embedding_dim // 8,
             kernel_size=7,
             stride=4,
+            padding=7 // 2,
         ),
         act(),
         norm() if norm is not None else nn.Identity(),
@@ -117,7 +115,7 @@ def SplitConcatNet(
 
 SplitConcatNetConfigs = {
     "M": dict(
-        expand_factor=2,
+        expand_factor=4,
         block_depth=2,
         kernel_size=3,
         embedding_dim=2048,
@@ -130,8 +128,8 @@ SplitConcatNetConfigs = {
             padding_mode="zeros",
             pi_iters=3,
             bjorck_beta=0.5,
-            bjorck_bp_iters=3,
-            bjorck_nbp_iters=5,
+            bjorck_bp_iters=8,
+            bjorck_nbp_iters=0,
         ),
         act=ClassParam(MaxMin),
         lin=ClassParam(UnitNormLinear, bias=False),
@@ -147,7 +145,7 @@ def LipResNet(
         FlashBCOP,
         bias=False,
         padding="same",
-        padding_mode="circular",
+        padding_mode="zeros",
         pi_iters=3,
         bjorck_beta=0.5,
         bjorck_bp_iters=10,
@@ -187,6 +185,73 @@ def ResNetBlock(in_channels, out_channels, n_blocks, stridedconvn, skipconv, act
     for _ in range(n_blocks):
         layers.append(skipconv(cin=out_channels))
     return layers
+
+
+def LipVGG(
+    img_shape=(3, 224, 224),
+    n_classes=1000,
+    conv=ClassParam(
+        FlashBCOP,
+        bias=False,
+        padding="same",
+        padding_mode="zeros",
+        pi_iters=3,
+        bjorck_beta=0.5,
+        bjorck_bp_iters=10,
+        bjorck_nbp_iters=0,
+    ),
+    act=ClassParam(MaxMin),
+    lin=ClassParam(OrthoLinear, bias=False),
+    norm=ClassParam(LayerCentering, dim=-3),
+):
+    layers = [
+        conv(in_channels=img_shape[0], out_channels=64, kernel_size=3),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=64, out_channels=128, kernel_size=3, stride=2),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=128, out_channels=128, kernel_size=3),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=128, out_channels=256, kernel_size=3, stride=2),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=256, out_channels=256, kernel_size=3),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=256, out_channels=256, kernel_size=3),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=256, out_channels=512, kernel_size=3, stride=2),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=512, out_channels=512, kernel_size=3),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=512, out_channels=512, kernel_size=3),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=512, out_channels=512, kernel_size=3, stride=2),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=512, out_channels=512, kernel_size=3),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=512, out_channels=512, kernel_size=3),
+        act(),
+        norm() if norm is not None else nn.Identity(),
+        conv(in_channels=512, out_channels=512, kernel_size=3, stride=2),
+        nn.Flatten(),  # fm = 7x7
+        lin(512 * 7 * 7, 4096),
+        act(),
+        norm(dim=-1) if norm is not None else nn.Identity(),
+        lin(4096, 4096),
+        act(),
+        norm(dim=-1) if norm is not None else nn.Identity(),
+        lin(4096, n_classes),
+    ]
+    return nn.Sequential(*layers)
 
 
 def PatchBasedCNN(
@@ -462,8 +527,6 @@ def StagedCNN(
 
 
 MODELS = {
-    "SplitConcatNet-M": lambda: SplitConcatNet(
-        img_shape=(3, 224, 224), n_classes=1000, **SplitConcatNetConfigs["M"]
-    ),
+    "SplitConcatNet-M": SplitConcatNet,
     "LipResNet": LipResNet,
 }
