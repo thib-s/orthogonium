@@ -157,7 +157,7 @@ class FlashBCOP(nn.Module):
             bjorck_bp_iters (int, optional): number of iterations with backpropagation. Defaults to 10.
         """
         if (padding == "same") and (stride != 1):
-            padding = kernel_size // 2 if kernel_size != stride else 0
+            padding = (kernel_size - 1) // 2 if kernel_size != stride else 0
         super(FlashBCOP, self).__init__(
             # in_channels,
             # out_channels,
@@ -322,8 +322,9 @@ class FlashBCOP(nn.Module):
 
         # self.weight is a Parameter that is not trainable
         # self.weight.requires_grad = False
-        # with torch.no_grad():
-        #     self.weight.data = self.merge_kernels()
+        with torch.no_grad():
+            weight = self.merge_kernels()
+            self.register_buffer("weight", weight)
         if bias:
             self.bias = nn.Parameter(torch.Tensor(out_channels))
             nn.init.zeros_(self.bias)
@@ -331,7 +332,7 @@ class FlashBCOP(nn.Module):
             self.register_parameter("bias", None)
 
     def singular_values(self):
-        if self.padding != "circular":
+        if self.padding_mode != "circular":
             print(
                 f"padding {self.padding} not supported, return min and max"
                 f"singular values as if it was 'circular' padding "
@@ -459,15 +460,21 @@ class FlashBCOP(nn.Module):
                 groups=self.groups,
             )
         return torch.nn.functional.conv2d(
-            input, weight, bias, self.stride, self.padding, self.dilation, self.groups
+            input,
+            weight,
+            bias=bias,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,
+            groups=self.groups,
         )
 
     def forward(self, x):
         self._input_shape = x.shape[2:]
         # todo: somehow caching the weight is not working in distributed training context
-        # if self.training:
-        weight = self.merge_kernels()
-        # self.weight = weight
-        # else:
-        #     weight = self.merge_kernels()
+        if self.training:
+            weight = self.merge_kernels()
+            self.weight = weight
+        else:
+            weight = self.weight
         return self._conv_forward(x, weight, self.bias)

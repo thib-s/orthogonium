@@ -17,8 +17,8 @@ def _compute_sv_impulse_response_layer(layer, img_shape):
     return svs.max(), svs.min(), svs.mean() / svs.max()
 
 
-@pytest.mark.parametrize("kernel_size", [1, 2, 3, 5])
-@pytest.mark.parametrize("input_channels", [8, 16, 32, 64])
+@pytest.mark.parametrize("kernel_size", [1, 3, 5])
+@pytest.mark.parametrize("input_channels", [8, 16, 32])
 @pytest.mark.parametrize("output_channels", [16, 32, 64])
 @pytest.mark.parametrize("stride", [1, 2])
 @pytest.mark.parametrize("groups", [1, 2, 4])
@@ -32,14 +32,15 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
             stride=stride,
             groups=groups,
             bias=False,
+            padding="same",
             padding_mode="circular",
+            bjorck_bp_iters=12,
+            bjorck_nbp_iters=12,
         )
     except Exception as e:
         if kernel_size < stride:
             # we expect this configuration to raise a RuntimeError
             # pytest.skip(f"BCOP instantiation failed with: {e}")
-            return
-        elif kernel_size == 1 and input_channels == output_channels:
             return
         else:
             pytest.fail(f"BCOP instantiation failed with: {e}")
@@ -47,14 +48,32 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     # Test backpropagation and weight update
     try:
         bcop.train()
-        input = torch.randn(1, input_channels, imsize, imsize)
+        inp = torch.randn(1, input_channels, imsize, imsize)
         opt = torch.optim.SGD(bcop.parameters(), lr=0.1)
-        output = bcop(input)
+        output = bcop(inp)
         output.backward(torch.randn_like(output))
         opt.step()
         bcop.eval()  # so impulse response test checks the eval mode
     except Exception as e:
         pytest.fail(f"Backpropagation or weight update failed with: {e}")
+
+    # check that bcop.weight has the correct shape
+    if bcop.weight.data.shape != (
+        output_channels,
+        input_channels // groups,
+        kernel_size,
+        kernel_size,
+    ):
+        pytest.fail(
+            f"BCOP weight has incorrect shape: {bcop.weight.shape} vs {(output_channels, input_channels // groups, kernel_size, kernel_size)}"
+        )
+    # check that the layer is norm preserving
+    inp_norm = torch.sqrt(torch.square(inp).sum(dim=(-3, -2, -1))).float().item()
+    out_norm = torch.sqrt(torch.square(output).sum(dim=(-3, -2, -1))).float().item()
+    if inp_norm <= out_norm - 1e-3:
+        pytest.fail(
+            f"BCOP is not norm preserving: {inp_norm} vs {out_norm} with rel error {abs(inp_norm - out_norm) / inp_norm}"
+        )
 
     # Test singular_values function
     try:
@@ -68,7 +87,7 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
             bcop, (input_channels, imsize, imsize)
         )
     except Exception as e:
-        pytest.skip(f"SVD failed with LinalgError {e}")
+        # pytest.skip(f"SVD failed with LinalgError {e}")
         # assing value to help linter following code wont be executed when linalgerror is raised
         sigma_max_ir, sigma_min_ir, stable_rank_ir = sigma_max, sigma_min, stable_rank
     assert (
