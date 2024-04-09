@@ -200,6 +200,11 @@ class FlashBCOP(nn.Module):
             raise RuntimeError("dilation not supported")
         if ((self.inner_channels // groups) < 2) and (kernel_size != stride):
             raise RuntimeError("inner conv must have at least 2 channels")
+        if self.kernel_size % 2 == 0:
+            if not ((stride == kernel_size) and (padding == 0 or padding == "valid")):
+                raise RuntimeError(
+                    "even kernel size only supported for stride == kernel_size and padding == 0 or 'valid'"
+                )
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
