@@ -8,10 +8,13 @@ robustesse/classif:
  - [ ] re-ordonner les layers de Lipschitz-layers compared ( ça donnerait un message type "implementation matter in provable robustness")
  - [ ] reproduire le sota robustness pour moins cher
  - [ ] tenter un imagenet robuste (j'ai des résultats en classif pure, mais je suis pas très a jour sur les tricks robustesse) ça pourrait faire un tour de chauffe pour le large scale
+   - Premier imagenet profond et orthogonal  
 
 stabilité des réseaux de neurones
 
- - [x] entrainer un réseau très profond sans skip connection, dropout, ni batch norm. (pas objectif de sota, mais donner des pistes sur la stabilité, un peu à la manière des SNN)
+ - [x] entrainer un réseau très profond sans skip connection, dropout, ni batch norm. (pas objectif de sota, mais donner des pistes sur la stabilité, un peu à la manière des SNN):
+     - Resnet vs PlainNet vs BcopNet (avec batchnorm) en 18 et en 50 pour montrer que la perf se degrade pas
+     - Resnet Lipschitz vs OrthoNet
  - [ ] entrainer un RNN sur des séquences d'images (seule la partie RNN étant orthogonale) il y a une carte a jouer sur la performance, vu que le coût devient linéaire a la taille de la séquence.
  - [ ] remplacer la layer de patch extraction dans les VIT (qui est une conv2d stridée) par un conv orthogonale puis montrer qu'on gagne en stabilité de l'entrainement (certains papiers pointent cette layer comme étant importante pour la stabilité.)
 
