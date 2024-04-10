@@ -23,7 +23,7 @@ stabilité des réseaux de neurones
  - [ ] segmentation/détection robuste: pour mettre en avant qu'on débloque les U-nets grace au conv transpose stridées efficientes.
  - [ ] robotique (lidar 2 map): problème qui fait intervenir des conv2d et ou on peut garantir une robustesse au bruit L2 sur les mesure Lidar.
  - [ ] tester de la diffusion ? (j'ai pas trouvé de papier pour motiver théoriquement l'intérêt mais il me semble que quelqu'un en avait parlé)
- - [ ] GAN/VAE: Sur le gans la préservation du rank empêche le mode collapse. Sur les VAE on a une layer facilement inversible & les logdet de la jacobienne vaut 1, donc c'est potentiellement plus efficace.
+ - [ ] GAN/normalizing flow: Sur le gans la préservation du rank empêche le mode collapse. Sur les normalizing flows on a une layer facilement inversible & les logdet de la jacobienne vaut 1, donc c'est potentiellement plus efficace.
 
 
 # Purpose of this library :
