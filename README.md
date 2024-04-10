@@ -1,26 +1,26 @@
 Directions théorique:
 
- - [] creuser pour modifier la méthode pour obtenir la complétude que n'offre pas BCOP. (Si on arrive a exprimer toutes les conv orthogonale a support fixe en un temps raisonnable, ça permettra de répondre enfin à la question "l'orthogonalité est elle une propriété désirable pour l'entrainement de réseaux lip ?"
+ - [ ] creuser pour modifier la méthode pour obtenir la complétude que n'offre pas BCOP. (Si on arrive a exprimer toutes les conv orthogonale a support fixe en un temps raisonnable, ça permettra de répondre enfin à la question "l'orthogonalité est elle une propriété désirable pour l'entrainement de réseaux lip ?"
 
 Directions empiriques: (xp pour montrer l'intérêt de layers orthogonale au delà du 1-lip)
 robustesse/classif:
 
- - [] re-ordonner les layers de Lipschitz-layers compared ( ça donnerait un message type "implementation matter in provable robustness")
- - [] reproduire le sota robustness pour moins cher
- - [] tenter un imagenet robuste (j'ai des résultats en classif pure, mais je suis pas très a jour sur les tricks robustesse) ça pourrait faire un tour de chauffe pour le large scale
+ - [ ] re-ordonner les layers de Lipschitz-layers compared ( ça donnerait un message type "implementation matter in provable robustness")
+ - [ ] reproduire le sota robustness pour moins cher
+ - [ ] tenter un imagenet robuste (j'ai des résultats en classif pure, mais je suis pas très a jour sur les tricks robustesse) ça pourrait faire un tour de chauffe pour le large scale
 
 stabilité des réseaux de neurones
 
  - [x] entrainer un réseau très profond sans skip connection, dropout, ni batch norm. (pas objectif de sota, mais donner des pistes sur la stabilité, un peu à la manière des SNN)
- - [] entrainer un RNN sur des séquences d'images (seule la partie RNN étant orthogonale) il y a une carte a jouer sur la performance, vu que le coût devient linéaire a la taille de la séquence.
- - [] remplacer la layer de patch extraction dans les VIT (qui est une conv2d stridée) par un conv orthogonale puis montrer qu'on gagne en stabilité de l'entrainement (certains papiers pointent cette layer comme étant importante pour la stabilité.)
+ - [ ] entrainer un RNN sur des séquences d'images (seule la partie RNN étant orthogonale) il y a une carte a jouer sur la performance, vu que le coût devient linéaire a la taille de la séquence.
+ - [ ] remplacer la layer de patch extraction dans les VIT (qui est une conv2d stridée) par un conv orthogonale puis montrer qu'on gagne en stabilité de l'entrainement (certains papiers pointent cette layer comme étant importante pour la stabilité.)
 
 élargir les applications:
 
- - [] segmentation/détection robuste: pour mettre en avant qu'on débloque les U-nets grace au conv transpose stridées efficientes.
- - [] robotique (lidar 2 map): problème qui fait intervenir des conv2d et ou on peut garantir une robustesse au bruit L2 sur les mesure Lidar.
- - [] tester de la diffusion ? (j'ai pas trouvé de papier pour motiver théoriquement l'intérêt mais il me semble que quelqu'un en avait parlé)
- - [] GAN/VAE: Sur le gans la préservation du rank empêche le mode collapse. Sur les VAE on a une layer facilement inversible & les logdet de la jacobienne vaut 1, donc c'est potentiellement plus efficace.
+ - [ ] segmentation/détection robuste: pour mettre en avant qu'on débloque les U-nets grace au conv transpose stridées efficientes.
+ - [ ] robotique (lidar 2 map): problème qui fait intervenir des conv2d et ou on peut garantir une robustesse au bruit L2 sur les mesure Lidar.
+ - [ ] tester de la diffusion ? (j'ai pas trouvé de papier pour motiver théoriquement l'intérêt mais il me semble que quelqu'un en avait parlé)
+ - [ ] GAN/VAE: Sur le gans la préservation du rank empêche le mode collapse. Sur les VAE on a une layer facilement inversible & les logdet de la jacobienne vaut 1, donc c'est potentiellement plus efficace.
 
 
 # Purpose of this library :
