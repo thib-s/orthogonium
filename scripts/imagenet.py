@@ -17,6 +17,8 @@ import torch.utils.data.distributed
 import torchvision.datasets as datasets
 import torchvision.models as models
 import torchvision.transforms as transforms
+from torch.optim.lr_scheduler import ChainedScheduler
+from torch.optim.lr_scheduler import LinearLR
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
 
@@ -293,7 +295,13 @@ def main_worker(gpu, ngpus_per_node, args):
     )
 
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    scheduler = StepLR(optimizer, step_size=30, gamma=0.1)
+    scheduler = ChainedScheduler(
+        [
+            LinearLR(optimizer, 0.1, 1.0, 1),
+            StepLR(optimizer, step_size=30, gamma=0.1),
+        ]
+    )
+    # StepLR(optimizer, step_size=30, gamma=0.1)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -342,8 +350,8 @@ def main_worker(gpu, ngpus_per_node, args):
             transforms.Compose(
                 [
                     transforms.Resize(256),
-                    transforms.CenterCrop(224),
-                    # transforms.RandomResizedCrop(224),
+                    # transforms.CenterCrop(224),
+                    transforms.RandomResizedCrop(224),
                     transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                     normalize,
@@ -423,6 +431,7 @@ def main_worker(gpu, ngpus_per_node, args):
                     "scheduler": scheduler.state_dict(),
                 },
                 is_best,
+                filename=f"checkpoint_{args.arch}_{best_acc1}.pth.tar",
             )
 
 
