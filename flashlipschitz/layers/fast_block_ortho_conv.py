@@ -103,6 +103,8 @@ class BCOPTrivializer(nn.Module):
             )
         if self.has_projector:
             p = torch.einsum("gmnkl,gmn->gmnkl", p, PQ[:, -1])
+        # co, ci, _, _ = p.shape
+        # p = p[: co // 2, : ci // 2, :, :]
         if self.transpose:
             # we do not perform flip since it does not affect orthogonality
             p = p.transpose(1, 2)
@@ -121,6 +123,8 @@ class FlashBCOP(nn.Module):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "circular",
+        transpose: bool = False,
+        output_padding: Optional[_size_2_t] = None,
         pi_iters=3,
         bjorck_beta=0.5,
         bjorck_nbp_iters=5,
@@ -174,6 +178,8 @@ class FlashBCOP(nn.Module):
         self.stride = stride
         self.padding = padding
         self.dilation = dilation
+        self.transposed = transpose
+        self.output_padding = output_padding
         self.groups = groups
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -472,6 +478,41 @@ class FlashBCOP(nn.Module):
             padding=self.padding,
             dilation=self.dilation,
             groups=self.groups,
+        )
+
+    def _convtranspose_forward(self, input, weight, bias):
+        if self.padding_mode != "zeros":
+            raise ValueError(
+                "Only `zeros` padding mode is supported for ConvTranspose2d"
+            )
+
+        assert isinstance(self.padding, tuple)
+        # One cannot replace List by Tuple or Sequence in "_output_padding" because
+        # TorchScript does not support `Sequence[T]` or `Tuple[T, ...]`.
+        num_spatial_dims = 2
+        output_padding = nn.modules.conv._ConvTransposeNd._output_padding(
+            self,
+            input,
+            None,
+            self.stride,
+            self.padding,
+            self.kernel_size,  # type: ignore[arg-type]
+            num_spatial_dims,
+            self.dilation,
+        )  # type: ignore[arg-type]
+
+        weight = weight.view(self.groups, -1, *weight.shape[1:])
+        weight = weight.transpose(1, 2).flip(-2, -1)
+        weight = weight.view(-1, *weight.shape[2:])
+        return nn.functional.conv_transpose2d(
+            input,
+            weight,
+            bias,
+            self.stride,
+            self.padding,
+            output_padding,
+            self.groups,
+            self.dilation,
         )
 
     def forward(self, x):
