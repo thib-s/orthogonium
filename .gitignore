@@ -19,3 +19,13 @@ docs/build
 /site
 
 env_opacus/
+
+# all pth files
+*.pth
+
+lightning_logs/
+scripts/data/
+scripts/test_gan/data/
+output/
+*.tar
+*_args.txt
