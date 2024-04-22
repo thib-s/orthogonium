@@ -1,5 +1,6 @@
 import logging
 import math
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -14,16 +15,17 @@ def safe_inv(x):
 
 
 class SDPBasedLipschitzConv(nn.Module):
-
-    def __init__(self, cin, inner_dim, kernel_size=3, **kwargs):
+    def __init__(self, cin, inner_dim_factor, kernel_size=3, **kwargs):
         super().__init__()
 
-        inner_dim = inner_dim if inner_dim != -1 else cin
+        inner_dim = int(cin * inner_dim_factor)
         self.activation = nn.ReLU()
 
         self.padding = kernel_size // 2
 
-        self.kernel = nn.Parameter(torch.randn(inner_dim, cin, kernel_size, kernel_size))
+        self.kernel = nn.Parameter(
+            torch.randn(inner_dim, cin, kernel_size, kernel_size)
+        )
         self.bias = nn.Parameter(torch.empty(1, inner_dim, 1, 1))
         self.q = nn.Parameter(torch.randn(inner_dim))
 
@@ -53,7 +55,6 @@ class SDPBasedLipschitzConv(nn.Module):
 
 
 class SDPBasedLipschitzDense(nn.Module):
-
     def __init__(self, in_features, out_features, inner_dim, **kwargs):
         super().__init__()
 
@@ -72,7 +73,9 @@ class SDPBasedLipschitzDense(nn.Module):
     def compute_t(self):
         q = torch.exp(self.q)
         q_inv = torch.exp(-self.q)
-        t = torch.abs(torch.einsum('i,ik,kj,j -> ij', q_inv, self.weight, self.weight.T, q)).sum(1)
+        t = torch.abs(
+            torch.einsum("i,ik,kj,j -> ij", q_inv, self.weight, self.weight.T, q)
+        ).sum(1)
         t = safe_inv(t)
         return t
 
