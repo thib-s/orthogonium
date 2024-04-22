@@ -3,6 +3,7 @@ import torch.nn as nn
 
 from flashlipschitz.classparam import ClassParam
 from flashlipschitz.layers import FlashBCOP
+from flashlipschitz.layers import GroupMix
 from flashlipschitz.layers import HouseHolder
 from flashlipschitz.layers import HouseHolder_Order_2
 from flashlipschitz.layers import LayerCentering
@@ -25,6 +26,23 @@ class ConcatResidual(nn.Module):
         out = self.fn(x2)
         # concat and return
         return torch.cat([x1, out], dim=1)
+
+
+class Residual(nn.Module):
+    def __init__(self, fn):
+        super().__init__()
+        self.add_module("fn", fn)
+        self.alpha = nn.Parameter(torch.tensor(0.0), requires_grad=True)
+
+    def forward(self, x):
+        # split x
+        # x1, x2 = x.chunk(2, dim=1)
+        # apply function
+        out = self.fn(x)
+        # concat and return
+        # return torch.cat([x1, out], dim=1)
+        alpha = torch.sigmoid(self.alpha)
+        return alpha * x + (1 - alpha) * out
 
 
 def SplitConcatNet(
@@ -261,6 +279,7 @@ def PatchBasedCNN(
     kernel_size=3,
     patch_size=2,
     n_classes=10,
+    groups=1,
     conv=ClassParam(
         FlashBCOP,
         bias=False,
@@ -271,7 +290,7 @@ def PatchBasedCNN(
         bjorck_nbp_iters=0,
     ),
     act=ClassParam(MaxMin),
-    pool=ClassParam(ScaledAvgPool2d),
+    pool=ClassParam(nn.LPPool2d, norm_type=2),
     lin=ClassParam(OrthoLinear),
     norm=ClassParam(LayerCentering, dim=-3),
 ):
@@ -282,20 +301,35 @@ def PatchBasedCNN(
             kernel_size=patch_size,
             stride=patch_size,
             padding="valid",
+            padding_mode="zeros",
         ),
         act(),
         norm() if norm is not None else nn.Identity(),
         *[
             nn.Sequential(
-                conv(in_channels=dim, out_channels=dim, kernel_size=kernel_size),
-                act(),
+                conv(
+                    in_channels=dim,
+                    out_channels=dim,
+                    kernel_size=kernel_size,
+                    groups=groups,
+                ),
                 norm() if norm is not None else nn.Identity(),
+                act(),
+                (
+                    GroupMix(g, dim // g)
+                    if (g := (groups if i % 2 == 0 else dim // groups))
+                    > 1  # number of group switch every layer
+                    else nn.Identity()
+                ),
             )
             for i in range(depth)
         ],
         # scaledAvgPool2d is AvgPool2d but with a sqrt(w*h)
         # factor, as it would be 1/sqrt(w,h) lip otherwise
-        pool((img_shape[1] // patch_size, img_shape[2] // patch_size), None),
+        pool(
+            kernel_size=(img_shape[1] // patch_size, img_shape[2] // patch_size),
+            stride=None,
+        ),
         nn.Flatten(),
         lin(
             dim,
@@ -311,7 +345,9 @@ def PatchBasedExapandedCNN(
     kernel_size=3,
     patch_size=2,
     expand_factor=2,
+    groups=1,
     n_classes=10,
+    skip=False,
     conv=ClassParam(
         FlashBCOP,
         bias=False,
@@ -326,6 +362,10 @@ def PatchBasedExapandedCNN(
     lin=ClassParam(OrthoLinear),
     norm=ClassParam(LayerCentering, dim=-3),
 ):
+    if skip:
+        skipco = Residual
+    else:
+        skipco = nn.Sequential
     return nn.Sequential(
         conv(
             in_channels=img_shape[0],
@@ -335,19 +375,29 @@ def PatchBasedExapandedCNN(
             padding="valid",
         ),
         *[
-            nn.Sequential(
-                conv(
-                    in_channels=dim,
-                    out_channels=dim * expand_factor,
-                    kernel_size=kernel_size,
-                ),
-                act(),
-                norm() if norm is not None else nn.Identity(),
-                conv(
-                    in_channels=dim * expand_factor,
-                    out_channels=dim,
-                    kernel_size=kernel_size,
-                ),
+            skipco(
+                nn.Sequential(
+                    conv(
+                        in_channels=dim,
+                        out_channels=dim * expand_factor,
+                        kernel_size=kernel_size,
+                        groups=groups,
+                    ),
+                    act(),
+                    norm() if norm is not None else nn.Identity(),
+                    # (
+                    #     GroupMix(groups, dim * expand_factor // groups)
+                    #     if groups > 1
+                    #     else nn.Identity()
+                    # ),
+                    conv(
+                        in_channels=dim * expand_factor,
+                        out_channels=dim,
+                        kernel_size=kernel_size,
+                        groups=dim // groups,
+                    ),
+                    # GroupMix(dim // groups, groups) if groups > 1 else nn.Identity(),
+                )
             )
             for i in range(depth)
         ],
