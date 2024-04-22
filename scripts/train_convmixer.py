@@ -9,23 +9,31 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 from torchinfo import summary
+from tqdm import tqdm
 
+from flashlipschitz.classparam import ClassParam
 from flashlipschitz.layers import FlashBCOP
 from flashlipschitz.layers import MaxMin
 from flashlipschitz.layers import OrthoLinear
 from flashlipschitz.layers import ScaledAvgPool2d
+from flashlipschitz.layers import SOC
 from flashlipschitz.layers import UnitNormLinear
 from flashlipschitz.layers.custom_activations import Abs
 from flashlipschitz.layers.custom_activations import HouseHolder
 from flashlipschitz.layers.custom_activations import HouseHolder_Order_2
+from flashlipschitz.losses import Cosine_VRA_Loss
+from flashlipschitz.models_factory import PatchBasedCNN
+from flashlipschitz.models_factory import PatchBasedExapandedCNN
+
+# import schedulefree
 
 # from deel import torchlip as tl  ## copy pasted code from the lib to reduce dependencies
 
 #### run this to reach 82% on cifar10 in less than 10 minutes on a single GPU
-#### python train_convmixer.py --epochs=25 --batch-size=512 --lr-max=5e-4 --ra-n=0 --ra-m=0 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=128 --amp-enabled
+#### python train_convmixer.py --epochs=25 --batch-size=1024 --lr-max=1e-4 --ra-n=0 --ra-m=0 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=128 --gamma=0.1 --amp-enabled
+#### python train_convmixer.py --epochs=50 --batch-size=1024 --lr-max=1e-4 --ra-n=2 --ra-m=10 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=128 --gamma=0.1 --amp-enabled --expand-factor=4
 
-#### run this to reach better results (each epoch is waaaaay much longer)
-#### python train_convmixer.py --name LeGros --epochs=250 --batch-size=512 --lr-max=5e-4 --ra-n=2 --ra-m=10 --wd=0. --scale=1.0 --jitter=0 --reprob=0 --conv-ks=5 --hdim=512 --gamma=20.0 --amp-enabled
+# increase gamma for better robustness (max 1.0)
 
 parser = argparse.ArgumentParser()
 
@@ -69,7 +77,7 @@ def VRA(output, class_indices, L=1.0, eps=36 / 255, return_certs=False):
     output_class_indices = output[batch_indices, class_indices]
     output_nextmax = torch.max(output_trunc, dim=1)[0]
     output_diff = output_class_indices - output_nextmax
-    certs = output_diff / (math.sqrt(2) * L)
+    certs = output_diff / (2 * L)
     # vra is percentage of certs > eps
     vra = (certs > eps).float()
     if return_certs:
@@ -77,73 +85,82 @@ def VRA(output, class_indices, L=1.0, eps=36 / 255, return_certs=False):
     return vra
 
 
-def BasicCNN(dim, depth, kernel_size=5, patch_size=2, expand_factor=2, n_classes=10):
-    return nn.Sequential(
-        FlashBCOP(
-            in_channels=3,
-            out_channels=dim,
-            kernel_size=patch_size,
-            stride=patch_size,
-            padding="valid",
-            bias=False,
-            pi_iters=3,
-            bjorck_bp_iters=args.bjorck_bp_iters,
-            bjorck_nbp_iters=args.bjorck_nbp_iters,
-        ),
-        # MaxMin(),
-        *[
-            nn.Sequential(
-                FlashBCOP(
-                    in_channels=dim,
-                    out_channels=expand_factor * dim,
-                    kernel_size=kernel_size,
-                    padding="same",
-                    bias=False,
-                    pi_iters=3,
-                    bjorck_bp_iters=args.bjorck_bp_iters,
-                    bjorck_nbp_iters=args.bjorck_nbp_iters,
-                ),
-                # Oddly MaxMin works better than HouseHolder
-                # also as these activations are pairwise
-                # doubling the number of channels drastically improves
-                # performances
-                MaxMin(),
-                FlashBCOP(
-                    in_channels=expand_factor * dim,
-                    out_channels=dim,
-                    kernel_size=kernel_size,
-                    padding="same",
-                    bias=False,
-                    pi_iters=3,
-                    bjorck_bp_iters=args.bjorck_bp_iters,
-                    bjorck_nbp_iters=args.bjorck_nbp_iters,
-                ),
-                # once we got back to dim don't add MaxMin
-            )
-            for i in range(depth)
-        ],
-        ## I tried two kinds of pooling
-        ## L2NormPooling compute the norm of each channel
-        # tl.ScaledL2NormPool2d(
-        #     (32 // patch_size, 32 // patch_size),
-        #     None,
-        #     # k_coef_lip=1 / (32 // patch_size) ** 2,
-        # ),
-        ## scaledAvgPool2d is AvgPool2d but with a sqrt(w*h)
-        ## factor, as it would be 1/sqrt(w,h) lip otherwise
-        nn.AvgPool2d(
-            32 // patch_size,
-            None,
-            divisor_override=32 // patch_size,
-        ),
-        nn.Flatten(),
-        UnitNormLinear(
-            dim,
-            n_classes,
-            # k_coef_lip=1 / (dim / n_classes),
-            bias=False,
-        ),
-    )
+# def BasicCNN(dim, depth, kernel_size=5, patch_size=2, expand_factor=2, n_classes=10):
+#     return nn.Sequential(
+#         FlashBCOP(
+#             in_channels=3,
+#             out_channels=dim,
+#             kernel_size=patch_size,
+#             stride=patch_size,
+#             padding=0,
+#             padding_mode="zeros",
+#             bias=False,
+#             pi_iters=3,
+#             # exp_niter=5,
+#             bjorck_bp_iters=args.bjorck_bp_iters,
+#             bjorck_nbp_iters=args.bjorck_nbp_iters,
+#         ),
+#         # MaxMin(),
+#         *[
+#             # Residual(
+#             nn.Sequential(
+#                 FlashBCOP(
+#                     in_channels=dim,
+#                     out_channels=expand_factor * dim,
+#                     kernel_size=kernel_size,
+#                     padding="same",
+#                     padding_mode="circular",
+#                     bias=False,
+#                     pi_iters=3,
+#                     # exp_niter=5,
+#                     bjorck_bp_iters=args.bjorck_bp_iters,
+#                     bjorck_nbp_iters=args.bjorck_nbp_iters,
+#                 ),
+#                 # Oddly MaxMin works better than HouseHolder
+#                 # also as these activations are pairwise
+#                 # doubling the number of channels drastically improves
+#                 # performances
+#                 MaxMin(),
+#                 # FlashBCOP(
+#                 #     in_channels=expand_factor * dim,
+#                 #     out_channels=dim,
+#                 #     kernel_size=kernel_size,
+#                 #     padding="same",
+#                 #     padding_mode="circular",
+#                 #     bias=False,
+#                 #     pi_iters=3,
+#                 #     # exp_niter=5,
+#                 #     bjorck_bp_iters=args.bjorck_bp_iters,
+#                 #     bjorck_nbp_iters=args.bjorck_nbp_iters,
+#                 # ),
+#                 # once we got back to dim don't add MaxMin
+#             )
+#             # )
+#             for i in range(depth)
+#         ],
+#         ## I tried two kinds of pooling
+#         ## L2NormPooling compute the norm of each channel
+#         # tl.ScaledL2NormPool2d(
+#         #     (32 // patch_size, 32 // patch_size),
+#         #     None,
+#         #     # k_coef_lip=1 / (32 // patch_size) ** 2,
+#         # ),
+#         ## scaledAvgPool2d is AvgPool2d but with a sqrt(w*h)
+#         ## factor, as it would be 1/sqrt(w,h) lip otherwise
+#         # nn.AvgPool2d(
+#         #     32 // patch_size,
+#         #     None,
+#         #     divisor_override=32 // patch_size,
+#         # ),
+#         # nn.LPPool2d(2, kernel_size=32 // patch_size, stride=32 // patch_size),
+#         nn.Flatten(),
+#         UnitNormLinear(
+#             dim * (32 // patch_size) ** 2,
+#             n_classes,
+#             # k_coef_lip=1 / (dim / n_classes),
+#             bias=False,
+#         ),
+#     )
 
 
 cifar10_mean = (0.4914, 0.4822, 0.4465)
@@ -180,16 +197,29 @@ testloader = torch.utils.data.DataLoader(
 )
 
 
-model = BasicCNN(
+model = PatchBasedExapandedCNN(
+    (3, 32, 32),
     args.hdim,
     args.depth,
+    groups=1,
+    skip=True,
+    conv=ClassParam(
+        FlashBCOP,
+        bias=False,
+        padding="same",
+        padding_mode="zeros",
+        pi_iters=3,
+        bjorck_beta=0.5,
+        bjorck_bp_iters=10,
+        bjorck_nbp_iters=0,
+    ),
     patch_size=args.psize,
     kernel_size=args.conv_ks,
     n_classes=10,
     expand_factor=args.expand_factor,
 )
 
-model = nn.DataParallel(model).cuda()
+model = model.cuda()
 summary(model, (args.batch_size, 3, 32, 32))
 # model.compile()  ## TODO: make the modules compilable !!!!
 
@@ -199,12 +229,12 @@ summary(model, (args.batch_size, 3, 32, 32))
 #     [0, 5, 15, args.epochs],
 #     [1e-6, args.lr_max, args.lr_max / 20.0, 0],
 # )[0]
-gamma_schedule = lambda t: np.interp(
-    [t],
-    # [0, args.epochs * 2 // 5, args.epochs * 4 // 5, args.epochs],
-    [0, args.epochs],
-    [1e-5, args.gamma],
-)[0]
+# gamma_schedule = lambda t: np.interp(
+#     [t],
+#     # [0, args.epochs * 2 // 5, args.epochs * 4 // 5, args.epochs],
+#     [0, args.epochs],
+#     [1e-5, args.gamma],
+# )[0]
 # use cosine lr schedule
 lr_schedule = (
     lambda t: 1e-7 + args.lr_max * (1 + math.cos(math.pi * t / args.epochs)) / 2
@@ -214,25 +244,28 @@ lr_schedule = (
 opt = optim.AdamW(
     model.parameters(), lr=args.lr_max, weight_decay=args.wd, betas=(0.9, 0.99)
 )
-criterion = (
-    nn.CosineSimilarity()
-)  # here, I used the cosine (only accuracy, no robustness)
+# opt = schedulefree.AdamWScheduleFree(model.parameters(), lr=args.lr_max)
+criterion = Cosine_VRA_Loss()  # here, I used the cosine (only accuracy, no robustness)
 # criterion = nn.CrossEntropyLoss()
 if args.amp_enabled:
     scaler = torch.cuda.amp.GradScaler()
 
 std = torch.tensor(cifar10_std).cuda()
-L = 2 / torch.max(std)
+L = 1 / torch.max(std)
 
 for epoch in range(args.epochs):
     start = time.time()
     train_loss, train_acc, n, train_vra = 0, 0, 0, 0
-    for i, (X, y) in enumerate(trainloader):
+    pbar = tqdm(enumerate(trainloader), total=len(trainloader))
+    for i, (X, y) in pbar:
         model.train()
+        # opt.train()
         X, y = X.cuda(), y.cuda()
 
         lr = lr_schedule(epoch + (i + 1) / len(trainloader))
-        gamma = gamma_schedule(epoch + (i + 1) / len(trainloader))
+        # lr = args.lr_max
+        # gamma = gamma_schedule(epoch + (i + 1) / len(trainloader))
+        gamma = args.gamma
         opt.param_groups[0].update(lr=lr)
 
         opt.zero_grad()
@@ -255,11 +288,11 @@ for epoch in range(args.epochs):
         else:
             output = model(X)
             certs = VRA(output, y, L=L, eps=36 / 255, return_certs=True)
-            # loss = criterion(output, y)
-            loss = (
-                -criterion(output, nn.functional.one_hot(y, 10))
-                - args.gamma * torch.clamp(certs, min=0.0, max=36 / 255)
-            ).mean()
+            loss = criterion(output, y)
+            # loss = (
+            #     -criterion(output, nn.functional.one_hot(y, 10))
+            #     - args.gamma * torch.clamp(certs, min=0.0, max=36 / 255)
+            # ).mean()
             loss.backward()
             if args.clip_norm:
                 nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -270,6 +303,7 @@ for epoch in range(args.epochs):
         n += y.size(0)
 
     model.eval()
+    # opt.eval()
     test_acc, test_vra, m = 0, 0, 0
     with torch.no_grad():
         for i, (X, y) in enumerate(testloader):
