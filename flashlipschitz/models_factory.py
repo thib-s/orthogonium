@@ -29,10 +29,10 @@ class ConcatResidual(nn.Module):
 
 
 class Residual(nn.Module):
-    def __init__(self, fn):
+    def __init__(self, fn, init_val=0.0):
         super().__init__()
         self.add_module("fn", fn)
-        self.alpha = nn.Parameter(torch.tensor(0.0), requires_grad=True)
+        self.alpha = nn.Parameter(torch.tensor(init_val), requires_grad=True)
 
     def forward(self, x):
         # split x
