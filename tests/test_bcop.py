@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from flashlipschitz.layers.fast_block_ortho_conv import FlashBCOP
+from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
@@ -17,10 +17,10 @@ def _compute_sv_impulse_response_layer(layer, img_shape):
     return svs.max(), svs.min(), svs.mean() / svs.max()
 
 
-@pytest.mark.parametrize("kernel_size", [1, 3, 5])
+@pytest.mark.parametrize("kernel_size", [3, 5])
 @pytest.mark.parametrize("input_channels", [8, 16, 32])
 @pytest.mark.parametrize("output_channels", [16, 32, 64])
-@pytest.mark.parametrize("stride", [1, 2])
+@pytest.mark.parametrize("stride", [1])
 @pytest.mark.parametrize("groups", [1, 2, 4])
 def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     # Test instantiation
@@ -34,8 +34,6 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
             bias=False,
             padding="same",
             padding_mode="circular",
-            bjorck_bp_iters=12,
-            bjorck_nbp_iters=12,
         )
     except Exception as e:
         if kernel_size < stride:

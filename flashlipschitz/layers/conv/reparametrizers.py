@@ -2,21 +2,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.utils.parametrize as parametrize
+from torch import nn as nn
 
 
 class L2Normalize(nn.Module):
-    def __init__(self, dim=(2, 3)):
+    def __init__(self, dim=None):
         super(L2Normalize, self).__init__()
         self.dim = dim
 
-    def forward(self, kernel):
-        norm = torch.sqrt(torch.sum(kernel**2, dim=self.dim, keepdim=True))
-        return kernel / (norm + 1e-12)
+    def forward(self, x):
+        return x / (torch.norm(x, dim=self.dim, keepdim=True) + 1e-8)
 
-    def right_inverse(self, kernel):
-        # we assume that the kernel is normalized
-        norm = torch.sqrt(torch.sum(kernel**2, dim=self.dim, keepdim=True))
-        return kernel / (norm + 1e-12)
+    def right_inverse(self, x):
+        return x
 
 
 class BatchedPowerIteration(nn.Module):

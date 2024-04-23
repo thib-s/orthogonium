@@ -5,10 +5,10 @@ import torch
 import torch.nn as nn
 import torch.nn.utils.parametrize as parametrize
 
-from flashlipschitz.layers.reparametrizers import (
-    BatchedBjorckOrthogonalization,
+from flashlipschitz.layers.conv.reparametrizers import (
+    BatchedBjorckOrthogonalization, L2Normalize,
 )
-from flashlipschitz.layers.reparametrizers import (
+from flashlipschitz.layers.conv.reparametrizers import (
     BatchedPowerIteration,
 )
 
@@ -23,7 +23,24 @@ def conv_singular_values_numpy(kernel, input_shape):
     return np.linalg.svd(transforms, compute_uv=False)
 
 
-class RKO(nn.Module):
+# dataclass with RKO params
+class RKOParams:
+    def __init__(
+        self,
+        power_it_niter=3,
+        eps=1e-12,
+        beta=0.5,
+        backprop_iters=3,
+        non_backprop_iters=10,
+    ):
+        self.power_it_niter = power_it_niter
+        self.eps = eps
+        self.beta = beta
+        self.backprop_iters = backprop_iters
+        self.non_backprop_iters = non_backprop_iters
+
+
+class RKOParametrizer(nn.Module):
     def __init__(
         self,
         out_channels,
@@ -36,7 +53,7 @@ class RKO(nn.Module):
         backprop_iters=3,
         non_backprop_iters=10,
     ):
-        super(RKO, self).__init__()
+        super(RKOParametrizer, self).__init__()
         self.out_channels = out_channels
         self.in_channels = in_channels
         self.kernel_size = kernel_size
@@ -60,12 +77,12 @@ class RKO(nn.Module):
         )
 
     def forward(self, X):
-        X = X.reshape(
+        X = X.view(
             self.out_channels, self.in_channels * self.kernel_size * self.kernel_size
         )
         X = self.pi(X)
         X = self.bjorck(X)
-        X = X.reshape(
+        X = X.view(
             self.out_channels, self.in_channels, self.kernel_size, self.kernel_size
         )
         return X / self.scale
@@ -83,9 +100,7 @@ class RKOConv2d(nn.Conv2d):
         stride=1,
         padding="valid",
         bias=True,
-        pi_kwargs={},
-        bjorck_kwargs={},
-        scale=1.0,
+        rko_params=None,
     ):
         super(RKOConv2d, self).__init__(
             in_channels,
@@ -96,17 +111,16 @@ class RKOConv2d(nn.Conv2d):
             bias=bias,
         )
         torch.nn.init.orthogonal_(self.weight)
-        self.scale = scale / math.sqrt(kernel_size * kernel_size)
+        self.scale = 1 / math.sqrt(kernel_size * kernel_size)
         parametrize.register_parametrization(
             self,
             "weight",
-            RKO(
+            RKOParametrizer(
                 out_channels,
                 in_channels,
                 kernel_size,
                 self.scale,
-                **pi_kwargs,
-                **bjorck_kwargs,
+                **rko_params.__dict__,
             ),
         )
 
@@ -123,12 +137,8 @@ class RKOConv2d(nn.Conv2d):
 
 
 class OrthoLinear(nn.Linear):
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
-        super(OrthoLinear, self).__init__(*args, **kwargs)
+    def __init__(self, in_features: int, out_features: int, bias: bool = True):
+        super(OrthoLinear, self).__init__(in_features, out_features, bias=bias)
         torch.nn.init.orthogonal_(self.weight)
         parametrize.register_parametrization(
             self,
@@ -147,15 +157,6 @@ class OrthoLinear(nn.Linear):
         return svs.min(), svs.max(), stable_rank
 
 
-class L2Normalization(nn.Module):
-    def __init__(self, dim=1):
-        super(L2Normalization, self).__init__()
-        self.dim = dim
-
-    def forward(self, x):
-        return x / (torch.norm(x, dim=self.dim, keepdim=True) + 1e-8)
-
-
 class UnitNormLinear(nn.Linear):
     def __init__(
         self,
@@ -168,7 +169,7 @@ class UnitNormLinear(nn.Linear):
         parametrize.register_parametrization(
             self,
             "weight",
-            L2Normalization(dim=1),
+            L2Normalize(dim=1),
         )
 
     def singular_values(self):

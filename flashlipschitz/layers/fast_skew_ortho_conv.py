@@ -17,8 +17,8 @@ from torch.nn.common_types import _size_1_t
 from torch.nn.common_types import _size_2_t
 from torch.nn.common_types import _size_3_t
 
-from flashlipschitz.layers.reparametrizers import BatchedBjorckOrthogonalization
-from flashlipschitz.layers.reparametrizers import BatchedPowerIteration
+from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
+from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
 
 
 class Skew(nn.Module):
@@ -233,10 +233,10 @@ class SOC(nn.Conv2d):
         override_inner_channels=None,
     ):
         """New parametrization of BCOP. It is in fact a sequence of 3 convolutions:
-        - a 1x1 RKO convolution with in_channels inputs and inner_channels outputs
-            parametrized with RKO. It is orthogonal as it is a 1x1 convolution
+        - a 1x1 RKOParametrizer convolution with in_channels inputs and inner_channels outputs
+            parametrized with RKOParametrizer. It is orthogonal as it is a 1x1 convolution
         - a (k-s+1)x(k-s+1) BCOP conv with inner_channels inputs and outputs
-        - a sxs RKO convolution with stride s, inner_channels inputs and out_channels outputs.
+        - a sxs RKOParametrizer convolution with stride s, inner_channels inputs and out_channels outputs.
 
         Depending on the context (kernel size, stride, number of in/out channels) this method
         may only use 1 or 2 of the 3 described convolutions. Fusing the kernels result in a

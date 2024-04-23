@@ -17,11 +17,11 @@ from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
 from flashlipschitz.layers.custom_activations import MaxMin
-from flashlipschitz.layers.fast_block_ortho_conv import FlashBCOP
+from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
 from flashlipschitz.layers.normalization import LayerCentering
 from flashlipschitz.layers.pooling import ScaledAvgPool2d
-from flashlipschitz.layers.rko_conv import OrthoLinear
-from flashlipschitz.layers.rko_conv import UnitNormLinear
+from flashlipschitz.layers.conv.rko_conv import OrthoLinear
+from flashlipschitz.layers.conv.rko_conv import UnitNormLinear
 from flashlipschitz.losses import Cosine_VRA_Loss
 
 
