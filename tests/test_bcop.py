@@ -17,7 +17,7 @@ def _compute_sv_impulse_response_layer(layer, img_shape):
     return svs.max(), svs.min(), svs.mean() / svs.max()
 
 
-@pytest.mark.parametrize("kernel_size", [3, 5])
+@pytest.mark.parametrize("kernel_size", [1, 3, 5])
 @pytest.mark.parametrize("input_channels", [8, 16, 32])
 @pytest.mark.parametrize("output_channels", [16, 32, 64])
 @pytest.mark.parametrize("stride", [1])

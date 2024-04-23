@@ -1,17 +1,10 @@
-from math import ceil
-from typing import List
-from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.utils.parametrize as parametrize
-from torch.nn.common_types import _size_1_t
 from torch.nn.common_types import _size_2_t
-from torch.nn.common_types import _size_3_t
-from torch.nn.modules.utils import _pair
 
 from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
 from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
@@ -100,11 +93,13 @@ class BCOPTrivializer(nn.Module):
         # we can rewrite PQ@PQ.t as an einsum
         PQ = torch.einsum("gijl,gikl->gijk", PQ, PQ)
         # PQ = PQ @ PQ.transpose(-1, -2)
-        p = block_orth(PQ[:, 0], PQ[:, 1])
+        p = torch.eye(self.max_channels // self.groups) - 2 * PQ[:, 0]  # (g, c/g, c/g)
+        p = p @ (torch.eye(self.max_channels // self.groups) - 2 * PQ[:, 1])  # (g,
+        # c/g, c/g)
+        p = p.view(self.max_channels, self.max_channels // self.groups, 1, 1)
         if self.in_channels != self.out_channels:
-            print(p.shape, self.min_channels, self.max_channels)
             p = p[:, : self.min_channels // self.groups, :, :]
-        for _ in range(0, self.kernel_size - 2):
+        for _ in range(0, self.kernel_size - 1):
             p = fast_matrix_conv(
                 p, block_orth(PQ[:, _ * 2], PQ[:, _ * 2 + 1]), self.groups
             )
@@ -177,7 +172,7 @@ class FlashBCOP(nn.Conv2d):
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
-        self.num_kernels = 2 * self.kernel_size
+        self.num_kernels = 2 * self.kernel_size + 2
         self.groups = groups
         del self.weight
         self.weight = nn.Parameter(
