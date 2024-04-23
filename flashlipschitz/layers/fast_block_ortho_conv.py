@@ -11,6 +11,7 @@ import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_1_t
 from torch.nn.common_types import _size_2_t
 from torch.nn.common_types import _size_3_t
+from torch.nn.modules.utils import _pair
 
 from flashlipschitz.layers.reparametrizers import BatchedBjorckOrthogonalization
 from flashlipschitz.layers.reparametrizers import BatchedPowerIteration
@@ -124,7 +125,7 @@ class FlashBCOP(nn.Module):
         bias: bool = True,
         padding_mode: str = "circular",
         transpose: bool = False,
-        output_padding: Optional[_size_2_t] = None,
+        output_padding: Optional[_size_2_t] = 0,
         pi_iters=3,
         bjorck_beta=0.5,
         bjorck_nbp_iters=5,
@@ -179,7 +180,7 @@ class FlashBCOP(nn.Module):
         self.padding = padding
         self.dilation = dilation
         self.transposed = transpose
-        self.output_padding = output_padding
+        self.output_padding = _pair(output_padding)
         self.groups = groups
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -458,7 +459,13 @@ class FlashBCOP(nn.Module):
                 self.groups,
             )
 
-    def _conv_forward(self, input, weight, bias):
+    def _conv_forward(self, input, weight, bias, transpose_weight=False):
+        if transpose_weight:
+            co_g, ci, w, h = weight.shape
+            weight = weight.view(self.groups, co_g // self.groups, ci, w, h)
+            weight = weight.transpose(1, 2).flip(-2, -1)
+            weight = weight.view(ci * self.groups, co_g // self.groups, w, h)
+            # weight = weight.transpose(0, 1).flip(-2, -1)
         if self.padding_mode != "zeros":
             return torch.nn.functional.conv2d(
                 torch.nn.functional.pad(
@@ -480,15 +487,47 @@ class FlashBCOP(nn.Module):
             groups=self.groups,
         )
 
-    def _convtranspose_forward(self, input, weight, bias):
-        if self.padding_mode != "zeros":
-            raise ValueError(
-                "Only `zeros` padding mode is supported for ConvTranspose2d"
-            )
+    def _convtranspose_forward(self, input, weight, bias, transpose_weight=False):
+        # if self.padding_mode != "zeros":
+        #     raise ValueError(
+        #         "Only `zeros` padding mode is supported for ConvTranspose2d"
+        #     )
 
-        assert isinstance(self.padding, tuple)
+        # assert isinstance(self.padding, tuple)
         # One cannot replace List by Tuple or Sequence in "_output_padding" because
         # TorchScript does not support `Sequence[T]` or `Tuple[T, ...]`.
+        if transpose_weight:
+            co_g, ci, w, h = weight.shape
+            weight = weight.view(self.groups, co_g // self.groups, ci, w, h)
+            weight = weight.transpose(1, 2).flip(-2, -1)
+            weight = weight.view(ci * self.groups, co_g // self.groups, w, h)
+            # weight = weight.transpose(0, 1).flip(-2, -1)
+
+        if self.padding_mode != "zeros":
+            num_spatial_dims = 2
+            output_padding = nn.modules.conv._ConvTransposeNd._output_padding(
+                self,
+                input,
+                None,
+                self.stride,
+                self.kernel_size - 1,
+                self.kernel_size,  # type: ignore[arg-type]
+                num_spatial_dims,
+                self.dilation,
+            )  # type: ignore[arg-type]
+            return nn.functional.conv_transpose2d(
+                torch.nn.functional.pad(
+                    input, (self.kernel_size // 2,) * 4, mode=self.padding_mode
+                ),
+                weight,
+                bias,
+                self.stride,
+                self.kernel_size - 1,
+                output_padding,
+                self.groups,
+                self.dilation,
+            )
+
         num_spatial_dims = 2
         output_padding = nn.modules.conv._ConvTransposeNd._output_padding(
             self,
@@ -500,10 +539,6 @@ class FlashBCOP(nn.Module):
             num_spatial_dims,
             self.dilation,
         )  # type: ignore[arg-type]
-
-        weight = weight.view(self.groups, -1, *weight.shape[1:])
-        weight = weight.transpose(1, 2).flip(-2, -1)
-        weight = weight.view(-1, *weight.shape[2:])
         return nn.functional.conv_transpose2d(
             input,
             weight,
@@ -515,6 +550,21 @@ class FlashBCOP(nn.Module):
             self.dilation,
         )
 
+    def inverse(self, x):
+        self._input_shape = x.shape[2:]
+        # todo: somehow caching the weight is not working in distributed training context
+        if self.training:
+            weight = self.merge_kernels()
+            self.weight = weight
+        else:
+            weight = self.weight
+        if self.transposed:
+            return self._conv_forward(x, weight, self.bias, transpose_weight=True)
+        else:
+            return self._convtranspose_forward(
+                x, weight, self.bias, transpose_weight=False
+            )
+
     def forward(self, x):
         self._input_shape = x.shape[2:]
         # todo: somehow caching the weight is not working in distributed training context
@@ -523,4 +573,9 @@ class FlashBCOP(nn.Module):
             self.weight = weight
         else:
             weight = self.weight
-        return self._conv_forward(x, weight, self.bias)
+        if self.transposed:
+            return self._convtranspose_forward(
+                x, weight, self.bias, transpose_weight=True
+            )
+        else:
+            return self._conv_forward(x, weight, self.bias, transpose_weight=False)
