@@ -6,7 +6,10 @@ import torch.nn as nn
 import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_2_t
 
-from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
+from flashlipschitz.layers.conv.reparametrizers import (
+    BatchedBjorckOrthogonalization,
+    BjorckParams,
+)
 from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
 
 
@@ -116,6 +119,63 @@ class BCOPTrivializer(nn.Module):
         return p
 
 
+def attach_bcop_weight(
+    layer,
+    weight_name,
+    kernel_shape,
+    groups,
+    bjorck_params: BjorckParams = BjorckParams(),
+):
+    out_channels, in_channels, kernel_size, k2 = kernel_shape
+    assert kernel_size == k2, "only square kernels are supported for the moment"
+    max_channels = max(in_channels, out_channels)
+    num_kernels = 2 * kernel_size + 2
+
+    layer.register_parameter(
+        weight_name,
+        torch.nn.Parameter(
+            torch.Tensor(
+                groups,
+                num_kernels,
+                max_channels // groups,
+                max_channels // (groups * 2),
+            ),
+            requires_grad=True,
+        ),
+    )
+    weight = getattr(layer, weight_name)
+    torch.nn.init.orthogonal_(weight)
+    parametrize.register_parametrization(
+        layer,
+        weight_name,
+        BatchedPowerIteration(
+            weight.shape,
+            bjorck_params.power_it_niter,
+        ),
+    )
+    parametrize.register_parametrization(
+        layer,
+        weight_name,
+        BatchedBjorckOrthogonalization(
+            weight.shape,
+            bjorck_params.beta,
+            bjorck_params.bjorck_iters,
+        ),
+    )
+    parametrize.register_parametrization(
+        layer,
+        weight_name,
+        BCOPTrivializer(
+            in_channels,
+            out_channels,
+            kernel_size,
+            groups,
+        ),
+        unsafe=True,
+    )
+    return weight
+
+
 class FlashBCOP(nn.Conv2d):
     def __init__(
         self,
@@ -128,14 +188,8 @@ class FlashBCOP(nn.Conv2d):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "circular",
-        pi_iters=3,
-        bjorck_beta=0.5,
-        bjorck_nbp_iters=5,
-        bjorck_bp_iters=5,
+        bjorck_params: BjorckParams = BjorckParams(),
     ):
-        if (padding == "same") and (stride != 1):
-            padding = (kernel_size - 1) // 2 if kernel_size != stride else 0
-
         if dilation != 1:
             raise RuntimeError("dilation not supported")
         super(FlashBCOP, self).__init__(
@@ -172,47 +226,14 @@ class FlashBCOP(nn.Conv2d):
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
-        self.num_kernels = 2 * self.kernel_size + 2
         self.groups = groups
         del self.weight
-        self.weight = nn.Parameter(
-            torch.Tensor(
-                self.groups,
-                self.num_kernels,
-                self.max_channels // self.groups,
-                self.max_channels // (self.groups * 2),
-            ),
-            requires_grad=True,
-        )
-        torch.nn.init.orthogonal_(self.weight)
-        parametrize.register_parametrization(
+        attach_bcop_weight(
             self,
             "weight",
-            BatchedPowerIteration(
-                self.weight.shape,
-                pi_iters,
-            ),
-        )
-        parametrize.register_parametrization(
-            self,
-            "weight",
-            BatchedBjorckOrthogonalization(
-                self.weight.shape,
-                bjorck_beta,
-                bjorck_bp_iters,
-                bjorck_nbp_iters,
-            ),
-        )
-        parametrize.register_parametrization(
-            self,
-            "weight",
-            BCOPTrivializer(
-                self.in_channels,
-                self.out_channels,
-                self.kernel_size,
-                self.groups,
-            ),
-            unsafe=True,
+            (out_channels, in_channels, kernel_size, kernel_size),
+            groups,
+            bjorck_params,
         )
 
         if bias:

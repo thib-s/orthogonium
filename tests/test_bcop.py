@@ -3,6 +3,8 @@ import torch
 
 from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
 
+# from flashlipschitz.layers.conv.ortho_conv import OrthoConv as FlashBCOP
+
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
     inputs = torch.eye(img_shape[0] * img_shape[1] * img_shape[2]).view(
@@ -12,7 +14,6 @@ def _compute_sv_impulse_response_layer(layer, img_shape):
         img_shape[2],
     )
     outputs = layer(inputs)
-    print(outputs.shape)
     svs = torch.linalg.svdvals(outputs.view(outputs.shape[0], -1))
     return svs.max(), svs.min(), svs.mean() / svs.max()
 
@@ -20,7 +21,7 @@ def _compute_sv_impulse_response_layer(layer, img_shape):
 @pytest.mark.parametrize("kernel_size", [1, 3, 5])
 @pytest.mark.parametrize("input_channels", [8, 16, 32])
 @pytest.mark.parametrize("output_channels", [16, 32, 64])
-@pytest.mark.parametrize("stride", [1])
+@pytest.mark.parametrize("stride", [1, 2])
 @pytest.mark.parametrize("groups", [1, 2, 4])
 def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     # Test instantiation
@@ -32,7 +33,7 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
             stride=stride,
             groups=groups,
             bias=False,
-            padding="same",
+            padding=kernel_size // 2,
             padding_mode="circular",
         )
     except Exception as e:

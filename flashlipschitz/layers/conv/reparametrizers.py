@@ -5,6 +5,20 @@ import torch.nn.utils.parametrize as parametrize
 from torch import nn as nn
 
 
+class BjorckParams:
+    def __init__(
+        self,
+        power_it_niter=3,
+        eps=1e-12,
+        beta=0.5,
+        bjorck_iters=7,
+    ):
+        self.power_it_niter = power_it_niter
+        self.eps = eps
+        self.beta = beta
+        self.bjorck_iters = bjorck_iters
+
+
 class L2Normalize(nn.Module):
     def __init__(self, dim=None):
         super(L2Normalize, self).__init__()
@@ -62,31 +76,11 @@ class BatchedPowerIteration(nn.Module):
         return normalized_kernel
 
 
-class GradPassthroughBjorck(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, w, beta, iters, wwtw_op):
-        for _ in range(iters):
-            w = (1 + beta) * w - beta * wwtw_op(w)
-            # w_t_w = w.transpose(-1, -2) @ w
-            # w = (1 + self.beta) * w - self.beta * w @ w_t_w
-        return w
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        # Backward pass logic goes here.
-        # You can retrieve saved variables using saved_tensors = ctx.saved_tensors.
-        grad_input = (
-            grad_output.clone()
-        )  # For illustration, this just passes the gradient through.
-        return grad_input, None, None, None
-
-
 class BatchedBjorckOrthogonalization(nn.Module):
-    def __init__(self, weight_shape, beta=0.5, backprop_iters=3, non_backprop_iters=10):
+    def __init__(self, weight_shape, beta=0.5, niters=7):
         self.weight_shape = weight_shape
         self.beta = beta
-        self.backprop_iters = backprop_iters
-        self.non_backprop_iters = non_backprop_iters
+        self.niters = niters
         if weight_shape[-2] < weight_shape[-1]:
             self.wwtw_op = BatchedBjorckOrthogonalization.wwt_w_op
         else:
@@ -102,13 +96,8 @@ class BatchedBjorckOrthogonalization(nn.Module):
         return (w @ w.transpose(-1, -2)) @ w
 
     def forward(self, w):
-        for _ in range(self.backprop_iters):
+        for _ in range(self.niters):
             w = (1 + self.beta) * w - self.beta * self.wwtw_op(w)
-            # w_t_w = w.transpose(-1, -2) @ w
-            # w = (1 + self.beta) * w - self.beta * w @ w_t_w
-        w = GradPassthroughBjorck.apply(
-            w, self.beta, self.non_backprop_iters, self.wwtw_op
-        )
         return w
 
     def right_inverse(self, w):
