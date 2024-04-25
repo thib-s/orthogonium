@@ -39,6 +39,7 @@ class RKOParametrizer(nn.Module):
         self.kernel_shape = kernel_shape
         self.groups = groups
         out_channels, in_channels, k1, k2 = kernel_shape
+        in_channels *= groups
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.k1 = k1
@@ -47,7 +48,10 @@ class RKOParametrizer(nn.Module):
         self.register_module(
             "pi",
             BatchedPowerIteration(
-                kernel_shape=(out_channels, in_channels * k1 * k2),
+                kernel_shape=(self.groups, out_channels // self.groups, in_channels //
+                              groups *
+                              k1 *
+                              k2),
                 power_it_niter=bjorck_params.power_it_niter,
                 eps=bjorck_params.eps,
             ),
@@ -55,17 +59,24 @@ class RKOParametrizer(nn.Module):
         self.register_module(
             "bjorck",
             BatchedBjorckOrthogonalization(
-                weight_shape=(out_channels, in_channels * k1 * k2),
+                weight_shape=(self.groups, out_channels // self.groups, in_channels //
+                              groups *
+                              k1 *
+                              k2),
                 beta=bjorck_params.beta,
                 niters=bjorck_params.bjorck_iters,
             ),
         )
 
     def forward(self, X):
-        X = X.view(self.out_channels, self.in_channels * self.k1 * self.k2)
+        X = X.view(
+            self.groups,
+            self.out_channels // self.groups,
+            (self.in_channels // self.groups) * self.k1 * self.k2,
+        )
         X = self.pi(X)
         X = self.bjorck(X)
-        X = X.view(self.out_channels, self.in_channels, self.k1, self.k2)
+        X = X.view(self.out_channels, self.in_channels // self.groups, self.k1, self.k2)
         return X / self.scale
 
     def right_inverse(self, X):
@@ -81,6 +92,7 @@ def attach_rko_weight(
     bjorck_params: BjorckParams = BjorckParams(),
 ):
     out_channels, in_channels, kernel_size, k2 = kernel_shape
+    in_channels *= groups
     if scale is None:
         scale = 1 / math.sqrt(kernel_size * kernel_size)
 
