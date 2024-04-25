@@ -20,11 +20,15 @@ def conv_singular_values_numpy(kernel, input_shape):
     """
     kernel = np.transpose(kernel, [0, 3, 4, 1, 2])  # g, k1, k2, ci, co
     transforms = np.fft.fft2(kernel, input_shape, axes=[1, 2])  # g, k1, k2, ci, co
-    svs = np.linalg.svd(
-        transforms, compute_uv=False, full_matrices=False
-    )  # g, k1, k2, min(ci, co)
-    stable_rank = np.mean(svs) / (svs.max() ** 2)
-    return svs.min(), svs.max(), stable_rank
+    try:
+        svs = np.linalg.svd(
+            transforms, compute_uv=False, full_matrices=False
+        )  # g, k1, k2, min(ci, co)
+        stable_rank = np.mean(svs) / (svs.max() ** 2)
+        return svs.min(), svs.max(), stable_rank
+    except np.linalg.LinAlgError:
+        print("numerical error in svd, returning only largest singular value")
+        return None, np.linalg.norm(transforms, axis=(1, 2), ord=2), None
 
 
 def fast_matrix_conv(m1, m2, groups=1):
@@ -93,30 +97,39 @@ class BCOPTrivializer(nn.Module):
         self.transpose = out_channels < in_channels
 
     def forward(self, PQ):
+        ident = torch.eye(self.max_channels // self.groups, device=PQ.device).unsqueeze(
+            0
+        )
         # we can rewrite PQ@PQ.t as an einsum
         PQ = torch.einsum("gijl,gikl->gijk", PQ, PQ)
         # PQ = PQ @ PQ.transpose(-1, -2)
-        p = torch.eye(self.max_channels // self.groups) - 2 * PQ[:, 0]  # (g, c/g, c/g)
-        p = p @ (torch.eye(self.max_channels // self.groups) - 2 * PQ[:, 1])  # (g,
-        # c/g, c/g)
+        p = ident - 2 * PQ[:, 0, :, :]  # (g, c/g, c/g)
+        p = p @ (ident - 2 * PQ[:, 1, :, :])  # (g, c/g, c/g)
         p = p.view(self.max_channels, self.max_channels // self.groups, 1, 1)
         if self.in_channels != self.out_channels:
             p = p[:, : self.min_channels // self.groups, :, :]
-        for _ in range(0, self.kernel_size - 1):
+        for _ in range(1, self.kernel_size):
             p = fast_matrix_conv(
                 p, block_orth(PQ[:, _ * 2], PQ[:, _ * 2 + 1]), self.groups
             )
         if self.transpose:
             # we do not perform flip since it does not affect orthogonality
+            p = p.view(
+                self.groups,
+                self.max_channels // self.groups,
+                self.min_channels // self.groups,
+                self.kernel_size,
+                self.kernel_size,
+            )
             p = p.transpose(1, 2)
-        # merge groups to get the final kernel
-        p = p.reshape(
-            self.out_channels,
-            self.in_channels // self.groups,
-            self.kernel_size,
-            self.kernel_size,
-        )
-        return p
+            # merge groups to get the final kernel
+            p = p.reshape(
+                self.out_channels,
+                self.in_channels // self.groups,
+                self.kernel_size,
+                self.kernel_size,
+            )
+        return p.contiguous()
 
 
 def attach_bcop_weight(
@@ -129,7 +142,7 @@ def attach_bcop_weight(
     out_channels, in_channels, kernel_size, k2 = kernel_shape
     assert kernel_size == k2, "only square kernels are supported for the moment"
     max_channels = max(in_channels, out_channels)
-    num_kernels = 2 * kernel_size + 2
+    num_kernels = 2 * kernel_size
 
     layer.register_parameter(
         weight_name,
@@ -252,7 +265,7 @@ class FlashBCOP(nn.Conv2d):
         sv_min, sv_max, stable_rank = conv_singular_values_numpy(
             self.weight.detach()
             .cpu()
-            .reshape(
+            .view(
                 self.groups,
                 self.out_channels // self.groups,
                 self.in_channels // self.groups,
