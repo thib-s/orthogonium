@@ -3,20 +3,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.utils.parametrize as parametrize
 from torch import nn as nn
+from dataclasses import dataclass
 
 
+@dataclass
 class BjorckParams:
-    def __init__(
-        self,
-        power_it_niter=3,
-        eps=1e-12,
-        beta=0.5,
-        bjorck_iters=7,
-    ):
-        self.power_it_niter = power_it_niter
-        self.eps = eps
-        self.beta = beta
-        self.bjorck_iters = bjorck_iters
+    power_it_niter: int = 3
+    eps: float = 1e-12
+    beta: float = 0.5
+    bjorck_iters: int = 7
 
 
 class L2Normalize(nn.Module):
