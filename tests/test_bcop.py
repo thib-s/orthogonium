@@ -1,26 +1,34 @@
 import pytest
 import torch
+import numpy as np
 
-from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
+from flashlipschitz.layers.conv.ortho_conv import OrthoConv as FlashBCOP
+
+# from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
 from flashlipschitz.layers.conv.reparametrizers import BjorckParams
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
-    inputs = torch.eye(img_shape[0] * img_shape[1] * img_shape[2]).view(
-        img_shape[0] * img_shape[1] * img_shape[2],
-        img_shape[0],
-        img_shape[1],
-        img_shape[2],
-    )
-    outputs = layer(inputs)
-    svs = torch.linalg.svdvals(outputs.view(outputs.shape[0], -1))
-    return svs.max(), svs.min(), svs.mean() / svs.max()
+    with torch.no_grad():
+        inputs = torch.eye(img_shape[0] * img_shape[1] * img_shape[2]).view(
+            img_shape[0] * img_shape[1] * img_shape[2],
+            img_shape[0],
+            img_shape[1],
+            img_shape[2],
+        )
+        outputs = layer(inputs)
+        try:
+            svs = torch.linalg.svdvals(outputs.view(outputs.shape[0], -1))
+            return svs.min(), svs.max(), svs.mean() / svs.max()
+        except np.linalg.LinAlgError:
+            print("SVD failed returning only largest singular value")
+            return torch.norm(outputs.view(outputs.shape[0], -1), p=2).max(), 0, 0
 
 
 @pytest.mark.parametrize("kernel_size", [1, 3, 5])
 @pytest.mark.parametrize("input_channels", [8, 16, 32])
 @pytest.mark.parametrize("output_channels", [16, 32, 64])
-@pytest.mark.parametrize("stride", [1])
+@pytest.mark.parametrize("stride", [1, 2])
 @pytest.mark.parametrize("groups", [1, 2, 4])
 def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     # Test instantiation
@@ -52,12 +60,13 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     # Test backpropagation and weight update
     try:
         bcop.train()
-        opt = torch.optim.SGD(bcop.parameters(), lr=0.01)
-        for i in range(1):
+        opt = torch.optim.SGD(bcop.parameters(), lr=0.001)
+        for i in range(25):
             opt.zero_grad()
             inp = torch.randn(1, input_channels, imsize, imsize)
             output = bcop(inp)
-            output.backward(torch.randn_like(output))
+            loss = -output.mean()
+            loss.backward()
             opt.step()
         bcop.eval()  # so impulse response test checks the eval mode
     except Exception as e:
@@ -83,30 +92,34 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
 
     # Test singular_values function
     sigma_min, sigma_max, stable_rank = bcop.singular_values()  # try:
-    sigma_max_ir, sigma_min_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
+    sigma_min_ir, sigma_max_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
         bcop, (input_channels, imsize, imsize)
     )
-    # except Exception as e:
-    #     pytest.skip(f"SVD failed with LinalgError {e}")
-    #     # passing value to help linter following code wont be executed when
-    #     # linalgerror is raised
-    #     # sigma_max_ir, sigma_min_ir, stable_rank_ir = sigma_max, sigma_min, stable_rank
+    print(
+        f"({input_channels}->{output_channels}, g{groups}, k{kernel_size}), "
+        f"sigma_max:"
+        f" {sigma_max:.3f}/{sigma_max_ir:.3f}, "
+        f"sigma_min:"
+        f" {sigma_min:.3f}/{sigma_min_ir:.3f}, "
+        f"stable_rank: {stable_rank:.3f}/{stable_rank_ir:.3f}"
+    )
+    tol = 1e-4
     # check that the singular values are close to 1
-    assert sigma_max < (1 + 1e-3), "sigma_max is not less than 1"
-    assert (sigma_min < (1 + 1e-3)) and (
-        sigma_min > 0.95
+    assert sigma_max_ir < (1 + tol), "sigma_max is not less than 1"
+    assert (sigma_min_ir < (1 + tol)) and (
+        sigma_min_ir > 0.95
     ), "sigma_min is not close to 1"
-    assert abs(stable_rank - 1) < 1e-3, "stable_rank is not close to 1"
+    assert abs(stable_rank_ir - 1) < tol, "stable_rank is not close to 1"
     # check that the singular values are close to the impulse response values
+    # assert (
+    #     sigma_max > sigma_max_ir - 1e-2
+    # ), f"sigma_max must be greater to its IR value (1%): {sigma_max} vs {sigma_max_ir}"
     assert (
-        abs(sigma_max - sigma_max_ir) < 1e-2
+        abs(sigma_max - sigma_max_ir) < tol
     ), f"sigma_max is not close to its IR value: {sigma_max} vs {sigma_max_ir}"
     assert (
-        abs(sigma_min - sigma_min_ir) < 1e-2
+        abs(sigma_min - sigma_min_ir) < tol
     ), f"sigma_min is not close to its IR value: {sigma_min} vs {sigma_min_ir}"
     assert (
-        abs(stable_rank - stable_rank_ir) < 1e-2
+        abs(stable_rank - stable_rank_ir) < tol
     ), f"stable_rank is not close to its IR value: {stable_rank} vs {stable_rank_ir}"
-    print(
-        f"sigma_max: {sigma_max:.3f}/{sigma_max_ir:.3f}, sigma_min: {sigma_min:.3f}/{sigma_min_ir:.3f}, stable_rank: {stable_rank:.3f}/{stable_rank_ir:.3f}"
-    )

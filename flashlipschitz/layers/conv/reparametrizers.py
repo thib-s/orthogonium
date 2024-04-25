@@ -9,9 +9,9 @@ from dataclasses import dataclass
 @dataclass
 class BjorckParams:
     power_it_niter: int = 3
-    eps: float = 1e-12
+    eps: float = 1e-6
     beta: float = 0.5
-    bjorck_iters: int = 7
+    bjorck_iters: int = 10
 
 
 class L2Normalize(nn.Module):
