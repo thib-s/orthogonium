@@ -140,6 +140,7 @@ def attach_bcop_weight(
     bjorck_params: BjorckParams = BjorckParams(),
 ):
     out_channels, in_channels, kernel_size, k2 = kernel_shape
+    in_channels *= groups
     assert kernel_size == k2, "only square kernels are supported for the moment"
     max_channels = max(in_channels, out_channels)
     num_kernels = 2 * kernel_size
@@ -226,6 +227,11 @@ class FlashBCOP(nn.Conv2d):
         self.max_channels = max(in_channels, out_channels)
 
         # raise runtime error if kernel size >= stride
+        if (stride > 1) and (out_channels > in_channels):
+            raise RuntimeError(
+                "stride > 1 is not supported when out_channels > in_channels, "
+                "use TODO layer instead"
+            )
         if kernel_size < stride:
             raise RuntimeError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
@@ -244,7 +250,7 @@ class FlashBCOP(nn.Conv2d):
         attach_bcop_weight(
             self,
             "weight",
-            (out_channels, in_channels, kernel_size, kernel_size),
+            (out_channels, in_channels // groups, kernel_size, kernel_size),
             groups,
             bjorck_params,
         )
