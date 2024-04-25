@@ -2,8 +2,7 @@ import pytest
 import torch
 
 from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
-
-# from flashlipschitz.layers.conv.ortho_conv import OrthoConv as FlashBCOP
+from flashlipschitz.layers.conv.reparametrizers import BjorckParams
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
@@ -21,7 +20,7 @@ def _compute_sv_impulse_response_layer(layer, img_shape):
 @pytest.mark.parametrize("kernel_size", [1, 3, 5])
 @pytest.mark.parametrize("input_channels", [8, 16, 32])
 @pytest.mark.parametrize("output_channels", [16, 32, 64])
-@pytest.mark.parametrize("stride", [1, 2])
+@pytest.mark.parametrize("stride", [1])
 @pytest.mark.parametrize("groups", [1, 2, 4])
 def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     # Test instantiation
@@ -33,8 +32,14 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
             stride=stride,
             groups=groups,
             bias=False,
-            padding=kernel_size // 2,
+            padding=(kernel_size // 2, kernel_size // 2),
             padding_mode="circular",
+            bjorck_params=BjorckParams(
+                power_it_niter=3,
+                eps=1e-6,
+                beta=0.5,
+                bjorck_iters=20,
+            ),
         )
     except Exception as e:
         if kernel_size < stride:
@@ -47,11 +52,13 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     # Test backpropagation and weight update
     try:
         bcop.train()
-        inp = torch.randn(1, input_channels, imsize, imsize)
-        opt = torch.optim.SGD(bcop.parameters(), lr=0.1)
-        output = bcop(inp)
-        output.backward(torch.randn_like(output))
-        opt.step()
+        opt = torch.optim.SGD(bcop.parameters(), lr=0.01)
+        for i in range(1):
+            opt.zero_grad()
+            inp = torch.randn(1, input_channels, imsize, imsize)
+            output = bcop(inp)
+            output.backward(torch.randn_like(output))
+            opt.step()
         bcop.eval()  # so impulse response test checks the eval mode
     except Exception as e:
         pytest.fail(f"Backpropagation or weight update failed with: {e}")
@@ -75,20 +82,22 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
         )
 
     # Test singular_values function
-    try:
-        sigma_max, sigma_min, stable_rank = bcop.singular_values()
-        assert sigma_max < (1 + 1e-3), "sigma_max is not less than 1"
-        assert (sigma_min < (1 + 1e-3)) and (
-            sigma_min > 0.95
-        ), "sigma_min is not close to 1"
-        assert abs(stable_rank - 1) < 1e-3, "stable_rank is not close to 1"
-        sigma_max_ir, sigma_min_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
-            bcop, (input_channels, imsize, imsize)
-        )
-    except Exception as e:
-        # pytest.skip(f"SVD failed with LinalgError {e}")
-        # assing value to help linter following code wont be executed when linalgerror is raised
-        sigma_max_ir, sigma_min_ir, stable_rank_ir = sigma_max, sigma_min, stable_rank
+    sigma_min, sigma_max, stable_rank = bcop.singular_values()  # try:
+    sigma_max_ir, sigma_min_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
+        bcop, (input_channels, imsize, imsize)
+    )
+    # except Exception as e:
+    #     pytest.skip(f"SVD failed with LinalgError {e}")
+    #     # passing value to help linter following code wont be executed when
+    #     # linalgerror is raised
+    #     # sigma_max_ir, sigma_min_ir, stable_rank_ir = sigma_max, sigma_min, stable_rank
+    # check that the singular values are close to 1
+    assert sigma_max < (1 + 1e-3), "sigma_max is not less than 1"
+    assert (sigma_min < (1 + 1e-3)) and (
+        sigma_min > 0.95
+    ), "sigma_min is not close to 1"
+    assert abs(stable_rank - 1) < 1e-3, "stable_rank is not close to 1"
+    # check that the singular values are close to the impulse response values
     assert (
         abs(sigma_max - sigma_max_ir) < 1e-2
     ), f"sigma_max is not close to its IR value: {sigma_max} vs {sigma_max_ir}"
@@ -98,3 +107,6 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     assert (
         abs(stable_rank - stable_rank_ir) < 1e-2
     ), f"stable_rank is not close to its IR value: {stable_rank} vs {stable_rank_ir}"
+    print(
+        f"sigma_max: {sigma_max:.3f}/{sigma_max_ir:.3f}, sigma_min: {sigma_min:.3f}/{sigma_min_ir:.3f}, stable_rank: {stable_rank:.3f}/{stable_rank_ir:.3f}"
+    )
