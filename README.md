@@ -11,7 +11,7 @@ from flashlipschitz.layers import OrthoConv2d
 from flashlipschitz.layers.conv.reparametrizers import BjorckParams
 # use OrthoConv2d with the same params as torch.nn.Conv2d
 
-bcop = OrthoConv2d(
+conv = OrthoConv2d(
     kernel_size=3,
     in_channels=256,
     out_channels=256,
