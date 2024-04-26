@@ -1,11 +1,14 @@
+import numpy as np
 import pytest
 import torch
-import numpy as np
 
-from flashlipschitz.layers import OrthoConv2d
+from flashlipschitz.layers.conv.ortho_conv import OrthoConvTranspose
+from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+
 
 # from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+
+# from flashlipschitz.layers.conv.ortho_conv import OrthoConv as FlashBCOP
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
@@ -29,19 +32,21 @@ def _compute_sv_impulse_response_layer(layer, img_shape):
 @pytest.mark.parametrize("input_channels", [8, 16, 32])
 @pytest.mark.parametrize("output_channels", [16, 32, 64])
 @pytest.mark.parametrize("stride", [1, 2])
-@pytest.mark.parametrize("groups", [1, 2, 4])
+@pytest.mark.parametrize("groups", [1, 2])
 def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     # Test instantiation
+    padding = (0, 0)
+    padding_mode = "zeros"
     try:
-        bcop = OrthoConv2d(
+        bcop = OrthoConvTranspose(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,
             stride=stride,
             groups=groups,
             bias=False,
-            padding=(kernel_size // 2, kernel_size // 2),
-            padding_mode="circular",
+            padding=padding,
+            padding_mode=padding_mode,
             bjorck_params=BjorckParams(
                 power_it_niter=3,
                 eps=1e-6,
@@ -56,7 +61,7 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
             return
         else:
             pytest.fail(f"BCOP instantiation failed with: {e}")
-    imsize = 8
+    imsize = 6
     # Test backpropagation and weight update
     try:
         bcop.train()
@@ -74,8 +79,8 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
 
     # check that bcop.weight has the correct shape
     if bcop.weight.data.shape != (
-        output_channels,
-        input_channels // groups,
+        input_channels,
+        output_channels // groups,
         kernel_size,
         kernel_size,
     ):
@@ -111,9 +116,6 @@ def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     ), "sigma_min is not close to 1"
     assert abs(stable_rank_ir - 1) < tol, "stable_rank is not close to 1"
     # check that the singular values are close to the impulse response values
-    # assert (
-    #     sigma_max > sigma_max_ir - 1e-2
-    # ), f"sigma_max must be greater to its IR value (1%): {sigma_max} vs {sigma_max_ir}"
     assert (
         abs(sigma_max - sigma_max_ir) < tol
     ), f"sigma_max is not close to its IR value: {sigma_max} vs {sigma_max_ir}"

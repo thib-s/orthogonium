@@ -3,7 +3,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from flashlipschitz.layers.fast_block_ortho_conv import fast_matrix_conv
+from flashlipschitz.layers.conv.fast_block_ortho_conv import fast_matrix_conv
 
 THRESHOLD = 1e-5
 

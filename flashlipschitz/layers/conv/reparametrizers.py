@@ -1,22 +1,28 @@
+from dataclasses import dataclass
+
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.nn.utils.parametrize as parametrize
+from torch import nn as nn
+
+
+@dataclass
+class BjorckParams:
+    power_it_niter: int = 3
+    eps: float = 1e-6
+    beta: float = 0.5
+    bjorck_iters: int = 10
 
 
 class L2Normalize(nn.Module):
-    def __init__(self, dim=(2, 3)):
+    def __init__(self, dim=None):
         super(L2Normalize, self).__init__()
         self.dim = dim
 
-    def forward(self, kernel):
-        norm = torch.sqrt(torch.sum(kernel**2, dim=self.dim, keepdim=True))
-        return kernel / (norm + 1e-12)
+    def forward(self, x):
+        return x / (torch.norm(x, dim=self.dim, keepdim=True) + 1e-8)
 
-    def right_inverse(self, kernel):
-        # we assume that the kernel is normalized
-        norm = torch.sqrt(torch.sum(kernel**2, dim=self.dim, keepdim=True))
-        return kernel / (norm + 1e-12)
+    def right_inverse(self, x):
+        return x
 
 
 class BatchedPowerIteration(nn.Module):
@@ -64,31 +70,11 @@ class BatchedPowerIteration(nn.Module):
         return normalized_kernel
 
 
-class GradPassthroughBjorck(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, w, beta, iters, wwtw_op):
-        for _ in range(iters):
-            w = (1 + beta) * w - beta * wwtw_op(w)
-            # w_t_w = w.transpose(-1, -2) @ w
-            # w = (1 + self.beta) * w - self.beta * w @ w_t_w
-        return w
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        # Backward pass logic goes here.
-        # You can retrieve saved variables using saved_tensors = ctx.saved_tensors.
-        grad_input = (
-            grad_output.clone()
-        )  # For illustration, this just passes the gradient through.
-        return grad_input, None, None, None
-
-
 class BatchedBjorckOrthogonalization(nn.Module):
-    def __init__(self, weight_shape, beta=0.5, backprop_iters=3, non_backprop_iters=10):
+    def __init__(self, weight_shape, beta=0.5, niters=7):
         self.weight_shape = weight_shape
         self.beta = beta
-        self.backprop_iters = backprop_iters
-        self.non_backprop_iters = non_backprop_iters
+        self.niters = niters
         if weight_shape[-2] < weight_shape[-1]:
             self.wwtw_op = BatchedBjorckOrthogonalization.wwt_w_op
         else:
@@ -104,13 +90,8 @@ class BatchedBjorckOrthogonalization(nn.Module):
         return (w @ w.transpose(-1, -2)) @ w
 
     def forward(self, w):
-        for _ in range(self.backprop_iters):
+        for _ in range(self.niters):
             w = (1 + self.beta) * w - self.beta * self.wwtw_op(w)
-            # w_t_w = w.transpose(-1, -2) @ w
-            # w = (1 + self.beta) * w - self.beta * w @ w_t_w
-        w = GradPassthroughBjorck.apply(
-            w, self.beta, self.non_backprop_iters, self.wwtw_op
-        )
         return w
 
     def right_inverse(self, w):
