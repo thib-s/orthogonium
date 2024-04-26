@@ -32,41 +32,20 @@ def OrthoConv2d(
             "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
         )
     if kernel_size == stride:
-        return RKOConv2d(
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            groups,
-            bias,
-            padding_mode,
-            bjorck_params,
-        )
-    elif stride == 1:
-        return FlashBCOP(
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            groups,
-            bias,
-            padding_mode,
-            bjorck_params,
-        )
+        convclass = RKOConv2d
+    elif (stride == 1) or (in_channels >= out_channels):
+        convclass = FlashBCOP
     else:
-        return BcopRkoConv2d(
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            groups,
-            bias,
-            padding_mode,
-            bjorck_params,
-        )
+        convclass = BcopRkoConv2d
+    return convclass(
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        groups,
+        bias,
+        padding_mode,
+        bjorck_params,
+    )
