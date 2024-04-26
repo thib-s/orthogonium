@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_2_t
 
+from flashlipschitz.layers.conv.fast_block_ortho_conv import conv_singular_values_numpy
 from flashlipschitz.layers.conv.reparametrizers import (
     BatchedBjorckOrthogonalization,
     L2Normalize,
@@ -15,16 +16,6 @@ from flashlipschitz.layers.conv.reparametrizers import (
 from flashlipschitz.layers.conv.reparametrizers import (
     BatchedPowerIteration,
 )
-
-
-def conv_singular_values_numpy(kernel, input_shape):
-    """
-    Hanie Sedghi, Vineet Gupta, and Philip M. Long. The singular values of convolutional layers.
-    In International Conference on Learning Representations, 2019.
-    """
-    kernel = np.transpose(kernel, [2, 3, 0, 1])
-    transforms = np.fft.fft2(kernel, input_shape, axes=[0, 1])
-    return np.linalg.svd(transforms, compute_uv=False)
 
 
 class RKOParametrizer(nn.Module):
@@ -48,10 +39,11 @@ class RKOParametrizer(nn.Module):
         self.register_module(
             "pi",
             BatchedPowerIteration(
-                kernel_shape=(self.groups, out_channels // self.groups, in_channels //
-                              groups *
-                              k1 *
-                              k2),
+                kernel_shape=(
+                    self.groups,
+                    out_channels // self.groups,
+                    in_channels // groups * k1 * k2,
+                ),
                 power_it_niter=bjorck_params.power_it_niter,
                 eps=bjorck_params.eps,
             ),
@@ -59,10 +51,11 @@ class RKOParametrizer(nn.Module):
         self.register_module(
             "bjorck",
             BatchedBjorckOrthogonalization(
-                weight_shape=(self.groups, out_channels // self.groups, in_channels //
-                              groups *
-                              k1 *
-                              k2),
+                weight_shape=(
+                    self.groups,
+                    out_channels // self.groups,
+                    in_channels // groups * k1 * k2,
+                ),
                 beta=bjorck_params.beta,
                 niters=bjorck_params.bjorck_iters,
             ),
@@ -129,7 +122,7 @@ class RKOConv2d(nn.Conv2d):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "circular",
-        ortho_params: BjorckParams = BjorckParams(),
+        bjorck_params: BjorckParams = BjorckParams(),
     ):
         super(RKOConv2d, self).__init__(
             in_channels,
@@ -156,7 +149,7 @@ class RKOConv2d(nn.Conv2d):
                 ),
                 groups=self.groups,
                 scale=self.scale,
-                **ortho_params.__dict__,
+                bjorck_params=bjorck_params,
             ),
         )
 
@@ -165,9 +158,23 @@ class RKOConv2d(nn.Conv2d):
         return super(RKOConv2d, self).forward(X)
 
     def singular_values(self):
+        if isinstance(self.kernel_size, tuple):
+            kernel_size = self.kernel_size
+        else:
+            kernel_size = (self.kernel_size, self.kernel_size)
         # Implements interface required by LipschitzModuleL2
         sv_min, sv_max, stable_rank = conv_singular_values_numpy(
-            self.weight.detach().cpu().numpy(), self._input_shape
+            self.weight.detach()
+            .cpu()
+            .view(
+                self.groups,
+                self.out_channels // self.groups,
+                self.in_channels // self.groups,
+                kernel_size[0],
+                kernel_size[1],
+            )
+            .numpy(),
+            self._input_shape,
         )
         return sv_min, sv_max, stable_rank
 

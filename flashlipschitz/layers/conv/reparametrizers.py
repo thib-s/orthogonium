@@ -1,9 +1,8 @@
+from dataclasses import dataclass
+
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.nn.utils.parametrize as parametrize
 from torch import nn as nn
-from dataclasses import dataclass
 
 
 @dataclass

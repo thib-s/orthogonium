@@ -11,3 +11,4 @@ from .pooling import ScaledAvgPool2d
 from flashlipschitz.layers.conv.rko_conv import OrthoLinear
 from flashlipschitz.layers.conv.rko_conv import RKOConv2d
 from flashlipschitz.layers.conv.rko_conv import UnitNormLinear
+from flashlipschitz.layers.conv.ortho_conv import OrthoConv2d

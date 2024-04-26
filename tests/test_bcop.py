@@ -2,7 +2,7 @@ import pytest
 import torch
 import numpy as np
 
-from flashlipschitz.layers.conv.ortho_conv import OrthoConv as FlashBCOP
+from flashlipschitz.layers import OrthoConv2d
 
 # from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
 from flashlipschitz.layers.conv.reparametrizers import BjorckParams
@@ -33,7 +33,7 @@ def _compute_sv_impulse_response_layer(layer, img_shape):
 def test_bcop(kernel_size, input_channels, output_channels, stride, groups):
     # Test instantiation
     try:
-        bcop = FlashBCOP(
+        bcop = OrthoConv2d(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,
