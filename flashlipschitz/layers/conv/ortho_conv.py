@@ -3,12 +3,15 @@ from typing import Union
 from torch import nn as nn
 from torch.nn.common_types import _size_2_t
 
-from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConv2d
+from flashlipschitz.layers.conv.bcop_x_rko_conv import (
+    BcopRkoConv2d,
+    BcopRkoConvTranspose2d,
+)
 from flashlipschitz.layers.conv.fast_block_ortho_conv import (
-    FlashBCOP,
+    FlashBCOP, BCOPTranspose,
 )
 from flashlipschitz.layers.conv.reparametrizers import BjorckParams
-from flashlipschitz.layers.conv.rko_conv import RKOConv2d
+from flashlipschitz.layers.conv.rko_conv import RKOConv2d, RkoConvTranspose2d
 
 
 def OrthoConv2d(
@@ -46,6 +49,48 @@ def OrthoConv2d(
         dilation,
         groups,
         bias,
+        padding_mode,
+        bjorck_params,
+    )
+
+
+def OrthoConvTranspose2d(
+    in_channels: int,
+    out_channels: int,
+    kernel_size: _size_2_t,
+    stride: _size_2_t = 1,
+    padding: _size_2_t = 0,
+    output_padding: _size_2_t = 0,
+    groups: int = 1,
+    bias: bool = True,
+    dilation: _size_2_t = 1,
+    padding_mode: str = "zeros",
+    bjorck_params: BjorckParams = BjorckParams(),
+) -> nn.ConvTranspose2d:
+    """
+    factory function to create an Orthogonal Convolutional Transpose layer
+    choosing the appropriate class depending on the kernel size and stride
+    """
+    if kernel_size < stride:
+        raise RuntimeError(
+            "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
+        )
+    if kernel_size == stride:
+        convclass = RkoConvTranspose2d
+    elif stride == 1:
+        convclass = BCOPTranspose
+    else:
+        convclass = BcopRkoConvTranspose2d
+    return convclass(
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride,
+        padding,
+        output_padding,
+        groups,
+        bias,
+        dilation,
         padding_mode,
         bjorck_params,
     )
