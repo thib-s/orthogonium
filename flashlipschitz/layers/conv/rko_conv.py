@@ -136,7 +136,10 @@ class RKOConv2d(nn.Conv2d):
             padding_mode,
         )
         # torch.nn.init.orthogonal_(self.weight)
-        self.scale = 1 / math.sqrt(kernel_size * kernel_size)
+        if stride != kernel_size:
+            self.scale = 1 / math.sqrt(kernel_size * kernel_size)
+        else:
+            self.scale = 1
         parametrize.register_parametrization(
             self,
             "weight",
@@ -162,6 +165,31 @@ class RKOConv2d(nn.Conv2d):
             kernel_size = self.kernel_size
         else:
             kernel_size = (self.kernel_size, self.kernel_size)
+        if isinstance(self.stride, tuple):
+            stride = self.stride
+        else:
+            stride = (self.stride, self.stride)
+        if (stride[0] == kernel_size[0]) and (stride[1] == kernel_size[1]):
+            svs = np.linalg.svd(
+                self.weight.reshape(
+                    self.groups,
+                    self.out_channels // self.groups,
+                    (self.in_channels // self.groups)
+                    * (self.stride[0] * self.stride[1]),
+                )
+                .detach()
+                .cpu()
+                .numpy(),
+                compute_uv=False,
+            )
+            sv_min = svs.min()
+            sv_max = svs.max()
+            stable_rank = np.mean(svs) / (svs.max() ** 2)
+            return sv_min, sv_max, stable_rank
+        elif stride[0] > 1 or stride[1] > 1:
+            raise RuntimeError(
+                "Not able to compute singular values for this " "configuration"
+            )
         # Implements interface required by LipschitzModuleL2
         sv_min, sv_max, stable_rank = conv_singular_values_numpy(
             self.weight.detach()
