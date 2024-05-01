@@ -32,10 +32,6 @@ def conv_singular_values_numpy(kernel, input_shape):
 
 
 def fast_matrix_conv(m1, m2, groups=1):
-    if m1 is None:
-        return m2
-    if m2 is None:
-        return m1
     # m1 is m*n*k1*k2
     # m2 is nb*m*l1*l2
     m, n, k1, k2 = m1.shape
@@ -53,6 +49,24 @@ def fast_matrix_conv(m1, m2, groups=1):
 
     # Rearrange result
     return r2.transpose(0, 1)  # n*nb*(k+l-1)*(k+l-1)
+
+
+def fast_batched_matrix_conv(m1, m2, groups=1):
+    b, m, n, k1, k2 = m1.shape
+    b2, nb, mb, l1, l2 = m2.shape
+    assert m == mb * groups
+    assert b == b2
+    m1 = m1.view(b * m, n, k1, k2)
+    m2 = m2.view(b * nb, mb, l1, l2)
+    # Rearrange m1 for conv
+    m1 = m1.transpose(0, 1)  # n*m*k1*k2
+    # Rearrange m2 for conv
+    m2 = m2.flip(-2, -1)
+    r2 = torch.nn.functional.conv2d(m1, m2, groups=groups * b, padding=(l1 - 1, l2 - 1))
+    # Rearrange result
+    r2 = r2.view(n, b, nb, k1 + l1 - 1, k2 + l2 - 1)
+    r2 = r2.permute(1, 2, 0, 3, 4)
+    return r2
 
 
 def block_orth(p1, p2):
