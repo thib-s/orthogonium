@@ -1,3 +1,4 @@
+import warnings
 from typing import Union
 
 import numpy as np
@@ -351,6 +352,15 @@ class BCOPTranspose(nn.ConvTranspose2d):
             )
         if ((self.max_channels // groups) < 2) and (kernel_size != stride):
             raise RuntimeError("inner conv must have at least 2 channels")
+        if out_channels * (stride**2) < in_channels:
+            # raise warning because this configuration don't yield orthogonal
+            # convolutions
+            warnings.warn(
+                "This configuration does not yield orthogonal convolutions due to "
+                "padding issues: pytorch does not implement circular padding for "
+                "transposed convolutions",
+                RuntimeWarning
+            )
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
@@ -382,8 +392,8 @@ class BCOPTranspose(nn.ConvTranspose2d):
             .cpu()
             .reshape(
                 self.groups,
-                self.out_channels // self.groups,
                 self.in_channels // self.groups,
+                self.out_channels // self.groups,
                 self.kernel_size,
                 self.kernel_size,
             )
