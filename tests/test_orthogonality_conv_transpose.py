@@ -5,7 +5,7 @@ import torch
 from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
 from flashlipschitz.layers.conv.ortho_conv import OrthoConvTranspose2d
 from flashlipschitz.layers.conv.reparametrizers import BjorckParams
-from tests.test_bcop import check_orthogonal_layer
+from tests.test_orthogonality_conv import check_orthogonal_layer
 
 
 # from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
