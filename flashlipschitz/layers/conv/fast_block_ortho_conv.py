@@ -70,13 +70,18 @@ def fast_batched_matrix_conv(m1, m2, groups=1):
     return r2
 
 
-def block_orth(p1, p2):
+def block_orth(p1, p2, flip=False):
     assert p1.shape == p2.shape
     g, n, n2 = p1.shape
     eye = torch.eye(n, device=p1.device, dtype=p1.dtype)
-    res = torch.einsum(
-        "bgij,cgjk->gikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
-    )
+    if flip:
+        res = torch.einsum(
+            "bgij,cgjk->gikbc", torch.stack([eye - p1, p1]), torch.stack([eye - p2, p2])
+        )
+    else:
+        res = torch.einsum(
+            "bgij,cgjk->gikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
+        )
     res = res.reshape(g * n, n, 2, 2)
     return res
 
@@ -108,7 +113,7 @@ class BCOPTrivializer(nn.Module):
         self.out_channels = out_channels
         self.in_channels = in_channels
         self.min_channels = min(in_channels, out_channels)
-        self.max_channels = max(in_channels, out_channels)
+        self.max_channels = 2 * max(in_channels, out_channels)
         self.transpose = out_channels < in_channels
 
     def forward(self, PQ):
@@ -121,17 +126,26 @@ class BCOPTrivializer(nn.Module):
         p = ident - 2 * PQ[:, 0, :, :]  # (g, c/g, c/g)
         p = p @ (ident - 2 * PQ[:, 1, :, :])  # (g, c/g, c/g)
         p = p.view(self.max_channels, self.max_channels // self.groups, 1, 1)
-        if self.in_channels != self.out_channels:
-            p = p[:, : self.min_channels // self.groups, :, :]
-        for _ in range(1, self.kernel_size):
+        # if self.in_channels != self.out_channels:
+        # p = p[:, : self.min_channels // self.groups, :, :]
+        for t in range(1, self.kernel_size // 2):
             p = fast_matrix_conv(
-                p, block_orth(PQ[:, _ * 2], PQ[:, _ * 2 + 1]), self.groups
+                block_orth(PQ[:, t * 2], PQ[:, t * 2 + 1]),
+                p,
+                self.groups,
             )
+        for t2 in range(self.kernel_size // 2, self.kernel_size):
+            p = fast_matrix_conv(
+                p,
+                block_orth(PQ[:, t2 * 2], PQ[:, t2 * 2 + 1], flip=True),
+                self.groups,
+            )
+        p = p[: self.max_channels // 2, : self.min_channels // self.groups, :, :]
         if self.transpose:
             # we do not perform flip since it does not affect orthogonality
             p = p.view(
                 self.groups,
-                self.max_channels // self.groups,
+                self.max_channels // (self.groups * 2),
                 self.min_channels // self.groups,
                 self.kernel_size,
                 self.kernel_size,
@@ -157,7 +171,7 @@ def attach_bcop_weight(
     out_channels, in_channels, kernel_size, k2 = kernel_shape
     in_channels *= groups
     assert kernel_size == k2, "only square kernels are supported for the moment"
-    max_channels = max(in_channels, out_channels)
+    max_channels = 2 * max(in_channels, out_channels)
     num_kernels = 2 * kernel_size
 
     layer.register_parameter(
@@ -255,8 +269,6 @@ class FlashBCOP(nn.Conv2d):
             raise RuntimeError(
                 "in_channels and out_channels must be divisible by groups"
             )
-        if ((self.max_channels // groups) < 2) and (kernel_size != stride):
-            raise RuntimeError("inner conv must have at least 2 channels")
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
@@ -359,7 +371,7 @@ class BCOPTranspose(nn.ConvTranspose2d):
                 "This configuration does not yield orthogonal convolutions due to "
                 "padding issues: pytorch does not implement circular padding for "
                 "transposed convolutions",
-                RuntimeWarning
+                RuntimeWarning,
             )
         self.padding = padding
         self.stride = stride
