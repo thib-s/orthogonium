@@ -113,7 +113,7 @@ class BCOPTrivializer(nn.Module):
         self.out_channels = out_channels
         self.in_channels = in_channels
         self.min_channels = min(in_channels, out_channels)
-        self.max_channels = 2 * max(in_channels, out_channels)
+        self.max_channels = max(in_channels, out_channels)
         self.transpose = out_channels < in_channels
 
     def forward(self, PQ):
@@ -140,13 +140,13 @@ class BCOPTrivializer(nn.Module):
                 block_orth(PQ[:, t2 * 2], PQ[:, t2 * 2 + 1], flip=True),
                 self.groups,
             )
-        p = p[: self.max_channels // 2, : self.min_channels // self.groups, :, :]
+        p = p[: self.max_channels, : self.min_channels // self.groups, :, :]
         if self.transpose:
             # we do not perform flip since it does not affect orthogonality
             p = p.view(
                 self.groups,
-                self.max_channels // (self.groups * 2),
-                self.min_channels // self.groups,
+                self.in_channels // self.groups,
+                self.out_channels // self.groups,
                 self.kernel_size,
                 self.kernel_size,
             )
@@ -171,7 +171,7 @@ def attach_bcop_weight(
     out_channels, in_channels, kernel_size, k2 = kernel_shape
     in_channels *= groups
     assert kernel_size == k2, "only square kernels are supported for the moment"
-    max_channels = 2 * max(in_channels, out_channels)
+    max_channels = max(in_channels, out_channels)
     num_kernels = 2 * kernel_size
 
     layer.register_parameter(
