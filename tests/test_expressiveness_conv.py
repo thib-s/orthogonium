@@ -21,7 +21,7 @@ def check_expressiveness_layer(
         for i in range(250):
             opt.zero_grad()
             inp = torch.randn(1, input_channels, imsize, imsize)
-            output = orthoconv(inp)
+            # output = orthoconv(inp)
             loss = torch.norm(orthoconv.weight - target_weight, p="fro")
             loss.backward()
             opt.step()

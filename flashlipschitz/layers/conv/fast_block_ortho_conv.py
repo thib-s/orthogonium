@@ -86,6 +86,19 @@ def block_orth(p1, p2, flip=False):
     return res
 
 
+def transpose_kernel(p, groups, flip=True):
+    cig, cog, k1, k2 = p.shape
+    cig = cig // groups
+    # we do not perform flip since it does not affect orthogonality
+    p = p.view(groups, cig, cog, k1, k2)
+    p = p.transpose(1, 2)
+    if flip:
+        p = p.flip(-1, -2)
+    # merge groups to get the final kernel
+    p = p.reshape(cog * groups, cig, k1, k2)
+    return p
+
+
 class BCOPTrivializer(nn.Module):
     def __init__(
         self,
@@ -126,38 +139,16 @@ class BCOPTrivializer(nn.Module):
         p = ident - 2 * PQ[:, 0, :, :]  # (g, c/g, c/g)
         p = p @ (ident - 2 * PQ[:, 1, :, :])  # (g, c/g, c/g)
         p = p.view(self.max_channels, self.max_channels // self.groups, 1, 1)
-        # if self.in_channels != self.out_channels:
-        # p = p[:, : self.min_channels // self.groups, :, :]
-        for t in range(1, self.kernel_size // 2):
-            p = fast_matrix_conv(
-                block_orth(PQ[:, t * 2], PQ[:, t * 2 + 1]),
-                p,
-                self.groups,
-            )
-        for t2 in range(self.kernel_size // 2, self.kernel_size):
+        if self.in_channels != self.out_channels:
+            p = p[:, : self.min_channels // self.groups, :, :]
+        for t2 in range(1, self.kernel_size):
             p = fast_matrix_conv(
                 p,
                 block_orth(PQ[:, t2 * 2], PQ[:, t2 * 2 + 1], flip=True),
                 self.groups,
             )
-        p = p[: self.max_channels, : self.min_channels // self.groups, :, :]
         if self.transpose:
-            # we do not perform flip since it does not affect orthogonality
-            p = p.view(
-                self.groups,
-                self.in_channels // self.groups,
-                self.out_channels // self.groups,
-                self.kernel_size,
-                self.kernel_size,
-            )
-            p = p.transpose(1, 2)
-            # merge groups to get the final kernel
-            p = p.reshape(
-                self.out_channels,
-                self.in_channels // self.groups,
-                self.kernel_size,
-                self.kernel_size,
-            )
+            p = transpose_kernel(p, self.groups, flip=False)
         return p.contiguous()
 
 
