@@ -3,7 +3,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from flashlipschitz.layers.conv.fast_block_ortho_conv import fast_matrix_conv
+from flashlipschitz.layers.conv.fast_block_ortho_conv import fast_matrix_conv, fast_batched_matrix_conv
 
 THRESHOLD = 1e-5
 
@@ -81,3 +81,52 @@ def test_conv2d_operations(
     res_1 = conv_2(res_1)
     res_2 = conv_merged(img)
     assert torch.mean(torch.square(res_1 - res_2)) < THRESHOLD
+
+
+@pytest.mark.parametrize("kernel_size_1", [3, 5])
+@pytest.mark.parametrize("kernel_size_2", [3, 5])
+@pytest.mark.parametrize("channels_1", [8, 16])
+@pytest.mark.parametrize("channels_2", [8, 16])
+@pytest.mark.parametrize("channels_3", [8, 16, 32])
+@pytest.mark.parametrize("stride", [1, 2])
+@pytest.mark.parametrize("padding", ["valid-circular", "same-circular"])
+@pytest.mark.parametrize("groups", [1, 4])
+def test_batched_conv2d_operations(
+    kernel_size_1,
+    kernel_size_2,
+    channels_1,
+    channels_2,
+    channels_3,
+    stride,
+    padding,
+    groups,
+):
+    batch_size = 4
+    padding, padding_mode = padding.split("-")
+    padding = 0 if stride != 1 else padding
+    # Initialize your kernels
+    kernel1_shape = (
+        batch_size,
+        channels_2,
+        channels_1 // groups,
+        kernel_size_1,
+        kernel_size_1,
+    )
+    kernel2_shape = (
+        batch_size,
+        channels_3,
+        channels_2 // groups,
+        kernel_size_2,
+        kernel_size_2,
+    )
+    kernel_1 = torch.randn(kernel1_shape)
+    kernel_2 = torch.randn(kernel2_shape)
+    res1 = torch.stack(
+        [
+            fast_matrix_conv(kernel_1[i], kernel_2[i], groups=groups)
+            for i in (range(batch_size))
+        ],
+        dim=0,
+    )
+    res2 = fast_batched_matrix_conv(kernel_1, kernel_2, groups=groups)
+    torch.testing.assert_allclose(res1, res2, rtol=1e-5, atol=1e-5)

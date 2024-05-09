@@ -1,3 +1,4 @@
+import warnings
 from typing import Union
 
 import numpy as np
@@ -6,8 +7,11 @@ from torch import nn as nn
 from torch.nn.common_types import _size_2_t
 from torch.nn.utils import parametrize as parametrize
 
-from flashlipschitz.layers.conv.fast_block_ortho_conv import attach_bcop_weight, \
-    fast_matrix_conv, conv_singular_values_numpy
+from flashlipschitz.layers.conv.fast_block_ortho_conv import (
+    attach_bcop_weight,
+    fast_matrix_conv,
+    conv_singular_values_numpy,
+)
 from flashlipschitz.layers.conv.reparametrizers import BjorckParams
 from flashlipschitz.layers.conv.rko_conv import attach_rko_weight
 
@@ -100,10 +104,14 @@ class BcopRkoConv2d(nn.Conv2d):
     @property
     def weight(self):
         if self.training:
-            return fast_matrix_conv(self.weight_1, self.weight_2, self.groups)
+            return fast_matrix_conv(
+                self.weight_1, self.weight_2, self.groups
+            ).contiguous()
         else:
             with parametrize.cached():
-                return fast_matrix_conv(self.weight_1, self.weight_2, self.groups)
+                return fast_matrix_conv(
+                    self.weight_1, self.weight_2, self.groups
+                ).contiguous()
 
     def singular_values(self):
         if self.padding_mode != "circular":
@@ -129,7 +137,7 @@ class BcopRkoConv2d(nn.Conv2d):
             self.weight_2.reshape(
                 self.groups,
                 self.out_channels // self.groups,
-                self.intermediate_channels // self.groups * (self.stride**2),
+                (self.intermediate_channels // self.groups) * (self.stride**2),
             )
             .detach()
             .cpu()
@@ -199,13 +207,18 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
         self.stride = stride
         self.kernel_size = kernel_size
         self.groups = groups
-        self.intermediate_channels = out_channels
-        # oddly the following condition seems to not work
-        # if in_channels > out_channels :#* (stride**2):
-        #     assert False
-        #     self.intermediate_channels = in_channels * (stride**2)
-        # else:
-        #     self.intermediate_channels = out_channels
+        if out_channels * (stride**2) >= in_channels:
+            self.intermediate_channels = max(in_channels // (stride**2), out_channels)
+        else:
+            self.intermediate_channels = out_channels
+            # raise warning because this configuration don't yield orthogonal
+            # convolutions
+            warnings.warn(
+                "This configuration does not yield orthogonal convolutions due to "
+                "padding issues: pytorch does not implement circular padding for "
+                "transposed convolutions",
+                RuntimeWarning,
+            )
         del self.weight
         attach_bcop_weight(
             self,
@@ -292,7 +305,7 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
         #     self.kernel_size,
         #
         # )
-        return kernel
+        return kernel.contiguous()
 
     def forward(self, X):
         self._input_shape = X.shape[2:]

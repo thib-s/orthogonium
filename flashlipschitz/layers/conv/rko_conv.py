@@ -136,7 +136,10 @@ class RKOConv2d(nn.Conv2d):
             padding_mode,
         )
         # torch.nn.init.orthogonal_(self.weight)
-        self.scale = 1 / math.sqrt(kernel_size * kernel_size)
+        if stride != kernel_size:
+            self.scale = 1 / math.sqrt(kernel_size * kernel_size)
+        else:
+            self.scale = 1
         parametrize.register_parametrization(
             self,
             "weight",
@@ -162,6 +165,31 @@ class RKOConv2d(nn.Conv2d):
             kernel_size = self.kernel_size
         else:
             kernel_size = (self.kernel_size, self.kernel_size)
+        if isinstance(self.stride, tuple):
+            stride = self.stride
+        else:
+            stride = (self.stride, self.stride)
+        if (stride[0] == kernel_size[0]) and (stride[1] == kernel_size[1]):
+            svs = np.linalg.svd(
+                self.weight.reshape(
+                    self.groups,
+                    self.out_channels // self.groups,
+                    (self.in_channels // self.groups)
+                    * (self.stride[0] * self.stride[1]),
+                )
+                .detach()
+                .cpu()
+                .numpy(),
+                compute_uv=False,
+            )
+            sv_min = svs.min()
+            sv_max = svs.max()
+            stable_rank = np.mean(svs) / (svs.max() ** 2)
+            return sv_min, sv_max, stable_rank
+        elif stride[0] > 1 or stride[1] > 1:
+            raise RuntimeError(
+                "Not able to compute singular values for this " "configuration"
+            )
         # Implements interface required by LipschitzModuleL2
         sv_min, sv_max, stable_rank = conv_singular_values_numpy(
             self.weight.detach()
@@ -177,6 +205,101 @@ class RKOConv2d(nn.Conv2d):
             self._input_shape,
         )
         return sv_min, sv_max, stable_rank
+
+
+class RkoConvTranspose2d(nn.ConvTranspose2d):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: _size_2_t,
+        stride: _size_2_t = 1,
+        padding: _size_2_t = 0,
+        output_padding: _size_2_t = 0,
+        groups: int = 1,
+        bias: bool = True,
+        dilation: _size_2_t = 1,
+        padding_mode: str = "zeros",
+        bjorck_params: BjorckParams = BjorckParams(),
+    ):
+        if dilation != 1:
+            raise RuntimeError("dilation not supported")
+        super(RkoConvTranspose2d, self).__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            padding,
+            output_padding,
+            groups,
+            bias,
+            dilation,
+            padding_mode,
+        )
+        self.padding_mode = padding_mode
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        self.groups = groups
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.max_channels = max(in_channels, out_channels)
+
+        # raise runtime error if kernel size >= stride
+        if kernel_size < stride:
+            raise RuntimeError(
+                "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
+            )
+        if (in_channels % groups != 0) and (out_channels % groups != 0):
+            raise RuntimeError(
+                "in_channels and out_channels must be divisible by groups"
+            )
+        self.padding = padding
+        self.stride = stride
+        self.kernel_size = kernel_size
+        self.groups = groups
+        del self.weight
+        attach_rko_weight(
+            self,
+            "weight",
+            (in_channels, out_channels // groups, stride, stride),
+            groups,
+            scale=1.0,
+            bjorck_params=bjorck_params,
+        )
+
+        if bias:
+            self.bias = nn.Parameter(torch.Tensor(out_channels))
+            nn.init.zeros_(self.bias)
+        else:
+            self.register_parameter("bias", None)
+
+    def singular_values(self):
+        if self.padding_mode != "circular":
+            print(
+                f"padding {self.padding} not supported, return min and max"
+                f"singular values as if it was 'circular' padding "
+                f"(overestimate the values)."
+            )
+        svs = np.linalg.svd(
+            self.weight.reshape(
+                self.groups,
+                self.in_channels // self.groups,
+                self.out_channels // self.groups * (self.stride**2),
+            )
+            .detach()
+            .cpu()
+            .numpy(),
+            compute_uv=False,
+        )
+        sv_min = svs.min()
+        sv_max = svs.max()
+        stable_rank = np.mean(svs) / (svs.max() ** 2)
+        return sv_min, sv_max, stable_rank
+
+    def forward(self, X):
+        self._input_shape = X.shape[2:]
+        return super(RkoConvTranspose2d, self).forward(X)
 
 
 class OrthoLinear(nn.Linear):

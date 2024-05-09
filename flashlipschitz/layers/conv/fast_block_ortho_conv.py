@@ -1,3 +1,4 @@
+import warnings
 from typing import Union
 
 import numpy as np
@@ -32,10 +33,6 @@ def conv_singular_values_numpy(kernel, input_shape):
 
 
 def fast_matrix_conv(m1, m2, groups=1):
-    if m1 is None:
-        return m2
-    if m2 is None:
-        return m1
     # m1 is m*n*k1*k2
     # m2 is nb*m*l1*l2
     m, n, k1, k2 = m1.shape
@@ -55,15 +52,51 @@ def fast_matrix_conv(m1, m2, groups=1):
     return r2.transpose(0, 1)  # n*nb*(k+l-1)*(k+l-1)
 
 
-def block_orth(p1, p2):
+def fast_batched_matrix_conv(m1, m2, groups=1):
+    b, m, n, k1, k2 = m1.shape
+    b2, nb, mb, l1, l2 = m2.shape
+    assert m == mb * groups
+    assert b == b2
+    m1 = m1.view(b * m, n, k1, k2)
+    m2 = m2.view(b * nb, mb, l1, l2)
+    # Rearrange m1 for conv
+    m1 = m1.transpose(0, 1)  # n*m*k1*k2
+    # Rearrange m2 for conv
+    m2 = m2.flip(-2, -1)
+    r2 = torch.nn.functional.conv2d(m1, m2, groups=groups * b, padding=(l1 - 1, l2 - 1))
+    # Rearrange result
+    r2 = r2.view(n, b, nb, k1 + l1 - 1, k2 + l2 - 1)
+    r2 = r2.permute(1, 2, 0, 3, 4)
+    return r2
+
+
+def block_orth(p1, p2, flip=False):
     assert p1.shape == p2.shape
     g, n, n2 = p1.shape
     eye = torch.eye(n, device=p1.device, dtype=p1.dtype)
-    res = torch.einsum(
-        "bgij,cgjk->gikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
-    )
+    if flip:
+        res = torch.einsum(
+            "bgij,cgjk->gikbc", torch.stack([eye - p1, p1]), torch.stack([eye - p2, p2])
+        )
+    else:
+        res = torch.einsum(
+            "bgij,cgjk->gikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
+        )
     res = res.reshape(g * n, n, 2, 2)
     return res
+
+
+def transpose_kernel(p, groups, flip=True):
+    cig, cog, k1, k2 = p.shape
+    cig = cig // groups
+    # we do not perform flip since it does not affect orthogonality
+    p = p.view(groups, cig, cog, k1, k2)
+    p = p.transpose(1, 2)
+    if flip:
+        p = p.flip(-1, -2)
+    # merge groups to get the final kernel
+    p = p.reshape(cog * groups, cig, k1, k2)
+    return p
 
 
 class BCOPTrivializer(nn.Module):
@@ -108,27 +141,14 @@ class BCOPTrivializer(nn.Module):
         p = p.view(self.max_channels, self.max_channels // self.groups, 1, 1)
         if self.in_channels != self.out_channels:
             p = p[:, : self.min_channels // self.groups, :, :]
-        for _ in range(1, self.kernel_size):
+        for t2 in range(1, self.kernel_size):
             p = fast_matrix_conv(
-                p, block_orth(PQ[:, _ * 2], PQ[:, _ * 2 + 1]), self.groups
+                p,
+                block_orth(PQ[:, t2 * 2], PQ[:, t2 * 2 + 1], flip=True),
+                self.groups,
             )
         if self.transpose:
-            # we do not perform flip since it does not affect orthogonality
-            p = p.view(
-                self.groups,
-                self.max_channels // self.groups,
-                self.min_channels // self.groups,
-                self.kernel_size,
-                self.kernel_size,
-            )
-            p = p.transpose(1, 2)
-            # merge groups to get the final kernel
-            p = p.reshape(
-                self.out_channels,
-                self.in_channels // self.groups,
-                self.kernel_size,
-                self.kernel_size,
-            )
+            p = transpose_kernel(p, self.groups, flip=False)
         return p.contiguous()
 
 
@@ -240,8 +260,6 @@ class FlashBCOP(nn.Conv2d):
             raise RuntimeError(
                 "in_channels and out_channels must be divisible by groups"
             )
-        if ((self.max_channels // groups) < 2) and (kernel_size != stride):
-            raise RuntimeError("inner conv must have at least 2 channels")
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
@@ -337,6 +355,15 @@ class BCOPTranspose(nn.ConvTranspose2d):
             )
         if ((self.max_channels // groups) < 2) and (kernel_size != stride):
             raise RuntimeError("inner conv must have at least 2 channels")
+        if out_channels * (stride**2) < in_channels:
+            # raise warning because this configuration don't yield orthogonal
+            # convolutions
+            warnings.warn(
+                "This configuration does not yield orthogonal convolutions due to "
+                "padding issues: pytorch does not implement circular padding for "
+                "transposed convolutions",
+                RuntimeWarning,
+            )
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
@@ -368,8 +395,8 @@ class BCOPTranspose(nn.ConvTranspose2d):
             .cpu()
             .reshape(
                 self.groups,
-                self.out_channels // self.groups,
                 self.in_channels // self.groups,
+                self.out_channels // self.groups,
                 self.kernel_size,
                 self.kernel_size,
             )
