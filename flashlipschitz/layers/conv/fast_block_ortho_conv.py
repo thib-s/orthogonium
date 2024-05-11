@@ -70,19 +70,14 @@ def fast_batched_matrix_conv(m1, m2, groups=1):
     return r2
 
 
-def block_orth(p1, p2, flip=False):
+def block_orth(p1, p2):
     assert p1.shape == p2.shape
-    g, n, n2 = p1.shape
+    g, x, n, n2 = p1.shape
     eye = torch.eye(n, device=p1.device, dtype=p1.dtype)
-    if flip:
-        res = torch.einsum(
-            "bgij,cgjk->gikbc", torch.stack([eye - p1, p1]), torch.stack([eye - p2, p2])
-        )
-    else:
-        res = torch.einsum(
-            "bgij,cgjk->gikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
-        )
-    res = res.reshape(g * n, n, 2, 2)
+    res = torch.einsum(
+        "bgxij,cgxjk->xgikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
+    )
+    res = res.reshape(x, g * n, n, 2, 2)
     return res
 
 
@@ -128,28 +123,37 @@ class BCOPTrivializer(nn.Module):
         self.min_channels = min(in_channels, out_channels)
         self.max_channels = max(in_channels, out_channels)
         self.transpose = out_channels < in_channels
+        self.num_kernels = 2 * kernel_size
 
     def forward(self, PQ):
-        ident = torch.eye(self.max_channels // self.groups, device=PQ.device).unsqueeze(
-            0
+        ident = (
+            torch.eye(self.max_channels // self.groups, device=PQ.device)
+            .unsqueeze(0)
+            .unsqueeze(0)
         )
         # we can rewrite PQ@PQ.t as an einsum
         PQ = torch.einsum("gijl,gikl->gijk", PQ, PQ)
         # PQ = PQ @ PQ.transpose(-1, -2)
-        p = ident - 2 * PQ[:, 0, :, :]  # (g, c/g, c/g)
-        p = p @ (ident - 2 * PQ[:, 1, :, :])  # (g, c/g, c/g)
-        p = p.view(self.max_channels, self.max_channels // self.groups, 1, 1)
+        c11 = ident - 2 * PQ[:, 0]
+        c11 = c11 @ (ident - 2 * PQ[:, 1])
+        c11 = c11.view(
+            self.max_channels,
+            self.max_channels // self.groups,
+            1,
+            1,
+        )
+        # build all 2x2 convs in parallel
+        c12 = PQ[:, 2:2+(self.kernel_size-1), :, :]
+        c21 = PQ[:, 2+(self.kernel_size-1):, :, :]
+        c22 = block_orth(c12, c21)
+        res = c11
         if self.in_channels != self.out_channels:
-            p = p[:, : self.min_channels // self.groups, :, :]
-        for t2 in range(1, self.kernel_size):
-            p = fast_matrix_conv(
-                p,
-                block_orth(PQ[:, t2 * 2], PQ[:, t2 * 2 + 1], flip=True),
-                self.groups,
-            )
+            res = res[:, : self.min_channels // self.groups, :, :]
+        for i in range(self.kernel_size - 1):
+            res = fast_matrix_conv(res, c22[i], self.groups)
         if self.transpose:
-            p = transpose_kernel(p, self.groups, flip=False)
-        return p.contiguous()
+            res = transpose_kernel(res, self.groups, flip=False)
+        return res.contiguous()
 
 
 def attach_bcop_weight(
