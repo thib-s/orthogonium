@@ -101,6 +101,7 @@ class BCOPTrivializer(nn.Module):
         out_channels,
         kernel_size,
         groups,
+        contiguous_optimization=False,
     ):
         """This module is used to generate orthogonal kernels for the BCOP layer. It takes
         as input a matrix PQ of shape (groups, 2*kernel_size, c, c//2) and returns a kernel
@@ -122,6 +123,9 @@ class BCOPTrivializer(nn.Module):
         self.in_channels = in_channels
         self.min_channels = min(in_channels, out_channels)
         self.max_channels = max(in_channels, out_channels)
+        if contiguous_optimization:
+            self.max_channels *= 2
+        self.contiguous_optimization = contiguous_optimization
         self.transpose = out_channels < in_channels
         self.num_kernels = 2 * kernel_size
 
@@ -142,15 +146,18 @@ class BCOPTrivializer(nn.Module):
             1,
             1,
         )
-        # build all 2x2 convs in parallel
-        c12 = PQ[:, 2:2+(self.kernel_size-1), :, :]
-        c21 = PQ[:, 2+(self.kernel_size-1):, :, :]
-        c22 = block_orth(c12, c21)
-        res = c11
         if self.in_channels != self.out_channels:
-            res = res[:, : self.min_channels // self.groups, :, :]
+            c11 = c11[:, : self.min_channels // self.groups, :, :]
+        # build all 2x2 convs in parallel
+        c12 = PQ[:, 2 : 2 + (self.kernel_size - 1), :, :]
+        c21 = PQ[:, 2 + (self.kernel_size - 1) :, :, :]
+        c22 = block_orth(c12, c21)
+        c22[1::2] = -c22[1::2].flip(-1, -2)
+        res = c11
         for i in range(self.kernel_size - 1):
             res = fast_matrix_conv(res, c22[i], self.groups)
+        if self.contiguous_optimization:
+            res = res[: self.max_channels // 2, : self.min_channels // self.groups, :, :]
         if self.transpose:
             res = transpose_kernel(res, self.groups, flip=False)
         return res.contiguous()
@@ -168,6 +175,7 @@ def attach_bcop_weight(
     assert kernel_size == k2, "only square kernels are supported for the moment"
     max_channels = max(in_channels, out_channels)
     num_kernels = 2 * kernel_size
+    contiguous_optimization = bjorck_params.contiguous_optimization
 
     layer.register_parameter(
         weight_name,
@@ -175,8 +183,16 @@ def attach_bcop_weight(
             torch.Tensor(
                 groups,
                 num_kernels,
-                max_channels // groups,
-                max_channels // (groups * 2),
+                (
+                    2 * max_channels // groups
+                    if contiguous_optimization
+                    else max_channels // groups
+                ),
+                (
+                    max_channels // groups
+                    if contiguous_optimization
+                    else max_channels // (groups * 2)
+                ),
             ),
             requires_grad=True,
         ),
@@ -208,6 +224,7 @@ def attach_bcop_weight(
             out_channels,
             kernel_size,
             groups,
+            contiguous_optimization=contiguous_optimization,
         ),
         unsafe=True,
     )

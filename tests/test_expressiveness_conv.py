@@ -60,7 +60,8 @@ def test_expressiveness_shifts(
             power_it_niter=3,
             eps=1e-6,
             beta=0.5,
-            bjorck_iters=20,
+            bjorck_iters=12,
+            contiguous_optimization=True,
         ),
     )
     target_weight = torch.eye(output_channels, input_channels).view(

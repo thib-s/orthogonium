@@ -11,6 +11,7 @@ class BjorckParams:
     eps: float = 1e-6
     beta: float = 0.5
     bjorck_iters: int = 10
+    contiguous_optimization: bool = False
 
 
 class L2Normalize(nn.Module):
