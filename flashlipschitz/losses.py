@@ -58,6 +58,16 @@ def VRA(output, class_indices, L=1.0, eps=36 / 255, return_certs=False):
 # )
 
 
+class CosineLoss(nn.Module):
+    def __init__(self):
+        super(CosineLoss, self).__init__()
+
+    def forward(self, yp, yt):
+        return -torch.nn.functional.cosine_similarity(
+            yp, torch.nn.functional.one_hot(yt, yp.shape[1])
+        ).mean()
+
+
 class Cosine_VRA_Loss(nn.Module):
     def __init__(self, gamma=0.1, L=1.0, eps=36 / 255):
         super(Cosine_VRA_Loss, self).__init__()
