@@ -2,15 +2,18 @@ import torch
 import torch.nn as nn
 
 from flashlipschitz.classparam import ClassParam
-from flashlipschitz.layers import FlashBCOP
+from flashlipschitz.layers import BatchCentering2D
 from flashlipschitz.layers import GroupMix
 from flashlipschitz.layers import HouseHolder
 from flashlipschitz.layers import HouseHolder_Order_2
-from flashlipschitz.layers import LayerCentering
+from flashlipschitz.layers import LayerCentering2D
 from flashlipschitz.layers import MaxMin
+from flashlipschitz.layers import OrthoConv2d
 from flashlipschitz.layers import OrthoLinear
 from flashlipschitz.layers import ScaledAvgPool2d
 from flashlipschitz.layers import UnitNormLinear
+from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+from flashlipschitz.layers.custom_activations import Abs
 from flashlipschitz.layers.sll_layer import SDPBasedLipschitzConv
 
 
@@ -29,7 +32,7 @@ class ConcatResidual(nn.Module):
 
 
 class Residual(nn.Module):
-    def __init__(self, fn, init_val=0.0):
+    def __init__(self, fn, init_val=1.0):
         super().__init__()
         self.add_module("fn", fn)
         self.alpha = nn.Parameter(torch.tensor(init_val), requires_grad=True)
@@ -45,27 +48,104 @@ class Residual(nn.Module):
         return alpha * x + (1 - alpha) * out
 
 
+def dumbNet500M(
+    img_size=(224, 224),
+    dim=1024,
+    depth=8,
+    kernel_size=5,
+    patch_size=16,
+    expand_factor=2,
+    n_classes=1000,
+    conv=ClassParam(
+        OrthoConv2d,
+        padding="same",
+        padding_mode="zeros",
+        bias=False,
+        bjorck_params=BjorckParams(
+            power_it_niter=3,
+            eps=1e-6,
+            bjorck_iters=6,
+            beta=0.5,
+            contiguous_optimization=False,
+        ),
+    ),
+    act=ClassParam(MaxMin),
+    lin=ClassParam(OrthoLinear, bias=False),
+    norm=ClassParam(BatchCentering2D),
+    pool=ClassParam(nn.LPPool2d, norm_type=2),
+):
+    return nn.Sequential(
+        conv(
+            in_channels=3,
+            out_channels=dim,
+            kernel_size=patch_size,
+            stride=patch_size,
+            padding="valid",
+        ),
+        norm(num_features=dim) if norm is not None else nn.Identity(),
+        *[
+            Residual(
+                nn.Sequential(
+                    conv(
+                        in_channels=dim,
+                        out_channels=expand_factor * dim,
+                        kernel_size=kernel_size,
+                    ),
+                    (
+                        norm(num_features=expand_factor * dim)
+                        if norm is not None
+                        else nn.Identity()
+                    ),
+                    act(),
+                    conv(
+                        in_channels=expand_factor * dim,
+                        kernel_size=kernel_size,
+                        out_channels=dim,
+                    ),
+                    norm(num_features=dim) if norm is not None else nn.Identity(),
+                )
+            )
+            for i in range(depth)
+        ],
+        pool(kernel_size=(img_size[0] // patch_size, img_size[1] // patch_size)),
+        nn.Flatten(),
+        lin(
+            dim,
+            n_classes,
+        ),
+        # norm(num_features=n_classes) if norm is not None else nn.Identity(),
+    )
+
+
 def SplitConcatNet(
     img_shape=(3, 224, 224),
     n_classes=1000,
     expand_factor=2,
     block_depth=2,
-    kernel_size=5,
+    kernel_size=3,
     embedding_dim=1024,
-    groups=16,
+    groups=8,
+    skip=ClassParam(
+        Residual,
+        init_val=1.0,
+    ),
     conv=ClassParam(
-        FlashBCOP,
+        OrthoConv2d,
         bias=False,
         padding="same",
         padding_mode="zeros",
-        pi_iters=3,
-        bjorck_beta=0.5,
-        bjorck_bp_iters=8,
-        bjorck_nbp_iters=0,
+        bjorck_params=BjorckParams(
+            power_it_niter=3,
+            eps=1e-6,
+            bjorck_iters=10,
+            beta=0.5,
+            contiguous_optimization=False,
+        ),
     ),
     act=ClassParam(MaxMin),
     lin=ClassParam(UnitNormLinear, bias=False),
-    norm=ClassParam(LayerCentering, dim=1),
+    norm=ClassParam(BatchCentering2D),
+    pool=ClassParam(nn.LPPool2d, norm_type=2),
 ):
     def resblock(in_channels, out_channels, n_blocks, conv, act, norm):
         layers = []
@@ -79,33 +159,49 @@ def SplitConcatNet(
                     padding=kernel_size // 2,
                 )
             )
-        # layers.append(act())
-        layers.append(norm() if norm is not None else nn.Identity())
+            # layers.append(act())
+        layers.append(
+            norm(num_features=out_channels) if norm is not None else nn.Identity()
+        )
         for _ in range(n_blocks):
-            layers.append(
+            res_layers = []
+            res_layers.append(
                 conv(
                     out_channels,
                     expand_factor * out_channels,
                     kernel_size=kernel_size,
-                    groups=groups,
+                    groups=groups if groups is not None else out_channels // 2,
                 )
             )
-            layers.append(norm() if norm is not None else nn.Identity())
-            layers.append(act())
-            # layers.append(
-            #     conv(
-            #         expand_factor * out_channels,
-            #         out_channels,
-            #         kernel_size=kernel_size,
-            #         groups=groups,
-            #     )
-            # )
-            if groups > 1:
-                layers.append(
+            res_layers.append(
+                norm(num_features=expand_factor * out_channels)
+                if norm is not None
+                else nn.Identity()
+            )
+            res_layers.append(act())
+
+            if groups is None or groups > 1 or expand_factor > 1:
+                res_layers.append(
                     conv(expand_factor * out_channels, out_channels, kernel_size=1)
                 )
-                # layers.append(act())
-                layers.append(norm() if norm is not None else nn.Identity())
+            # if expand_factor > 1:
+            #     res_layers.append(
+            #         conv(
+            #             expand_factor * out_channels,
+            #             out_channels,
+            #             kernel_size=kernel_size,
+            #             groups=groups if groups is not None else out_channels // 2,
+            #         )
+            #     )
+            if skip is not None:
+                layers.append(skip(nn.Sequential(*res_layers)))
+            else:
+                layers.append(nn.Sequential(*res_layers))
+
+            # if groups is None or groups > 1:
+            #     layers.append(conv(out_channels, out_channels, kernel_size=1))
+            #     # layers.append(act())
+            #     # layers.append(norm() if norm is not None else nn.Identity())
         return layers
 
     layers = [
@@ -117,14 +213,15 @@ def SplitConcatNet(
             padding=7 // 2,
         ),
         act(),
-        norm() if norm is not None else nn.Identity(),
+        norm(num_features=embedding_dim // 8) if norm is not None else nn.Identity(),
         # nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         *resblock(embedding_dim // 8, embedding_dim // 8, block_depth, conv, act, norm),
         *resblock(embedding_dim // 8, embedding_dim // 4, block_depth, conv, act, norm),
         *resblock(embedding_dim // 4, embedding_dim // 2, block_depth, conv, act, norm),
         *resblock(embedding_dim // 2, embedding_dim, block_depth, conv, act, norm),
-        nn.AvgPool2d(7, divisor_override=7),
+        # nn.AvgPool2d(7, divisor_override=7),
         # nn.AdaptiveAvgPool2d((1, 1)),
+        pool(kernel_size=(7, 7), stride=(7, 7)),
         nn.Flatten(),
         lin(embedding_dim, n_classes),
     ]
@@ -136,22 +233,82 @@ SplitConcatNetConfigs = {
         expand_factor=4,
         block_depth=2,
         kernel_size=3,
-        embedding_dim=2048,
+        embedding_dim=1024,
         groups=32,
         conv=ClassParam(
-            FlashBCOP,
+            OrthoConv2d,
             bias=False,
-            kernel_size=3,
             padding="same",
             padding_mode="zeros",
-            pi_iters=3,
-            bjorck_beta=0.5,
-            bjorck_bp_iters=8,
-            bjorck_nbp_iters=0,
+        ),
+        skip=ClassParam(
+            Residual,
+            init_val=2.0,
         ),
         act=ClassParam(MaxMin),
         lin=ClassParam(UnitNormLinear, bias=False),
-        norm=ClassParam(LayerCentering, dim=1),
+        norm=ClassParam(BatchCentering2D),
+        pool=ClassParam(nn.LPPool2d, norm_type=2),
+    ),
+    "M2": dict(
+        expand_factor=2,
+        block_depth=2,
+        kernel_size=5,
+        embedding_dim=1024,
+        groups=4,
+        skip=ClassParam(
+            Residual,
+            init_val=2.0,
+        ),
+        conv=ClassParam(
+            OrthoConv2d,
+            bias=False,
+            padding="same",
+            padding_mode="zeros",
+            bjorck_params=BjorckParams(
+                power_it_niter=3,
+                eps=1e-6,
+                bjorck_iters=10,
+                beta=0.5,
+                contiguous_optimization=False,
+            ),
+        ),
+        act=ClassParam(MaxMin),
+        lin=ClassParam(UnitNormLinear, bias=False),
+        norm=None,
+        # norm=ClassParam(LayerCentering2D),
+        pool=ClassParam(nn.AvgPool2d, divisor_override=7),
+        # pool=ClassParam(nn.LPPool2d, norm_type=2),
+    ),
+    "M3": dict(
+        expand_factor=2,
+        block_depth=3,
+        kernel_size=5,
+        embedding_dim=2048,
+        groups=None,
+        skip=ClassParam(
+            Residual,
+            init_val=2.0,
+        ),
+        conv=ClassParam(
+            OrthoConv2d,
+            bias=False,
+            padding="same",
+            padding_mode="zeros",
+            bjorck_params=BjorckParams(
+                power_it_niter=3,
+                eps=1e-6,
+                bjorck_iters=10,
+                beta=0.5,
+                contiguous_optimization=False,
+            ),
+        ),
+        act=ClassParam(MaxMin),
+        lin=ClassParam(UnitNormLinear, bias=False),
+        norm=None,
+        # norm=ClassParam(LayerCentering2D),
+        pool=ClassParam(nn.AvgPool2d, divisor_override=7),
+        # pool=ClassParam(nn.LPPool2d, norm_type=2),
     ),
 }
 
@@ -160,14 +317,10 @@ def LipResNet(
     img_shape=(3, 224, 224),
     n_classes=1000,
     stridedconv=ClassParam(
-        FlashBCOP,
+        OrthoConv2d,
         bias=False,
         padding="same",
         padding_mode="zeros",
-        pi_iters=3,
-        bjorck_beta=0.5,
-        bjorck_bp_iters=10,
-        bjorck_nbp_iters=0,
     ),
     skipconv=ClassParam(
         SDPBasedLipschitzConv,
@@ -175,7 +328,7 @@ def LipResNet(
     ),
     act=ClassParam(MaxMin),
     lin=ClassParam(OrthoLinear, bias=False),
-    norm=ClassParam(LayerCentering, dim=-3),
+    norm=ClassParam(LayerCentering2D),
 ):
     layers = [
         stridedconv(in_channels=img_shape[0], out_channels=64, kernel_size=7, stride=4),
@@ -209,18 +362,14 @@ def LipVGG(
     img_shape=(3, 224, 224),
     n_classes=1000,
     conv=ClassParam(
-        FlashBCOP,
+        OrthoConv2d,
         bias=False,
         padding="same",
         padding_mode="zeros",
-        pi_iters=3,
-        bjorck_beta=0.5,
-        bjorck_bp_iters=10,
-        bjorck_nbp_iters=0,
     ),
     act=ClassParam(MaxMin),
     lin=ClassParam(OrthoLinear, bias=False),
-    norm=ClassParam(LayerCentering, dim=-3),
+    norm=ClassParam(LayerCentering2D),
 ):
     layers = [
         conv(in_channels=img_shape[0], out_channels=64, kernel_size=3),
@@ -281,18 +430,14 @@ def PatchBasedCNN(
     n_classes=10,
     groups=1,
     conv=ClassParam(
-        FlashBCOP,
+        OrthoConv2d,
         bias=False,
         padding="same",
-        pi_iters=3,
-        bjorck_beta=0.5,
-        bjorck_bp_iters=10,
-        bjorck_nbp_iters=0,
     ),
     act=ClassParam(MaxMin),
     pool=ClassParam(nn.LPPool2d, norm_type=2),
     lin=ClassParam(OrthoLinear),
-    norm=ClassParam(LayerCentering, dim=-3),
+    norm=ClassParam(LayerCentering2D),
 ):
     return nn.Sequential(
         conv(
@@ -315,12 +460,12 @@ def PatchBasedCNN(
                 ),
                 norm() if norm is not None else nn.Identity(),
                 act(),
-                (
-                    GroupMix(g, dim // g)
-                    if (g := (groups if i % 2 == 0 else dim // groups))
-                    > 1  # number of group switch every layer
-                    else nn.Identity()
-                ),
+                # (
+                #     GroupMix(g, dim // g)
+                #     if (g := (groups if i % 2 == 0 else dim // groups))
+                #     > 1  # number of group switch every layer
+                #     else nn.Identity()
+                # ),
             )
             for i in range(depth)
         ],
@@ -349,18 +494,14 @@ def PatchBasedExapandedCNN(
     n_classes=10,
     skip=False,
     conv=ClassParam(
-        FlashBCOP,
+        OrthoConv2d,
         bias=False,
         padding="same",
-        pi_iters=3,
-        bjorck_beta=0.5,
-        bjorck_bp_iters=10,
-        bjorck_nbp_iters=0,
     ),
     act=ClassParam(MaxMin),
     pool=ClassParam(ScaledAvgPool2d),
     lin=ClassParam(OrthoLinear),
-    norm=ClassParam(LayerCentering, dim=-3),
+    norm=ClassParam(LayerCentering2D),
 ):
     if skip:
         skipco = Residual
@@ -422,18 +563,14 @@ def ConvMixerInspired(
     channels_per_group=1,
     n_classes=10,
     conv=ClassParam(
-        FlashBCOP,
+        OrthoConv2d,
         bias=False,
         padding="same",
-        pi_iters=3,
-        bjorck_beta=0.5,
-        bjorck_bp_iters=10,
-        bjorck_nbp_iters=0,
     ),
     act=ClassParam(MaxMin),
     pool=ClassParam(ScaledAvgPool2d),
     lin=ClassParam(OrthoLinear),
-    norm=ClassParam(LayerCentering, dim=-3),
+    norm=ClassParam(LayerCentering2D),
 ):
     return nn.Sequential(
         conv(
@@ -480,17 +617,13 @@ def BCOPLargeCNN(
     img_shape=(3, 32, 32),
     n_classes=10,
     conv=ClassParam(
-        FlashBCOP,
+        OrthoConv2d,
         bias=True,
         padding="circular",
-        pi_iters=3,
-        bjorck_beta=0.5,
-        bjorck_bp_iters=10,
-        bjorck_nbp_iters=0,
     ),
     act=ClassParam(MaxMin),
     lin=ClassParam(OrthoLinear),
-    norm=ClassParam(LayerCentering, dim=-3),
+    norm=ClassParam(LayerCentering2D),
 ):
     layers = [
         conv(in_channels=img_shape[0], out_channels=32, kernel_size=3, stride=1),
@@ -521,17 +654,13 @@ def StagedCNN(
     dim_repeats=[(64, 2), (128, 2)],
     n_classes=10,
     conv=ClassParam(
-        FlashBCOP,
+        OrthoConv2d,
         bias=False,
         padding="same",
-        pi_iters=3,
-        bjorck_beta=0.5,
-        bjorck_bp_iters=10,
-        bjorck_nbp_iters=0,
     ),
     act=ClassParam(MaxMin),
     lin=ClassParam(OrthoLinear),
-    norm=ClassParam(LayerCentering, dim=-3),
+    norm=ClassParam(LayerCentering2D),
 ):
     layers = []
     in_channels = img_shape[0]
@@ -577,6 +706,11 @@ def StagedCNN(
 
 
 MODELS = {
-    "SplitConcatNet-M": SplitConcatNet,
+    "SplitConcatNet-M": lambda *args, **kwargs: SplitConcatNet(
+        *args, **kwargs, **SplitConcatNetConfigs["M"]
+    ),
+    "SplitConcatNet-M2": lambda *args, **kwargs: SplitConcatNet(
+        *args, **kwargs, **SplitConcatNetConfigs["M2"]
+    ),
     "LipResNet": LipResNet,
 }
