@@ -7,11 +7,10 @@ import torch.nn as nn
 import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_2_t
 
-from flashlipschitz.layers.conv.reparametrizers import (
-    BatchedBjorckOrthogonalization,
-    BjorckParams,
-)
+from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
 from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
+from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+from flashlipschitz.layers.conv.reparametrizers import L2Normalize
 
 
 def conv_singular_values_numpy(kernel, input_shape):
@@ -157,7 +156,9 @@ class BCOPTrivializer(nn.Module):
         for i in range(self.kernel_size - 1):
             res = fast_matrix_conv(res, c22[i], self.groups)
         if self.contiguous_optimization:
-            res = res[: self.max_channels // 2, : self.min_channels // self.groups, :, :]
+            res = res[
+                : self.max_channels // 2, : self.min_channels // self.groups, :, :
+            ]
         if self.transpose:
             res = transpose_kernel(res, self.groups, flip=False)
         return res.contiguous()
@@ -199,23 +200,30 @@ def attach_bcop_weight(
     )
     weight = getattr(layer, weight_name)
     torch.nn.init.orthogonal_(weight)
-    parametrize.register_parametrization(
-        layer,
-        weight_name,
-        BatchedPowerIteration(
-            weight.shape,
-            bjorck_params.power_it_niter,
-        ),
-    )
-    parametrize.register_parametrization(
-        layer,
-        weight_name,
-        BatchedBjorckOrthogonalization(
-            weight.shape,
-            bjorck_params.beta,
-            bjorck_params.bjorck_iters,
-        ),
-    )
+    if weight.shape[-1] == 1:
+        parametrize.register_parametrization(
+            layer,
+            weight_name,
+            L2Normalize(dtype=weight.dtype, dim=(-2)),
+        )
+    else:
+        parametrize.register_parametrization(
+            layer,
+            weight_name,
+            BatchedPowerIteration(
+                weight.shape,
+                bjorck_params.power_it_niter,
+            ),
+        )
+        parametrize.register_parametrization(
+            layer,
+            weight_name,
+            BatchedBjorckOrthogonalization(
+                weight.shape,
+                bjorck_params.beta,
+                bjorck_params.bjorck_iters,
+            ),
+        )
     parametrize.register_parametrization(
         layer,
         weight_name,
