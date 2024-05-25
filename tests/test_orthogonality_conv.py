@@ -1,11 +1,11 @@
+import numpy as np
 import pytest
 import torch
-import numpy as np
 
 from flashlipschitz.layers import OrthoConv2d
+from flashlipschitz.layers.conv.reparametrizers import BjorckParams
 
 # from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
@@ -275,6 +275,59 @@ def test_rko(kernel_size, input_channels, output_channels, groups):
         pytest.fail(f"BCOP instantiation failed with: {e}")
     check_orthogonal_layer(
         rkoconv,
+        groups,
+        input_channels,
+        kernel_size,
+        output_channels,
+        (
+            output_channels,
+            input_channels // groups,
+            kernel_size,
+            kernel_size,
+        ),
+    )
+
+
+@pytest.mark.parametrize("kernel_size", [1, 3, 5])
+@pytest.mark.parametrize("input_channels", [1, 2])
+@pytest.mark.parametrize("output_channels", [1, 2])
+@pytest.mark.parametrize("stride", [1, 2])
+@pytest.mark.parametrize("groups", [1])
+def test_depthwise(kernel_size, input_channels, output_channels, stride, groups):
+    """
+    test combinations of kernel size, input channels, output channels, stride and groups
+    """
+    # Test instantiation
+    try:
+        orthoconv = OrthoConv2d(
+            kernel_size=kernel_size,
+            in_channels=input_channels,
+            out_channels=output_channels,
+            stride=stride,
+            groups=groups,
+            bias=False,
+            padding=(kernel_size // 2, kernel_size // 2),
+            padding_mode="circular",
+            bjorck_params=BjorckParams(
+                power_it_niter=3,
+                eps=1e-6,
+                beta=0.5,
+                bjorck_iters=20,
+            ),
+        )
+    except Exception as e:
+        if input_channels == 1 and output_channels == 1:
+            # we expect this configuration to raise a RuntimeError
+            # pytest.skip(f"BCOP instantiation failed with: {e}")
+            return
+        if kernel_size < stride:
+            # we expect this configuration to raise a RuntimeError
+            # pytest.skip(f"BCOP instantiation failed with: {e}")
+            return
+        else:
+            pytest.fail(f"BCOP instantiation failed with: {e}")
+    check_orthogonal_layer(
+        orthoconv,
         groups,
         input_channels,
         kernel_size,
