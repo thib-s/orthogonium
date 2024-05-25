@@ -1,6 +1,7 @@
 import os
 
 import pytorch_lightning
+import schedulefree
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
@@ -16,19 +17,21 @@ from torchvision.transforms import RandomResizedCrop
 from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
-from flashlipschitz.layers.custom_activations import MaxMin
-from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
-from flashlipschitz.layers.normalization import LayerCentering
-from flashlipschitz.layers.pooling import ScaledAvgPool2d
-from flashlipschitz.layers.conv.rko_conv import OrthoLinear
-from flashlipschitz.layers.conv.rko_conv import UnitNormLinear
 from flashlipschitz.losses import Cosine_VRA_Loss
+from flashlipschitz.losses import CosineLoss
+from flashlipschitz.models_factory import SplitConcatNet
+from flashlipschitz.models_factory import SplitConcatNetConfigs
+
+# from lightning.pytorch.loggers import WandbLogger
+
+torch.backends.cudnn.benchmark = True
+torch.set_float32_matmul_precision("medium")
 
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 parent_directory = os.path.abspath(os.path.join(this_directory, os.pardir))
 
-MAX_EPOCHS = 25
+MAX_EPOCHS = 150
 
 
 class ImagenetDataModule(pytorch_lightning.LightningDataModule):
@@ -36,7 +39,7 @@ class ImagenetDataModule(pytorch_lightning.LightningDataModule):
     _DATA_PATH = os.path.join(
         parent_directory, f"/local_data/imagenet_cache/ILSVRC/Data/CLS-LOC/"
     )
-    _BATCH_SIZE = 512
+    _BATCH_SIZE = 256
     _NUM_WORKERS = 16  # Number of parallel processes fetching data
     _PREPROCESSING_PARAMS = {
         "img_mean": (0.41757566, 0.26098573, 0.25888634),
@@ -112,113 +115,18 @@ class ImagenetDataModule(pytorch_lightning.LightningDataModule):
         )
 
 
-class Residual(nn.Module):
-    def __init__(self, fn):
-        super().__init__()
-        self.add_module("fn", fn)
-
-    def forward(self, x):
-        # split x
-        # x1, x2 = x.chunk(2, dim=1)
-        # apply function
-        out = self.fn(x)
-        # concat and return
-        # return torch.cat([x1, out], dim=1)
-        return (x + out) * 0.5
-
-
-def BasicCNN(img_size, dim, depth, kernel_size, patch_size, expand_factor, n_classes):
-    return nn.Sequential(
-        FlashBCOP(
-            in_channels=3,
-            out_channels=dim,
-            kernel_size=patch_size,
-            stride=patch_size,
-            padding="valid",
-            bias=False,
-            # pi_iters=3,
-            # exp_niter=5,
-            bjorck_bp_iters=10,
-            bjorck_nbp_iters=0,
-        ),
-        # MaxMin(),
-        *[
-            Residual(
-                nn.Sequential(
-                    FlashBCOP(
-                        in_channels=dim,
-                        out_channels=expand_factor * dim,
-                        kernel_size=kernel_size,
-                        padding="same",
-                        padding_mode="zeros",
-                        bias=False,
-                        pi_iters=3,
-                        # exp_niter=5,
-                        bjorck_bp_iters=10,
-                        bjorck_nbp_iters=0,
-                    ),
-                    # Oddly MaxMin works better than HouseHolder
-                    # also as these activations are pairwise
-                    # doubling the number of channels drastically improves
-                    # performances
-                    LayerCentering(),
-                    MaxMin(),
-                    FlashBCOP(
-                        in_channels=expand_factor * dim,
-                        out_channels=dim,
-                        kernel_size=kernel_size,
-                        padding="same",
-                        padding_mode="zeros",
-                        bias=False,
-                        pi_iters=3,
-                        # exp_niter=5,
-                        bjorck_bp_iters=10,
-                        bjorck_nbp_iters=0,
-                    ),
-                    # once we got back to dim don't add MaxMin
-                )
-            )
-            for i in range(depth)
-        ],
-        ## I tried two kinds of pooling
-        ## L2NormPooling compute the norm of each channel
-        # tl.ScaledL2NormPool2d(
-        #     (32 // patch_size, 32 // patch_size),
-        #     None,
-        #     # k_coef_lip=1 / (32 // patch_size) ** 2,
-        # ),
-        ## scaledAvgPool2d is AvgPool2d but with a sqrt(w*h)
-        ## factor, as it would be 1/sqrt(w,h) lip otherwise
-        LayerCentering(),
-        nn.AvgPool2d(
-            img_size // patch_size,
-            None,
-            divisor_override=img_size // patch_size,
-        ),
-        nn.Flatten(),
-        UnitNormLinear(
-            dim,
-            n_classes,
-            # k_coef_lip=1 / (dim / n_classes),
-            bias=False,
-        ),
-    )
-
-
 class ClassificationLightningModule(pytorch_lightning.LightningModule):
     def __init__(self, num_classes=1000):
         super().__init__()
+        # self.save_hyperparameters()
         self.num_classes = num_classes
-        self.model = BasicCNN(
-            img_size=224,
-            dim=512,
-            depth=8,
-            kernel_size=5,
-            patch_size=16,
-            expand_factor=2,
+        self.model = SplitConcatNet(
+            img_shape=(3, 224, 224),
             n_classes=num_classes,
+            **SplitConcatNetConfigs["M3"],
         )
-        self.criteria = Cosine_VRA_Loss(gamma=0.0, L=2 / 0.225, eps=36 / 255)
+        # self.criteria = Cosine_VRA_Loss(gamma=0.1, L=2 / 0.225, eps=36 / 255)
+        self.criteria = CosineLoss()
         # self.automatic_optimization = False
         self.train_acc = torchmetrics.Accuracy(
             task="multiclass", num_classes=num_classes
@@ -230,6 +138,8 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
         return self.model(x)
 
     def training_step(self, batch, batch_idx):
+        self.model.train()
+        self.opt.train()
         img, label = batch
         # The model expects a video tensor of shape (B, C, T, H, W), which is the
         # format provided by the dataset
@@ -259,6 +169,8 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
+        self.model.eval()
+        self.opt.eval()
         img, label = batch
         y_hat = self.model(img)
         loss = self.criteria(y_hat, label)
@@ -288,34 +200,44 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
         usually useful for training video models.
         """
         # return torch.optim.AdamW(self.parameters(), lr=0.0001, weight_decay=1e-5)
-        optimizer = torch.optim.NAdam(self.parameters(), lr=1e-5, weight_decay=0)
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": torch.optim.lr_scheduler.StepLR(
-                    optimizer, step_size=MAX_EPOCHS // 3, gamma=0.2
-                ),
-                # "scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(
-                #     optimizer, T_max=MAX_EPOCHS, eta_min=1e-8
-                # ),
-                "interval": "epoch",
-            },
-        }
+        # optimizer = torch.optim.NAdam(self.parameters(), lr=1e-2, weight_decay=0)
+        optimizer = schedulefree.AdamWScheduleFree(
+            self.parameters(), lr=1e-2, weight_decay=1e-6
+        )
+        self.opt = optimizer
+        return optimizer
+        # return {
+        #     "optimizer": optimizer,
+        #     # "lr_scheduler": {
+        #     #     "scheduler": torch.optim.lr_scheduler.StepLR(
+        #     #         optimizer, step_size=MAX_EPOCHS // 3, gamma=0.2
+        #     #     ),
+        #     #     # "scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(
+        #     #     #     optimizer, T_max=MAX_EPOCHS, eta_min=1e-8
+        #     #     # ),
+        #     #     "interval": "epoch",
+        #     # },
+        # }
 
 
 def train():
     classification_module = ClassificationLightningModule(num_classes=1000)
     # classification_module = torch.compile(classification_module)
     data_module = ImagenetDataModule()
+    # wandb_logger = WandbLogger(project="thib-s/lipschitz-imagenet")
+    # wandb_logger.watch(data_module)
+    # wandb_logger.watch(data_module, log="all")
+    # wandb_logger.watch(data_module, log_freq=2000)
     trainer = pytorch_lightning.Trainer(
         accelerator="gpu",
         devices=2,  # GPUs per node
-        num_nodes=4,  # Number of nodes
+        num_nodes=1,  # Number of nodes
+        # num_nodes=3,  # Number of nodes
         strategy="ddp",  # Distributed strategy
         precision="bf16-mixed",
         max_epochs=MAX_EPOCHS,
         enable_model_summary=True,
-        # logger=[pytorch_lightning.loggers.TensorBoardLogger("logs/")],
+        logger=[pytorch_lightning.loggers.TensorBoardLogger("logs/")],
     )
     trainer.fit(classification_module, data_module)
     # save the model
