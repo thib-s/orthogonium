@@ -2,3 +2,7 @@ numpy
 argparse
 torch
 torchvision
+tqdm
+torchinfo
+einops
+pytorch-lightning
