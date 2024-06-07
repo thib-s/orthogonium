@@ -207,10 +207,19 @@ def SplitConcatNet(
     layers = [
         conv(
             in_channels=img_shape[0],
-            out_channels=embedding_dim // 8,
+            out_channels=embedding_dim // 16,
             kernel_size=7,
-            stride=4,
+            stride=2,
             padding=7 // 2,
+        ),
+        act(),
+        norm(num_features=embedding_dim // 8) if norm is not None else nn.Identity(),
+        conv(
+            in_channels=embedding_dim // 16,
+            out_channels=embedding_dim // 8,
+            kernel_size=3,
+            stride=2,
+            padding=3 // 2,
         ),
         act(),
         norm(num_features=embedding_dim // 8) if norm is not None else nn.Identity(),
@@ -285,10 +294,73 @@ SplitConcatNetConfigs = {
         block_depth=3,
         kernel_size=5,
         embedding_dim=2048,
-        groups=None,
+        groups=None,  # None is depthwise, 1 is no groups
+        # skip=None,
         skip=ClassParam(
             Residual,
-            init_val=2.0,
+            init_val=3.0,
+        ),
+        conv=ClassParam(
+            OrthoConv2d,
+            bias=False,
+            padding="same",
+            padding_mode="zeros",
+            bjorck_params=BjorckParams(
+                power_it_niter=3,
+                eps=1e-6,
+                bjorck_iters=10,
+                beta=0.5,
+                contiguous_optimization=False,
+            ),
+        ),
+        act=ClassParam(MaxMin),
+        lin=ClassParam(UnitNormLinear, bias=False),
+        norm=None,
+        # norm=ClassParam(LayerCentering2D),
+        pool=ClassParam(nn.AvgPool2d, divisor_override=7),
+        # pool=ClassParam(nn.LPPool2d, norm_type=2),
+    ),
+    "M4": dict(
+        expand_factor=2,
+        block_depth=3,
+        kernel_size=5,
+        embedding_dim=2048,
+        groups=None,  # None is depthwise, 1 is no groups
+        # skip=None,
+        skip=ClassParam(
+            Residual,
+            init_val=3.0,
+        ),
+        conv=ClassParam(
+            OrthoConv2d,
+            bias=False,
+            padding="same",
+            padding_mode="circular",
+            bjorck_params=BjorckParams(
+                power_it_niter=3,
+                eps=1e-6,
+                bjorck_iters=10,
+                beta=0.5,
+                contiguous_optimization=False,
+            ),
+        ),
+        act=ClassParam(MaxMin),
+        lin=ClassParam(UnitNormLinear, bias=False),
+        # norm=None,
+        norm=ClassParam(LayerCentering2D),
+        # pool=ClassParam(nn.AvgPool2d, divisor_override=7),
+        pool=ClassParam(nn.LPPool2d, norm_type=2),
+    ),
+    "L": dict(
+        expand_factor=2,
+        block_depth=3,
+        kernel_size=5,
+        embedding_dim=3072,
+        groups=None,  # None is depthwise, 1 is no groups
+        # skip=None,
+        skip=ClassParam(
+            Residual,
+            init_val=3.0,
         ),
         conv=ClassParam(
             OrthoConv2d,
@@ -339,8 +411,8 @@ def LipResNet(
         *ResNetBlock(64, 128, 4, stridedconv, skipconv, act, norm),
         *ResNetBlock(128, 256, 6, stridedconv, skipconv, act, norm),
         *ResNetBlock(256, 512, 3, stridedconv, skipconv, act, norm),
-        # nn.AvgPool2d(7, divisor_override=7),
-        nn.AdaptiveAvgPool2d((1, 1)),
+        nn.AvgPool2d(7, divisor_override=7),
+        # nn.AdaptiveAvgPool2d((1, 1)),
         nn.Flatten(),
         lin(512, n_classes),
     ]
@@ -484,14 +556,14 @@ def PatchBasedCNN(
 
 
 def PatchBasedExapandedCNN(
-    img_shape=(3, 32, 32),
+    img_shape=(3, 224, 224),
     dim=128,
-    depth=8,
-    kernel_size=3,
+    depth=12,
+    kernel_size=5,
     patch_size=2,
     expand_factor=2,
-    groups=1,
-    n_classes=10,
+    groups=None,
+    n_classes=1000,
     skip=False,
     conv=ClassParam(
         OrthoConv2d,
@@ -522,7 +594,9 @@ def PatchBasedExapandedCNN(
                         in_channels=dim,
                         out_channels=dim * expand_factor,
                         kernel_size=kernel_size,
-                        groups=groups,
+                        groups=(
+                            groups if groups is not None else dim * expand_factor // 2
+                        ),
                     ),
                     act(),
                     norm() if norm is not None else nn.Identity(),
@@ -534,8 +608,8 @@ def PatchBasedExapandedCNN(
                     conv(
                         in_channels=dim * expand_factor,
                         out_channels=dim,
-                        kernel_size=kernel_size,
-                        groups=dim // groups,
+                        kernel_size=1,
+                        groups=1,
                     ),
                     # GroupMix(dim // groups, groups) if groups > 1 else nn.Identity(),
                 )
