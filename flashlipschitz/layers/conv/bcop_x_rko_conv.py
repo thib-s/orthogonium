@@ -7,11 +7,9 @@ from torch import nn as nn
 from torch.nn.common_types import _size_2_t
 from torch.nn.utils import parametrize as parametrize
 
-from flashlipschitz.layers.conv.fast_block_ortho_conv import (
-    attach_bcop_weight,
-    fast_matrix_conv,
-    conv_singular_values_numpy,
-)
+from flashlipschitz.layers.conv.fast_block_ortho_conv import attach_bcop_weight
+from flashlipschitz.layers.conv.fast_block_ortho_conv import conv_singular_values_numpy
+from flashlipschitz.layers.conv.fast_block_ortho_conv import fast_matrix_conv
 from flashlipschitz.layers.conv.reparametrizers import BjorckParams
 from flashlipschitz.layers.conv.rko_conv import attach_rko_weight
 
@@ -31,7 +29,7 @@ class BcopRkoConv2d(nn.Conv2d):
         bjorck_params: BjorckParams = BjorckParams(),
     ):
         if dilation != 1:
-            raise RuntimeError("dilation not supported")
+            warnings.warn("dilation not supported", RuntimeWarning)
         super(BcopRkoConv2d, self).__init__(
             in_channels,
             out_channels,

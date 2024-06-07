@@ -68,7 +68,7 @@ class RKOParametrizer(nn.Module):
         X = self.pi(X)
         X = self.bjorck(X)
         X = X.view(self.out_channels, self.in_channels // self.groups, self.k1, self.k2)
-        return X / self.scale
+        return X * self.scale
 
     def right_inverse(self, X):
         return X
@@ -172,8 +172,7 @@ class RKOConv2d(nn.Conv2d):
                 self.weight.reshape(
                     self.groups,
                     self.out_channels // self.groups,
-                    (self.in_channels // self.groups)
-                    * (self.stride[0] * self.stride[1]),
+                    (self.in_channels // self.groups) * (stride[0] * stride[1]),
                 )
                 .detach()
                 .cpu()
@@ -273,26 +272,48 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
             self.register_parameter("bias", None)
 
     def singular_values(self):
-        if self.padding_mode != "circular":
-            print(
-                f"padding {self.padding} not supported, return min and max"
-                f"singular values as if it was 'circular' padding "
-                f"(overestimate the values)."
+        if isinstance(self.kernel_size, tuple):
+            kernel_size = self.kernel_size
+        else:
+            kernel_size = (self.kernel_size, self.kernel_size)
+        if isinstance(self.stride, tuple):
+            stride = self.stride
+        else:
+            stride = (self.stride, self.stride)
+        if (stride[0] == kernel_size[0]) and (stride[1] == kernel_size[1]):
+            svs = np.linalg.svd(
+                self.weight.reshape(
+                    self.groups,
+                    self.in_channels // self.groups,
+                    (self.out_channels // self.groups) * (stride[0] * stride[1]),
+                )
+                .detach()
+                .cpu()
+                .numpy(),
+                compute_uv=False,
             )
-        svs = np.linalg.svd(
-            self.weight.reshape(
-                self.groups,
-                self.in_channels // self.groups,
-                self.out_channels // self.groups * (self.stride**2),
+            sv_min = svs.min()
+            sv_max = svs.max()
+            stable_rank = np.mean(svs) / (svs.max() ** 2)
+            return sv_min, sv_max, stable_rank
+        elif stride[0] > 1 or stride[1] > 1:
+            raise RuntimeError(
+                "Not able to compute singular values for this " "configuration"
             )
-            .detach()
+        # Implements interface required by LipschitzModuleL2
+        sv_min, sv_max, stable_rank = conv_singular_values_numpy(
+            self.weight.detach()
             .cpu()
+            .view(
+                self.groups,
+                self.out_channels // self.groups,
+                self.in_channels // self.groups,
+                kernel_size[0],
+                kernel_size[1],
+            )
             .numpy(),
-            compute_uv=False,
+            self._input_shape,
         )
-        sv_min = svs.min()
-        sv_max = svs.max()
-        stable_rank = np.mean(svs) / (svs.max() ** 2)
         return sv_min, sv_max, stable_rank
 
     def forward(self, X):

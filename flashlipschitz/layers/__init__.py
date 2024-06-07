@@ -1,4 +1,5 @@
 from .block_ortho_conv import BCOP as OldBCOP
+from .custom_activations import Abs
 from .custom_activations import HouseHolder
 from .custom_activations import HouseHolder_Order_2
 from .custom_activations import MaxMin

@@ -24,7 +24,7 @@ def conv_singular_values_numpy(kernel, input_shape):
         svs = np.linalg.svd(
             transforms, compute_uv=False, full_matrices=False
         )  # g, k1, k2, min(ci, co)
-        stable_rank = np.mean(svs) / (svs.max() ** 2)
+        stable_rank = np.mean(svs) / svs.max()
         return svs.min(), svs.max(), stable_rank
     except np.linalg.LinAlgError:
         print("numerical error in svd, returning only largest singular value")
@@ -276,7 +276,7 @@ class FlashBCOP(nn.Conv2d):
         self.max_channels = max(in_channels, out_channels)
 
         # raise runtime error if kernel size >= stride
-        if (stride > 1) and (out_channels > in_channels):
+        if ((stride > 1) and (out_channels > in_channels)) or (stride > kernel_size):
             raise RuntimeError(
                 "stride > 1 is not supported when out_channels > in_channels, "
                 "use TODO layer instead"
