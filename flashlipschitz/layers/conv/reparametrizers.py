@@ -104,22 +104,22 @@ class BatchedBjorckOrthogonalization(nn.Module):
         return w
 
 
-class BatchedQROrthogonalization(nn.Module):
-    def __init__(self):
-        super(BatchedQROrthogonalization, self).__init__()
+# class BatchedQROrthogonalization(nn.Module):
+#     def __init__(self):
+#         super(BatchedQROrthogonalization, self).__init__()
 
-    def forward(self, w):
-        transpose = w.shape[-2] < w.shape[-1]
-        if transpose:
-            w = w.transpose(-1, -2)
-        q, r = torch.linalg.qr(w, mode="reduced")
-        # compute the sign of the diagonal of d
-        diag_sign = torch.sign(torch.diagonal(r, dim1=-2, dim2=-1)).unsqueeze(-2)
-        # multiply the sign with the diagonal of r
-        q = q * diag_sign
-        if transpose:
-            q = q.transpose(-1, -2)
-        return q
+#     def forward(self, w):
+#         transpose = w.shape[-2] < w.shape[-1]
+#         if transpose:
+#             w = w.transpose(-1, -2)
+#         q, r = torch.linalg.qr(w, mode="reduced")
+#         # compute the sign of the diagonal of d
+#         diag_sign = torch.sign(torch.diagonal(r, dim1=-2, dim2=-1)).unsqueeze(-2)
+#         # multiply the sign with the diagonal of r
+#         q = q * diag_sign
+#         if transpose:
+#             q = q.transpose(-1, -2)
+#         return q
 
-    def right_inverse(self, w):
-        return w
+#     def right_inverse(self, w):
+#         return w
