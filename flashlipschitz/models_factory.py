@@ -48,73 +48,73 @@ class Residual(nn.Module):
         return alpha * x + (1 - alpha) * out
 
 
-def dumbNet500M(
-    img_size=(224, 224),
-    dim=1024,
-    depth=8,
-    kernel_size=5,
-    patch_size=16,
-    expand_factor=2,
-    n_classes=1000,
-    conv=ClassParam(
-        OrthoConv2d,
-        padding="same",
-        padding_mode="zeros",
-        bias=False,
-        bjorck_params=BjorckParams(
-            power_it_niter=3,
-            eps=1e-6,
-            bjorck_iters=6,
-            beta=0.5,
-            contiguous_optimization=False,
-        ),
-    ),
-    act=ClassParam(MaxMin),
-    lin=ClassParam(OrthoLinear, bias=False),
-    norm=ClassParam(BatchCentering2D),
-    pool=ClassParam(nn.LPPool2d, norm_type=2),
-):
-    return nn.Sequential(
-        conv(
-            in_channels=3,
-            out_channels=dim,
-            kernel_size=patch_size,
-            stride=patch_size,
-            padding="valid",
-        ),
-        norm(num_features=dim) if norm is not None else nn.Identity(),
-        *[
-            Residual(
-                nn.Sequential(
-                    conv(
-                        in_channels=dim,
-                        out_channels=expand_factor * dim,
-                        kernel_size=kernel_size,
-                    ),
-                    (
-                        norm(num_features=expand_factor * dim)
-                        if norm is not None
-                        else nn.Identity()
-                    ),
-                    act(),
-                    conv(
-                        in_channels=expand_factor * dim,
-                        kernel_size=kernel_size,
-                        out_channels=dim,
-                    ),
-                    norm(num_features=dim) if norm is not None else nn.Identity(),
-                )
-            )
-            for i in range(depth)
-        ],
-        pool(kernel_size=(img_size[0] // patch_size, img_size[1] // patch_size)),
-        nn.Flatten(),
-        lin(
-            dim,
-            n_classes,
-        ),
-        # norm(num_features=n_classes) if norm is not None else nn.Identity(),
-    )
+# def dumbNet500M(
+#     img_size=(224, 224),
+#     dim=1024,
+#     depth=8,
+#     kernel_size=5,
+#     patch_size=16,
+#     expand_factor=2,
+#     n_classes=1000,
+#     conv=ClassParam(
+#         OrthoConv2d,
+#         padding="same",
+#         padding_mode="zeros",
+#         bias=False,
+#         bjorck_params=BjorckParams(
+#             power_it_niter=3,
+#             eps=1e-6,
+#             bjorck_iters=6,
+#             beta=0.5,
+#             contiguous_optimization=False,
+#         ),
+#     ),
+#     act=ClassParam(MaxMin),
+#     lin=ClassParam(OrthoLinear, bias=False),
+#     norm=ClassParam(BatchCentering2D),
+#     pool=ClassParam(nn.LPPool2d, norm_type=2),
+# ):
+#     return nn.Sequential(
+#         conv(
+#             in_channels=3,
+#             out_channels=dim,
+#             kernel_size=patch_size,
+#             stride=patch_size,
+#             padding="valid",
+#         ),
+#         norm(num_features=dim) if norm is not None else nn.Identity(),
+#         *[
+#             Residual(
+#                 nn.Sequential(
+#                     conv(
+#                         in_channels=dim,
+#                         out_channels=expand_factor * dim,
+#                         kernel_size=kernel_size,
+#                     ),
+#                     (
+#                         norm(num_features=expand_factor * dim)
+#                         if norm is not None
+#                         else nn.Identity()
+#                     ),
+#                     act(),
+#                     conv(
+#                         in_channels=expand_factor * dim,
+#                         kernel_size=kernel_size,
+#                         out_channels=dim,
+#                     ),
+#                     norm(num_features=dim) if norm is not None else nn.Identity(),
+#                 )
+#             )
+#             for i in range(depth)
+#         ],
+#         pool(kernel_size=(img_size[0] // patch_size, img_size[1] // patch_size)),
+#         nn.Flatten(),
+#         lin(
+#             dim,
+#             n_classes,
+#         ),
+#         # norm(num_features=n_classes) if norm is not None else nn.Identity(),
+#     )
 
 
 def SplitConcatNet(
@@ -388,29 +388,44 @@ SplitConcatNetConfigs = {
 def LipResNet(
     img_shape=(3, 224, 224),
     n_classes=1000,
-    stridedconv=ClassParam(
+    skip=ClassParam(
+        Residual,
+        init_val=3.0,
+    ),
+    conv=ClassParam(
         OrthoConv2d,
         bias=False,
         padding="same",
         padding_mode="zeros",
-    ),
-    skipconv=ClassParam(
-        SDPBasedLipschitzConv,
-        inner_dim_factor=2,
+        bjorck_params=BjorckParams(
+            power_it_niter=3,
+            eps=1e-6,
+            bjorck_iters=10,
+            beta=0.5,
+            contiguous_optimization=False,
+        ),
     ),
     act=ClassParam(MaxMin),
-    lin=ClassParam(OrthoLinear, bias=False),
-    norm=ClassParam(LayerCentering2D),
+    lin=ClassParam(UnitNormLinear, bias=False),
+    norm=None,  # ClassParam(BatchCentering2D),
+    # pool=ClassParam(nn.LPPool2d, norm_type=2),
 ):
     layers = [
-        stridedconv(in_channels=img_shape[0], out_channels=64, kernel_size=7, stride=4),
-        # act(),
+        conv(
+            in_channels=img_shape[0],
+            out_channels=64,
+            kernel_size=7,
+            stride=2,
+            padding=3,
+        ),
+        act(),
         norm() if norm is not None else nn.Identity(),
         # nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-        *ResNetBlock(64, 64, 3, stridedconv, skipconv, act, norm),
-        *ResNetBlock(64, 128, 4, stridedconv, skipconv, act, norm),
-        *ResNetBlock(128, 256, 6, stridedconv, skipconv, act, norm),
-        *ResNetBlock(256, 512, 3, stridedconv, skipconv, act, norm),
+        nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+        *ResNetBlock(64, 64, 3, conv, skip, act, norm),
+        *ResNetBlock(64, 128, 4, conv, skip, act, norm),
+        *ResNetBlock(128, 256, 6, conv, skip, act, norm),
+        *ResNetBlock(256, 512, 3, conv, skip, act, norm),
         nn.AvgPool2d(7, divisor_override=7),
         # nn.AdaptiveAvgPool2d((1, 1)),
         nn.Flatten(),
@@ -422,11 +437,31 @@ def LipResNet(
 def ResNetBlock(in_channels, out_channels, n_blocks, stridedconvn, skipconv, act, norm):
     layers = []
     if in_channels != out_channels:
-        layers.append(stridedconvn(in_channels, out_channels, kernel_size=3, stride=2))
-    # layers.append(act())
-    layers.append(norm() if norm is not None else nn.Identity())
+        layers.append(
+            stridedconvn(in_channels, out_channels, kernel_size=3, stride=2, padding=1)
+        )
+        n_blocks -= 1
+        # layers.append(act())
+        layers.append(norm() if norm is not None else nn.Identity())
     for _ in range(n_blocks):
-        layers.append(skipconv(cin=out_channels))
+        layers.append(
+            skipconv(
+                nn.Sequential(
+                    *[
+                        stridedconvn(
+                            out_channels, out_channels, kernel_size=3, padding=1
+                        ),
+                        norm() if norm is not None else nn.Identity(),
+                        act(),
+                        stridedconvn(
+                            out_channels, out_channels, kernel_size=3, padding=1
+                        ),
+                        norm() if norm is not None else nn.Identity(),
+                        act(),
+                    ]
+                )
+            )
+        )
     return layers
 
 
