@@ -151,9 +151,12 @@ class BCOPTrivializer(nn.Module):
         c12 = PQ[:, 2 : 2 + (self.kernel_size - 1), :, :]
         c21 = PQ[:, 2 + (self.kernel_size - 1) :, :, :]
         c22 = block_orth(c12, c21)
-        c22[1::2] = -c22[1::2].flip(-1, -2)
+        # c22[1::2] = -c22[1::2].flip(-1, -2)
+        while c22.shape[0] % 2 == 0:
+            mid = c22.shape[0] // 2
+            c22 = fast_batched_matrix_conv(c22[:mid], c22[mid:], self.groups)
         res = c11
-        for i in range(self.kernel_size - 1):
+        for i in range(c22.shape[0]):
             res = fast_matrix_conv(res, c22[i], self.groups)
         if self.contiguous_optimization:
             res = res[
