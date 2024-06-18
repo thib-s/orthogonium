@@ -7,11 +7,10 @@ import torch.nn as nn
 import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_2_t
 
-from flashlipschitz.layers.conv.reparametrizers import (
-    BatchedBjorckOrthogonalization,
-    BjorckParams,
-)
+from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
 from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
+from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+from flashlipschitz.layers.conv.reparametrizers import L2Normalize
 
 
 def conv_singular_values_numpy(kernel, input_shape):
@@ -25,7 +24,7 @@ def conv_singular_values_numpy(kernel, input_shape):
         svs = np.linalg.svd(
             transforms, compute_uv=False, full_matrices=False
         )  # g, k1, k2, min(ci, co)
-        stable_rank = np.mean(svs) / (svs.max() ** 2)
+        stable_rank = np.mean(svs) / svs.max()
         return svs.min(), svs.max(), stable_rank
     except np.linalg.LinAlgError:
         print("numerical error in svd, returning only largest singular value")
@@ -70,19 +69,14 @@ def fast_batched_matrix_conv(m1, m2, groups=1):
     return r2
 
 
-def block_orth(p1, p2, flip=False):
+def block_orth(p1, p2):
     assert p1.shape == p2.shape
-    g, n, n2 = p1.shape
+    g, x, n, n2 = p1.shape
     eye = torch.eye(n, device=p1.device, dtype=p1.dtype)
-    if flip:
-        res = torch.einsum(
-            "bgij,cgjk->gikbc", torch.stack([eye - p1, p1]), torch.stack([eye - p2, p2])
-        )
-    else:
-        res = torch.einsum(
-            "bgij,cgjk->gikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
-        )
-    res = res.reshape(g * n, n, 2, 2)
+    res = torch.einsum(
+        "bgxij,cgxjk->xgikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
+    )
+    res = res.reshape(x, g * n, n, 2, 2)
     return res
 
 
@@ -106,6 +100,7 @@ class BCOPTrivializer(nn.Module):
         out_channels,
         kernel_size,
         groups,
+        contiguous_optimization=False,
     ):
         """This module is used to generate orthogonal kernels for the BCOP layer. It takes
         as input a matrix PQ of shape (groups, 2*kernel_size, c, c//2) and returns a kernel
@@ -127,29 +122,49 @@ class BCOPTrivializer(nn.Module):
         self.in_channels = in_channels
         self.min_channels = min(in_channels, out_channels)
         self.max_channels = max(in_channels, out_channels)
+        if contiguous_optimization:
+            self.max_channels *= 2
+        self.contiguous_optimization = contiguous_optimization
         self.transpose = out_channels < in_channels
+        self.num_kernels = 2 * kernel_size
 
     def forward(self, PQ):
-        ident = torch.eye(self.max_channels // self.groups, device=PQ.device).unsqueeze(
-            0
+        ident = (
+            torch.eye(self.max_channels // self.groups, device=PQ.device)
+            .unsqueeze(0)
+            .unsqueeze(0)
         )
         # we can rewrite PQ@PQ.t as an einsum
         PQ = torch.einsum("gijl,gikl->gijk", PQ, PQ)
         # PQ = PQ @ PQ.transpose(-1, -2)
-        p = ident - 2 * PQ[:, 0, :, :]  # (g, c/g, c/g)
-        p = p @ (ident - 2 * PQ[:, 1, :, :])  # (g, c/g, c/g)
-        p = p.view(self.max_channels, self.max_channels // self.groups, 1, 1)
+        c11 = ident - 2 * PQ[:, 0]
+        c11 = c11 @ (ident - 2 * PQ[:, 1])
+        c11 = c11.view(
+            self.max_channels,
+            self.max_channels // self.groups,
+            1,
+            1,
+        )
         if self.in_channels != self.out_channels:
-            p = p[:, : self.min_channels // self.groups, :, :]
-        for t2 in range(1, self.kernel_size):
-            p = fast_matrix_conv(
-                p,
-                block_orth(PQ[:, t2 * 2], PQ[:, t2 * 2 + 1], flip=True),
-                self.groups,
-            )
+            c11 = c11[:, : self.min_channels // self.groups, :, :]
+        # build all 2x2 convs in parallel
+        c12 = PQ[:, 2 : 2 + (self.kernel_size - 1), :, :]
+        c21 = PQ[:, 2 + (self.kernel_size - 1) :, :, :]
+        c22 = block_orth(c12, c21)
+        # c22[1::2] = -c22[1::2].flip(-1, -2)
+        while c22.shape[0] % 2 == 0:
+            mid = c22.shape[0] // 2
+            c22 = fast_batched_matrix_conv(c22[:mid], c22[mid:], self.groups)
+        res = c11
+        for i in range(c22.shape[0]):
+            res = fast_matrix_conv(res, c22[i], self.groups)
+        if self.contiguous_optimization:
+            res = res[
+                : self.max_channels // 2, : self.min_channels // self.groups, :, :
+            ]
         if self.transpose:
-            p = transpose_kernel(p, self.groups, flip=False)
-        return p.contiguous()
+            res = transpose_kernel(res, self.groups, flip=False)
+        return res.contiguous()
 
 
 def attach_bcop_weight(
@@ -164,6 +179,7 @@ def attach_bcop_weight(
     assert kernel_size == k2, "only square kernels are supported for the moment"
     max_channels = max(in_channels, out_channels)
     num_kernels = 2 * kernel_size
+    contiguous_optimization = bjorck_params.contiguous_optimization
 
     layer.register_parameter(
         weight_name,
@@ -171,31 +187,46 @@ def attach_bcop_weight(
             torch.Tensor(
                 groups,
                 num_kernels,
-                max_channels // groups,
-                max_channels // (groups * 2),
+                (
+                    2 * max_channels // groups
+                    if contiguous_optimization
+                    else max_channels // groups
+                ),
+                (
+                    max_channels // groups
+                    if contiguous_optimization
+                    else max_channels // (groups * 2)
+                ),
             ),
             requires_grad=True,
         ),
     )
     weight = getattr(layer, weight_name)
     torch.nn.init.orthogonal_(weight)
-    parametrize.register_parametrization(
-        layer,
-        weight_name,
-        BatchedPowerIteration(
-            weight.shape,
-            bjorck_params.power_it_niter,
-        ),
-    )
-    parametrize.register_parametrization(
-        layer,
-        weight_name,
-        BatchedBjorckOrthogonalization(
-            weight.shape,
-            bjorck_params.beta,
-            bjorck_params.bjorck_iters,
-        ),
-    )
+    if weight.shape[-1] == 1:
+        parametrize.register_parametrization(
+            layer,
+            weight_name,
+            L2Normalize(dtype=weight.dtype, dim=(-2)),
+        )
+    else:
+        parametrize.register_parametrization(
+            layer,
+            weight_name,
+            BatchedPowerIteration(
+                weight.shape,
+                bjorck_params.power_it_niter,
+            ),
+        )
+        parametrize.register_parametrization(
+            layer,
+            weight_name,
+            BatchedBjorckOrthogonalization(
+                weight.shape,
+                bjorck_params.beta,
+                bjorck_params.bjorck_iters,
+            ),
+        )
     parametrize.register_parametrization(
         layer,
         weight_name,
@@ -204,6 +235,7 @@ def attach_bcop_weight(
             out_channels,
             kernel_size,
             groups,
+            contiguous_optimization=contiguous_optimization,
         ),
         unsafe=True,
     )
@@ -247,7 +279,7 @@ class FlashBCOP(nn.Conv2d):
         self.max_channels = max(in_channels, out_channels)
 
         # raise runtime error if kernel size >= stride
-        if (stride > 1) and (out_channels > in_channels):
+        if ((stride > 1) and (out_channels > in_channels)) or (stride > kernel_size):
             raise RuntimeError(
                 "stride > 1 is not supported when out_channels > in_channels, "
                 "use TODO layer instead"

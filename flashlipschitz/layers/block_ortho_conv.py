@@ -1,9 +1,10 @@
-import torch.nn.functional as F
-import torch.nn as nn
-import torch
-import numpy as np
 import math
 import time
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from einops import rearrange
 
 
@@ -169,9 +170,10 @@ class BCOP(nn.Module):
         kernel_size,
         stride=1,
         padding=None,
+        padding_mode="circular",
         bias=True,
         bjorck_beta=0.5,
-        bjorck_iters=20,
+        bjorck_iters=10,
         bjorck_order=1,
         power_iteration_scaling=True,
     ):

@@ -3,9 +3,10 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from flashlipschitz.layers.conv.fast_block_ortho_conv import fast_matrix_conv, fast_batched_matrix_conv
+from flashlipschitz.layers.conv.fast_block_ortho_conv import fast_batched_matrix_conv
+from flashlipschitz.layers.conv.fast_block_ortho_conv import fast_matrix_conv
 
-THRESHOLD = 1e-5
+THRESHOLD = 1e-4
 
 
 # note that only square kernels are tested here

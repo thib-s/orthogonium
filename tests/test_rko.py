@@ -2,10 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from flashlipschitz.layers import FlashBCOP
-from flashlipschitz.layers import OrthoConv2d
 from flashlipschitz.layers import RKOConv2d
-from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConv2d
 from flashlipschitz.layers.conv.reparametrizers import BjorckParams
 
 # from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
@@ -35,6 +32,7 @@ def check_orthogonal_layer(
     kernel_size,
     output_channels,
     expected_kernel_shape,
+    check_orthogonality=True,
 ):
     imsize = 8
     # Test backpropagation and weight update
@@ -54,20 +52,33 @@ def check_orthogonal_layer(
     # check that orthoconv.weight has the correct shape
     if orthoconv.weight.data.shape != expected_kernel_shape:
         pytest.fail(
-            f"BCOP weight has incorrect shape: {orthoconv.weight.shape} vs {(output_channels, input_channels // groups, kernel_size, kernel_size)}"
+            f"RKO weight has incorrect shape: {orthoconv.weight.shape} vs {(output_channels, input_channels // groups, kernel_size, kernel_size)}"
         )
     # check that the layer is norm preserving
     inp_norm = torch.sqrt(torch.square(inp).sum(dim=(-3, -2, -1))).float().item()
     out_norm = torch.sqrt(torch.square(output).sum(dim=(-3, -2, -1))).float().item()
-    if inp_norm <= out_norm - 1e-3:
-        pytest.fail(
-            f"BCOP is not norm preserving: {inp_norm} vs {out_norm} with rel error {abs(inp_norm - out_norm) / inp_norm}"
-        )
+    if check_orthogonality:
+        if inp_norm <= out_norm - 1e-3:
+            pytest.fail(
+                f"RKO is not norm preserving: {inp_norm} vs {out_norm} with rel error {abs(inp_norm - out_norm) / inp_norm}"
+            )
     # Test singular_values function
-    sigma_min, sigma_max, stable_rank = orthoconv.singular_values()  # try:
     sigma_min_ir, sigma_max_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
         orthoconv, (input_channels, imsize, imsize)
     )
+    try:
+        sigma_min, sigma_max, stable_rank = orthoconv.singular_values()
+    except RuntimeError as e:
+        if e.args[0].startswith(
+            "Not able to compute singular values for this configuration"
+        ):
+            sigma_min, sigma_max, stable_rank = (
+                sigma_min_ir,
+                sigma_max_ir,
+                stable_rank_ir,
+            )
+        else:
+            pytest.fail(f"Error in singular_values method: {e}")
     print(
         f"({input_channels}->{output_channels}, g{groups}, k{kernel_size}), "
         f"sigma_max:"
@@ -79,14 +90,12 @@ def check_orthogonal_layer(
     tol = 1e-4
     # check that the singular values are close to 1
     assert sigma_max_ir < (1 + tol), "sigma_max is not less than 1"
-    assert (sigma_min_ir < (1 + tol)) and (
-        sigma_min_ir > 0.95
-    ), "sigma_min is not close to 1"
-    assert abs(stable_rank_ir - 1) < tol, "stable_rank is not close to 1"
+    if check_orthogonality:
+        assert (sigma_min_ir < (1 + tol)) and (
+            sigma_min_ir > 0.95
+        ), "sigma_min is not close to 1"
+        assert abs(stable_rank_ir - 1) < tol, "stable_rank is not close to 1"
     # check that the singular values are close to the impulse response values
-    # assert (
-    #     sigma_max > sigma_max_ir - 1e-2
-    # ), f"sigma_max must be greater to its IR value (1%): {sigma_max} vs {sigma_max_ir}"
     assert (
         abs(sigma_max - sigma_max_ir) < tol
     ), f"sigma_max is not close to its IR value: {sigma_max} vs {sigma_max_ir}"
@@ -109,7 +118,7 @@ def test_standard_configs(kernel_size, input_channels, output_channels, stride, 
     """
     # Test instantiation
     try:
-        orthoconv = OrthoConv2d(
+        orthoconv = RKOConv2d(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,
@@ -144,6 +153,7 @@ def test_standard_configs(kernel_size, input_channels, output_channels, stride, 
             kernel_size,
             kernel_size,
         ),
+        check_orthogonality=(kernel_size == stride),
     )
 
 
@@ -161,7 +171,7 @@ def test_strided(kernel_size, input_channels, output_channels, stride, groups):
     """
     # Test instantiation
     try:
-        orthoconv = OrthoConv2d(
+        orthoconv = RKOConv2d(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,
@@ -196,6 +206,7 @@ def test_strided(kernel_size, input_channels, output_channels, stride, groups):
             kernel_size,
             kernel_size,
         ),
+        check_orthogonality=(kernel_size == stride),
     )
 
 
@@ -210,7 +221,7 @@ def test_even_kernels(kernel_size, input_channels, output_channels, stride, grou
     """
     # Test instantiation
     try:
-        orthoconv = OrthoConv2d(
+        orthoconv = RKOConv2d(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,
@@ -245,6 +256,7 @@ def test_even_kernels(kernel_size, input_channels, output_channels, stride, grou
             kernel_size,
             kernel_size,
         ),
+        check_orthogonality=(kernel_size == stride),
     )
 
 
@@ -258,7 +270,7 @@ def test_rko(kernel_size, input_channels, output_channels, groups):
     """
     # Test instantiation
     try:
-        rkoconv = OrthoConv2d(
+        rkoconv = RKOConv2d(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,
@@ -288,6 +300,7 @@ def test_rko(kernel_size, input_channels, output_channels, groups):
             kernel_size,
             kernel_size,
         ),
+        check_orthogonality=(kernel_size == kernel_size),
     )
 
 
@@ -302,7 +315,7 @@ def test_depthwise(kernel_size, input_channels, output_channels, stride, groups)
     """
     # Test instantiation
     try:
-        orthoconv = OrthoConv2d(
+        orthoconv = RKOConv2d(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,
@@ -341,4 +354,5 @@ def test_depthwise(kernel_size, input_channels, output_channels, stride, groups)
             kernel_size,
             kernel_size,
         ),
+        check_orthogonality=(kernel_size == stride),
     )

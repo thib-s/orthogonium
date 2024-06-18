@@ -11,18 +11,20 @@ class BjorckParams:
     eps: float = 1e-6
     beta: float = 0.5
     bjorck_iters: int = 10
+    contiguous_optimization: bool = False
 
 
 class L2Normalize(nn.Module):
-    def __init__(self, dim=None):
+    def __init__(self, dtype, dim=None):
         super(L2Normalize, self).__init__()
         self.dim = dim
+        self.dtype = dtype
 
     def forward(self, x):
-        return x / (torch.norm(x, dim=self.dim, keepdim=True) + 1e-8)
+        return x / (torch.norm(x, dim=self.dim, keepdim=True, dtype=self.dtype) + 1e-8)
 
     def right_inverse(self, x):
-        return x
+        return x / (torch.norm(x, dim=self.dim, keepdim=True, dtype=self.dtype) + 1e-8)
 
 
 class BatchedPowerIteration(nn.Module):
@@ -51,8 +53,12 @@ class BatchedPowerIteration(nn.Module):
             torch.Tensor(torch.randn(*kernel_shape[:-2], kernel_shape[-1], 1)),
             requires_grad=False,
         )
-        parametrize.register_parametrization(self, "u", L2Normalize(dim=(-2)))
-        parametrize.register_parametrization(self, "v", L2Normalize(dim=(-2)))
+        parametrize.register_parametrization(
+            self, "u", L2Normalize(dtype=self.u.dtype, dim=(-2))
+        )
+        parametrize.register_parametrization(
+            self, "v", L2Normalize(dtype=self.v.dtype, dim=(-2))
+        )
 
     def forward(self, X, init_u=None, n_iters=3, return_uv=True):
         for _ in range(n_iters):
@@ -67,7 +73,7 @@ class BatchedPowerIteration(nn.Module):
 
     def right_inverse(self, normalized_kernel):
         # we assume that the kernel is normalized
-        return normalized_kernel
+        return normalized_kernel.to(self.u.dtype)
 
 
 class BatchedBjorckOrthogonalization(nn.Module):
@@ -98,22 +104,22 @@ class BatchedBjorckOrthogonalization(nn.Module):
         return w
 
 
-class BatchedQROrthogonalization(nn.Module):
-    def __init__(self):
-        super(BatchedQROrthogonalization, self).__init__()
+# class BatchedQROrthogonalization(nn.Module):
+#     def __init__(self):
+#         super(BatchedQROrthogonalization, self).__init__()
 
-    def forward(self, w):
-        transpose = w.shape[-2] < w.shape[-1]
-        if transpose:
-            w = w.transpose(-1, -2)
-        q, r = torch.linalg.qr(w, mode="reduced")
-        # compute the sign of the diagonal of d
-        diag_sign = torch.sign(torch.diagonal(r, dim1=-2, dim2=-1)).unsqueeze(-2)
-        # multiply the sign with the diagonal of r
-        q = q * diag_sign
-        if transpose:
-            q = q.transpose(-1, -2)
-        return q
+#     def forward(self, w):
+#         transpose = w.shape[-2] < w.shape[-1]
+#         if transpose:
+#             w = w.transpose(-1, -2)
+#         q, r = torch.linalg.qr(w, mode="reduced")
+#         # compute the sign of the diagonal of d
+#         diag_sign = torch.sign(torch.diagonal(r, dim1=-2, dim2=-1)).unsqueeze(-2)
+#         # multiply the sign with the diagonal of r
+#         q = q * diag_sign
+#         if transpose:
+#             q = q.transpose(-1, -2)
+#         return q
 
-    def right_inverse(self, w):
-        return w
+#     def right_inverse(self, w):
+#         return w
