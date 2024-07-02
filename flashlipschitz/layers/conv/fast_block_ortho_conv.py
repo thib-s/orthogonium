@@ -32,6 +32,21 @@ def conv_singular_values_numpy(kernel, input_shape):
 
 
 def fast_matrix_conv(m1, m2, groups=1):
+    """Compute the convolution of two matrices using the block convolution operator.
+    The original algorithm can be written as a single convolution operation, which
+    unlock the massive parallelism of the convolution operator. This implementation
+    is also more memory efficient than the original algorithm.
+
+    Args:
+        m1 (torch.Tensor): matrix of shape (c2, c1/g, k1, k2)
+        m2 (torch.Tensor): matrix of shape (c3, c2/g, l1, l2)
+        groups (int, optional): number of groups. Defaults to 1.
+
+    Returns:
+        torch.Tensor: result of the convolution of m1 and m2, this is a kernel of shape
+        (c3, c1, k+l-1, k+l-1)
+
+    """
     # m1 is m*n*k1*k2
     # m2 is nb*m*l1*l2
     m, n, k1, k2 = m1.shape
@@ -52,6 +67,19 @@ def fast_matrix_conv(m1, m2, groups=1):
 
 
 def fast_batched_matrix_conv(m1, m2, groups=1):
+    """Compute the convolution of two matrices using the block convolution operator.
+    This is exactly the same as fast_matrix_conv but with an additional batch dimension.
+    This is useful when we want to compute the convolution of multiple matrices in parallel.
+
+    Args:
+        m1 (torch.Tensor): matrix of shape (b, c2, c1/g, k1, k2)
+        m2 (torch.Tensor): matrix of shape (b, c3, c2/g, l1, l2)
+        groups (int, optional): number of groups. Defaults to 1.
+
+    Returns:
+        torch.Tensor: result of the convolution of m1 and m2, this is a kernel of shape
+        (b, c3, c1, k+l-1, k+l-1)
+    """
     b, m, n, k1, k2 = m1.shape
     b2, nb, mb, l1, l2 = m2.shape
     assert m == mb * groups
@@ -70,17 +98,47 @@ def fast_batched_matrix_conv(m1, m2, groups=1):
 
 
 def block_orth(p1, p2):
+    """Construct a 2x2 orthogonal matrix from two orthogonal orthogonal projectors.
+    Each projector can be seen as a 1x1 convolution, hence the stacking spatial stacking
+    of [pi, I-pi] can be seen as a 2x1 or 1x2 orthogonal convolution. By using the block
+    convolution operator, we can compute the 2x2 orthogonal conv. In this specific case,
+    we can write the whole operation as a single einsum.
+
+    Args:
+        p1 (torch.Tensor): orthogonal projector of shape (g, x, c, c) where g is the number
+            of groups, x is a batch dimension (allowing to compute the operation in parallel)
+            and c is the number of channels.
+        p2 (torch.Tensor): orthogonal projector of shape (g, x, c, c) also.
+
+    Returns:
+        torch.Tensor: orthogonal 2x2 conv of shape (x, g*c, c, 2, 2)
+    """
     assert p1.shape == p2.shape
     g, x, n, n2 = p1.shape
     eye = torch.eye(n, device=p1.device, dtype=p1.dtype)
+    # sorry for using x as a batch dimension, but this einsum was hard to write (thank you unit tests!)
     res = torch.einsum(
         "bgxij,cgxjk->xgikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
     )
+    # we reshape the result to get a 2x2 conv kernel
     res = res.reshape(x, g * n, n, 2, 2)
     return res
 
 
 def transpose_kernel(p, groups, flip=True):
+    """Compute the transpose of a kernel. This is done by transposing the kernel and
+    flipping it along the last two dimensions. This operation is equivalent to the
+    transpose of the convolution operator (when the stride is 1)
+
+    Args:
+        p (torch.Tensor): kernel of shape (cig, cog, k1, k2)
+        groups (int): number of groups
+        flip (bool, optional): if True, the kernel will be flipped. Defaults to True.
+            False can be used when the is no need to flip the kernel.
+
+    Returns:
+        torch.Tensor: transposed kernel of shape (cog, cig, k1, k2)
+    """
     cig, cog, k1, k2 = p.shape
     cig = cig // groups
     # we do not perform flip since it does not affect orthogonality
@@ -107,13 +165,13 @@ class BCOPTrivializer(nn.Module):
         of shape (c, c, kernel_size, kernel_size) that is orthogonal.
 
         Args:
-            kernel_size (int): size of the kernel.
-            groups (int): number of groups in the convolution.
-            has_projector (bool, optional): when set to True, PQ also include a projection
-                matrix (i.e. a 1x1 convolution that allows to change the number of channels).
-                Defaults to False.
-            transpose (bool, optional): When set to True, the returned kernel is transposed.
-                Defaults to False.
+            in_channels (int): number of input channels
+            out_channels (int): number of output channels
+            kernel_size (int): size of the kernel
+            groups (int): number of groups
+            contiguous_optimization (bool, optional): if True, the kernel will have twice the
+                number of channels. This is used to increase expressiveness, but at the price
+                of orthogonality (not Lipschitzness). Defaults to False.
         """
         super(BCOPTrivializer, self).__init__()
         self.kernel_size = kernel_size
@@ -134,36 +192,77 @@ class BCOPTrivializer(nn.Module):
             .unsqueeze(0)
             .unsqueeze(0)
         )
+        # PQ contains 2*(kernel_size - 1) + 2 matrices of shape (c, c//2)
+        # the 2 first matrices will be composed to build a (c, c) matrix
+        # this (c, c) matrix will be used to build the first 1x1 conv
+        # the remaining matrices will be used to build the 2x2 convs as
+        # described in BCOP paper
+        ####
+        # first we compute PQ@PQ.t (used by both 1x1 and 2x2 convs)
         # we can rewrite PQ@PQ.t as an einsum
         PQ = torch.einsum("gijl,gikl->gijk", PQ, PQ)
         # PQ = PQ @ PQ.transpose(-1, -2)
+        # we build the 1x1 conv using the two first matrices
+        # we construct the (c, c) matrix by computing (I - 2*PQ[0]) @ (I - 2*PQ[1])
+        # this is an extension of Householder reflection to the matrix case where
+        # instead of reflecting a vector and compose c matrices, we reflect 2
+        # (c, c//2) matrices. This results in an orthogonal matrix, but the fact that
+        # any orthogonal matrix can be decomposed this way is yet to be proven.
         c11 = ident - 2 * PQ[:, 0]
         c11 = c11 @ (ident - 2 * PQ[:, 1])
+        # reshape the matrix to build a 1x1 conv
         c11 = c11.view(
             self.max_channels,
             self.max_channels // self.groups,
             1,
             1,
         )
+        # if the number of channels is different, we need to remove the extra channels
+        # this results in a row/column othogonal matrix. It is still more efficient than
+        # doing a separate orthogonalization (as shapes differs).
         if self.in_channels != self.out_channels:
             c11 = c11[:, : self.min_channels // self.groups, :, :]
+
         # build all 2x2 convs in parallel
+        # half of the matrices will be used to create a 2x1 conv while the other half
+        # will be used to create a 1x2 conv. The 2x1 and 1x2 convs will be composed
+        # to build a 2x2 conv. c12 and c21 are notation abuse, since the tensors represent
+        # 1x1 convs (it is the vertical/horizontal stacking of c12/c21 with (I-c12) and (I-c21)
+        # that will result in a 1x2/2x1 conv)
         c12 = PQ[:, 2 : 2 + (self.kernel_size - 1), :, :]
         c21 = PQ[:, 2 + (self.kernel_size - 1) :, :, :]
-        c22 = block_orth(c12, c21)
+        c22 = block_orth(
+            c12, c21
+        )  # this is an efficient and parallel way to compute the 2x2 convs
+        # i used to belive that transposing half of the matrices would alleviate the expressiveness
+        # issue, but it is not notable.
         # c22[1::2] = -c22[1::2].flip(-1, -2)
+
+        # we now need to compose the 2x2 convs to build the k*k kernel
+        # by using the associativity of the block conv operator we can
+        # run the steps of the BCOP algorithm in parallel: we groups the
+        # 2x2 convs in pairs and apply the block conv operator to each pair
+        # until we have a single conv. If k-1 is a power of two this algorithm
+        # run in log(k-1) steps. (naive associative scan algorithm)
         while c22.shape[0] % 2 == 0:
             mid = c22.shape[0] // 2
             c22 = fast_batched_matrix_conv(c22[:mid], c22[mid:], self.groups)
+        # we finally compose the 1x1 conv with the kxk conv
         res = c11
-        for i in range(c22.shape[0]):
+        for i in range(c22.shape[0]):  # c22.shape[0] == 1 if k-1 is a power of two
             res = fast_matrix_conv(res, c22[i], self.groups)
+        # if contiguous optimization is enabled, we constructed a conv with twice the number
+        # of channels, we need to remove the extra channels
         if self.contiguous_optimization:
             res = res[
                 : self.max_channels // 2, : self.min_channels // self.groups, :, :
             ]
+        # since it is less expensive to compute the transposed kernel when co < ci
+        # we transpose the kernel if needed
         if self.transpose:
             res = transpose_kernel(res, self.groups, flip=False)
+        # it seems more efficient to make the kernel contiguous since it will be used
+        # in a convolution
         return res.contiguous()
 
 
@@ -174,13 +273,29 @@ def attach_bcop_weight(
     groups,
     bjorck_params: BjorckParams = BjorckParams(),
 ):
+    """
+    Attach a weight to a layer and parametrize it with the BCOPTrivializer module.
+    The attached weight will be the kernel of an orthogonal convolutional layer.
+
+    Args:
+        layer (torch.nn.Module): layer to which the weight will be attached
+        weight_name (str): name of the weight
+        kernel_shape (tuple): shape of the kernel (out_channels, in_channels/groups, kernel_size, kernel_size)
+        groups (int): number of groups
+        bjorck_params (BjorckParams, optional): parameters of the Bjorck orthogonalization. Defaults to BjorckParams().
+
+    Returns:
+        torch.Tensor: a handle to the attached weight
+    """
     out_channels, in_channels, kernel_size, k2 = kernel_shape
-    in_channels *= groups
+    in_channels *= groups  # compute the real number of input channels
     assert kernel_size == k2, "only square kernels are supported for the moment"
     max_channels = max(in_channels, out_channels)
-    num_kernels = 2 * kernel_size
+    num_kernels = (
+        2 * kernel_size
+    )  # the number of projectors needed to create the kernel
     contiguous_optimization = bjorck_params.contiguous_optimization
-
+    # register projectors matrices
     layer.register_parameter(
         weight_name,
         torch.nn.Parameter(
@@ -204,12 +319,15 @@ def attach_bcop_weight(
     weight = getattr(layer, weight_name)
     torch.nn.init.orthogonal_(weight)
     if weight.shape[-1] == 1:
+        # if max_channels//groups == 1, we can use L2 normalization
+        # instead of Bjorck orthogonalization which is significantly faster
         parametrize.register_parametrization(
             layer,
             weight_name,
             L2Normalize(dtype=weight.dtype, dim=(-2)),
         )
     else:
+        # register power iteration and Bjorck orthogonalization
         parametrize.register_parametrization(
             layer,
             weight_name,
@@ -227,6 +345,7 @@ def attach_bcop_weight(
                 bjorck_params.bjorck_iters,
             ),
         )
+    # now we have orthogonal projectors, we can build the orthogonal kernel
     parametrize.register_parametrization(
         layer,
         weight_name,
@@ -256,6 +375,19 @@ class FlashBCOP(nn.Conv2d):
         padding_mode: str = "circular",
         bjorck_params: BjorckParams = BjorckParams(),
     ):
+        """
+        Fast implementation of the Block Circulant Orthogonal Parametrization (BCOP) for convolutional layers.
+        This approach changes the original BCOP algorithm to make it more scalable and efficient. This implementation
+        rewrite efficiently the block convolution operator as a single convolution operation. Also the iterative algorithm
+        is parallelized in the associative scan fashion.
+
+        This layer is a drop-in replacement for the nn.Conv2d layer. It is orthogonal and Lipschitz continuous while maintaining
+        the same interface as the Con2d. Also this method has an explicit kernel, whihc allows to compute the singular values of
+        the convolutional layer.
+
+        Striding is not supported when out_channels > in_channels. Real striding is supported in BcopRkoConv2d. The use of
+        OrthogonalConv2d is recommended.
+        """
         if dilation != 1:
             raise RuntimeError("dilation not supported")
         super(FlashBCOP, self).__init__(
@@ -312,6 +444,16 @@ class FlashBCOP(nn.Conv2d):
             self.register_parameter("bias", None)
 
     def singular_values(self):
+        """Compute the singular values of the convolutional layer using the FFT+SVD method.
+
+        Returns:
+            Tuple[float, float, float]: min singular value, max singular value and
+            normalized stable rank (1 means orthogonal matrix)
+        """
+        # use the fft+svd method to compute the singular values
+        # assuming circular padding, if "zero" padding is used the value
+        # will be overestimated (ie. the singular values will be larger than
+        # the real ones)
         if self.padding_mode != "circular":
             print(
                 f"padding {self.padding} not supported, return min and max"
@@ -353,6 +495,11 @@ class BCOPTranspose(nn.ConvTranspose2d):
         padding_mode: str = "zeros",
         bjorck_params: BjorckParams = BjorckParams(),
     ):
+        """
+        Extention of the BCOP algorithm to transposed convolutions. This implementation
+        uses the same algorithm as the FlashBCOP layer, but the layer acts as a transposed
+        convolutional layer.
+        """
         if dilation != 1:
             raise RuntimeError("dilation not supported")
         super(BCOPTranspose, self).__init__(
