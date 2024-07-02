@@ -3,15 +3,13 @@ from typing import Union
 from torch import nn as nn
 from torch.nn.common_types import _size_2_t
 
-from flashlipschitz.layers.conv.bcop_x_rko_conv import (
-    BcopRkoConv2d,
-    BcopRkoConvTranspose2d,
-)
-from flashlipschitz.layers.conv.fast_block_ortho_conv import (
-    FlashBCOP, BCOPTranspose,
-)
+from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConv2d
+from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
+from flashlipschitz.layers.conv.fast_block_ortho_conv import BCOPTranspose
+from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
 from flashlipschitz.layers.conv.reparametrizers import BjorckParams
-from flashlipschitz.layers.conv.rko_conv import RKOConv2d, RkoConvTranspose2d
+from flashlipschitz.layers.conv.rko_conv import RKOConv2d
+from flashlipschitz.layers.conv.rko_conv import RkoConvTranspose2d
 
 
 def OrthoConv2d(
@@ -28,7 +26,11 @@ def OrthoConv2d(
 ) -> nn.Conv2d:
     """
     factory function to create an Orthogonal Convolutional layer
-    choosing the appropriate class depending on the kernel size and stride
+    choosing the appropriate class depending on the kernel size and stride.
+
+    When kernel_size == stride, the layer is a RKOConv2d.
+    When stride == 1, the layer is a FlashBCOP.
+    Otherwise, the layer is a BcopRkoConv2d.
     """
     if kernel_size < stride:
         raise RuntimeError(
@@ -69,7 +71,15 @@ def OrthoConvTranspose2d(
 ) -> nn.ConvTranspose2d:
     """
     factory function to create an Orthogonal Convolutional Transpose layer
-    choosing the appropriate class depending on the kernel size and stride
+    choosing the appropriate class depending on the kernel size and stride.
+
+    As we handle native striding with explicit kernel. It unlocks
+    the possibility to use the same parametrization for transposed convolutions.
+    This class uses the same interface as the ConvTranspose2d class.
+
+    Unfortunately, circular padding is not supported for the transposed convolution.
+    But unit testing have shown that the convolution is still orthogonal when
+        `out_channels * (stride**2) > in_channels`.
     """
     if kernel_size < stride:
         raise RuntimeError(

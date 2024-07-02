@@ -28,6 +28,17 @@ class BcopRkoConv2d(nn.Conv2d):
         padding_mode: str = "circular",
         bjorck_params: BjorckParams = BjorckParams(),
     ):
+        """
+        This class handle native striding by combining a k-s x k-s convolution
+        (without stride) with a sxs convolution (with stride s). This results in
+        a kxk convolution with stride s. The first convolution is orthogonalized
+        using BCOP and the second one is orthogonalized using RKO. By setting appropriate
+        number of channels in the intermediate layer, the resulting convolution is
+        orthogonal.
+
+        It is advised to use the OrthogonalConv2d class instead of this one, as it
+        instanciates the most efficient convolution for the given configuration.
+        """
         if dilation != 1:
             warnings.warn("dilation not supported", RuntimeWarning)
         super(BcopRkoConv2d, self).__init__(
@@ -112,6 +123,17 @@ class BcopRkoConv2d(nn.Conv2d):
                 ).contiguous()
 
     def singular_values(self):
+        """
+        The estimation of the singular values under striding is not trivial.
+        This approximation is obtained by composing the singular values of the
+        two convolutions. The singular values of the first convolution are computed
+        using the FFT method, while the singular values of the second convolution
+        are computed using the SVD method. The product of the singular values of
+        can lead to an overestimation of the largest singular values, and an underestimation
+        of the smallest singular values. However when both convolutions are orthogonal,
+        the estimation is exact. In other words this method is a good sanity check to
+        ensure that the convolutions are orthogonal.
+        """
         if self.padding_mode != "circular":
             print(
                 f"padding {self.padding} not supported, return min and max"
@@ -167,6 +189,14 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
         padding_mode: str = "zeros",
         bjorck_params: BjorckParams = BjorckParams(),
     ):
+        """As BcopRkoConv2d handle native striding with explicit kernel. It unlocks
+        the possibility to use the same parametrization for transposed convolutions.
+        This class uses the same interface as the ConvTranspose2d class.
+
+        Unfortunately, circular padding is not supported for the transposed convolution.
+        But unit testing have shown that the convolution is still orthogonal when
+         `out_channels * (stride**2) > in_channels`.
+        """
         if dilation != 1:
             raise RuntimeError("dilation not supported")
         super(BcopRkoConvTranspose2d, self).__init__(

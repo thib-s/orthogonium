@@ -91,7 +91,7 @@ def test_convtranspose(kernel_size, input_channels, output_channels, stride, gro
         and kernel_size != stride
         and output_channels * (stride**2) < input_channels
     ):
-        pytest.skip("this cas is not handled yet")
+        pytest.skip("this case is not handled yet")
     check_orthogonal_layer(
         orthoconvtranspose,
         groups,
