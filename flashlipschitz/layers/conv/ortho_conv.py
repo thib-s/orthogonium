@@ -7,7 +7,7 @@ from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConv2d
 from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
 from flashlipschitz.layers.conv.fast_block_ortho_conv import BCOPTranspose
 from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+from flashlipschitz.layers.conv.reparametrizers import OrthoParams
 from flashlipschitz.layers.conv.rko_conv import RKOConv2d
 from flashlipschitz.layers.conv.rko_conv import RkoConvTranspose2d
 
@@ -22,7 +22,7 @@ def OrthoConv2d(
     groups: int = 1,
     bias: bool = True,
     padding_mode: str = "circular",
-    bjorck_params: BjorckParams = BjorckParams(),
+    ortho_params: OrthoParams = OrthoParams(),
 ) -> nn.Conv2d:
     """
     factory function to create an Orthogonal Convolutional layer
@@ -52,7 +52,7 @@ def OrthoConv2d(
         groups,
         bias,
         padding_mode,
-        bjorck_params,
+        ortho_params=ortho_params,
     )
 
 
@@ -67,7 +67,7 @@ def OrthoConvTranspose2d(
     bias: bool = True,
     dilation: _size_2_t = 1,
     padding_mode: str = "zeros",
-    bjorck_params: BjorckParams = BjorckParams(),
+    ortho_params: OrthoParams = OrthoParams(),
 ) -> nn.ConvTranspose2d:
     """
     factory function to create an Orthogonal Convolutional Transpose layer
@@ -102,5 +102,5 @@ def OrthoConvTranspose2d(
         bias,
         dilation,
         padding_mode,
-        bjorck_params,
+        ortho_params=ortho_params,
     )

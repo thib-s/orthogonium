@@ -8,21 +8,20 @@ import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_2_t
 
 from flashlipschitz.layers.conv.fast_block_ortho_conv import conv_singular_values_numpy
-from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
+from flashlipschitz.layers.conv.reparametrizers import (
+    BatchedBjorckOrthogonalization,
+    # OrthoParams,
+)
 from flashlipschitz.layers.conv.reparametrizers import (
     BatchedPowerIteration,
 )
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
 from flashlipschitz.layers.conv.reparametrizers import L2Normalize
+from flashlipschitz.layers.conv.reparametrizers import OrthoParams
 
 
 class RKOParametrizer(nn.Module):
     def __init__(
-        self,
-        kernel_shape,
-        groups,
-        scale,
-        bjorck_params: BjorckParams = BjorckParams(),
+        self, kernel_shape, groups, scale, ortho_params: OrthoParams = OrthoParams()
     ):
         super(RKOParametrizer, self).__init__()
         self.kernel_shape = kernel_shape
@@ -36,26 +35,22 @@ class RKOParametrizer(nn.Module):
         self.scale = scale
         self.register_module(
             "pi",
-            BatchedPowerIteration(
-                kernel_shape=(
-                    self.groups,
-                    out_channels // self.groups,
-                    in_channels // groups * k1 * k2,
-                ),
-                power_it_niter=bjorck_params.power_it_niter,
-                eps=bjorck_params.eps,
-            ),
-        )
-        self.register_module(
-            "bjorck",
-            BatchedBjorckOrthogonalization(
+            ortho_params.spectral_normalizer(
                 weight_shape=(
                     self.groups,
                     out_channels // self.groups,
                     in_channels // groups * k1 * k2,
                 ),
-                beta=bjorck_params.beta,
-                niters=bjorck_params.bjorck_iters,
+            ),
+        )
+        self.register_module(
+            "bjorck",
+            ortho_params.orthogonalizer(
+                weight_shape=(
+                    self.groups,
+                    out_channels // self.groups,
+                    in_channels // groups * k1 * k2,
+                ),
             ),
         )
 
@@ -80,7 +75,7 @@ def attach_rko_weight(
     kernel_shape,
     groups,
     scale=None,
-    bjorck_params: BjorckParams = BjorckParams(),
+    ortho_params: OrthoParams = OrthoParams(),
 ):
     out_channels, in_channels, kernel_size, k2 = kernel_shape
     in_channels *= groups
@@ -103,7 +98,7 @@ def attach_rko_weight(
             kernel_shape,
             groups,
             scale,
-            bjorck_params,
+            ortho_params=ortho_params,
         ),
     )
 
@@ -120,7 +115,7 @@ class RKOConv2d(nn.Conv2d):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "circular",
-        bjorck_params: BjorckParams = BjorckParams(),
+        ortho_params: OrthoParams = OrthoParams(),
     ):
         super(RKOConv2d, self).__init__(
             in_channels,
@@ -150,7 +145,7 @@ class RKOConv2d(nn.Conv2d):
                 ),
                 groups=self.groups,
                 scale=self.scale,
-                bjorck_params=bjorck_params,
+                ortho_params=ortho_params,
             ),
         )
 
@@ -217,7 +212,7 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
         bias: bool = True,
         dilation: _size_2_t = 1,
         padding_mode: str = "zeros",
-        bjorck_params: BjorckParams = BjorckParams(),
+        ortho_params: OrthoParams = OrthoParams(),
     ):
         if dilation != 1:
             raise RuntimeError("dilation not supported")
@@ -262,7 +257,7 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
             (in_channels, out_channels // groups, stride, stride),
             groups,
             scale=1.0,
-            bjorck_params=bjorck_params,
+            ortho_params=ortho_params,
         )
 
         if bias:
@@ -322,16 +317,24 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
 
 
 class OrthoLinear(nn.Linear):
-    def __init__(self, in_features: int, out_features: int, bias: bool = True):
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        bias: bool = True,
+        ortho_params: OrthoParams = OrthoParams(),
+    ):
         super(OrthoLinear, self).__init__(in_features, out_features, bias=bias)
         torch.nn.init.orthogonal_(self.weight)
         parametrize.register_parametrization(
             self,
             "weight",
-            BatchedPowerIteration((self.out_features, self.in_features)),
+            ortho_params.spectral_normalizer(
+                weight_shape=(self.out_features, self.in_features)
+            ),
         )
         parametrize.register_parametrization(
-            self, "weight", BatchedBjorckOrthogonalization(self.weight.shape)
+            self, "weight", ortho_params.orthogonalizer(weight_shape=self.weight.shape)
         )
 
     def singular_values(self):

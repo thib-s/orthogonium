@@ -9,8 +9,8 @@ from torch.nn.common_types import _size_2_t
 
 from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
 from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
 from flashlipschitz.layers.conv.reparametrizers import L2Normalize
+from flashlipschitz.layers.conv.reparametrizers import OrthoParams
 
 
 def conv_singular_values_numpy(kernel, input_shape):
@@ -267,11 +267,7 @@ class BCOPTrivializer(nn.Module):
 
 
 def attach_bcop_weight(
-    layer,
-    weight_name,
-    kernel_shape,
-    groups,
-    bjorck_params: BjorckParams = BjorckParams(),
+    layer, weight_name, kernel_shape, groups, ortho_params: OrthoParams = OrthoParams()
 ):
     """
     Attach a weight to a layer and parametrize it with the BCOPTrivializer module.
@@ -294,7 +290,7 @@ def attach_bcop_weight(
     num_kernels = (
         2 * kernel_size
     )  # the number of projectors needed to create the kernel
-    contiguous_optimization = bjorck_params.contiguous_optimization
+    contiguous_optimization = ortho_params.contiguous_optimization
     # register projectors matrices
     layer.register_parameter(
         weight_name,
@@ -331,18 +327,13 @@ def attach_bcop_weight(
         parametrize.register_parametrization(
             layer,
             weight_name,
-            BatchedPowerIteration(
-                weight.shape,
-                bjorck_params.power_it_niter,
-            ),
+            ortho_params.spectral_normalizer(weight_shape=weight.shape),
         )
         parametrize.register_parametrization(
             layer,
             weight_name,
-            BatchedBjorckOrthogonalization(
-                weight.shape,
-                bjorck_params.beta,
-                bjorck_params.bjorck_iters,
+            ortho_params.orthogonalizer(
+                weight_shape=weight.shape,
             ),
         )
     # now we have orthogonal projectors, we can build the orthogonal kernel
@@ -373,7 +364,7 @@ class FlashBCOP(nn.Conv2d):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "circular",
-        bjorck_params: BjorckParams = BjorckParams(),
+        ortho_params: OrthoParams = OrthoParams(),
     ):
         """
         Fast implementation of the Block Circulant Orthogonal Parametrization (BCOP) for convolutional layers.
@@ -389,7 +380,7 @@ class FlashBCOP(nn.Conv2d):
         OrthogonalConv2d is recommended.
         """
         if dilation != 1:
-            raise RuntimeError("dilation not supported")
+            warnings.warn("dilation not supported", RuntimeWarning)
         super(FlashBCOP, self).__init__(
             in_channels,
             out_channels,
@@ -434,7 +425,7 @@ class FlashBCOP(nn.Conv2d):
             "weight",
             (out_channels, in_channels // groups, kernel_size, kernel_size),
             groups,
-            bjorck_params,
+            ortho_params=ortho_params,
         )
 
         if bias:
@@ -493,7 +484,7 @@ class BCOPTranspose(nn.ConvTranspose2d):
         bias: bool = True,
         dilation: _size_2_t = 1,
         padding_mode: str = "zeros",
-        bjorck_params: BjorckParams = BjorckParams(),
+        ortho_params: OrthoParams = OrthoParams(),
     ):
         """
         Extention of the BCOP algorithm to transposed convolutions. This implementation
@@ -553,7 +544,7 @@ class BCOPTranspose(nn.ConvTranspose2d):
             "weight",
             (in_channels, out_channels // self.groups, kernel_size, kernel_size),
             groups,
-            bjorck_params,
+            ortho_params=ortho_params,
         )
 
         if bias:

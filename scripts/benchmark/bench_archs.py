@@ -14,6 +14,7 @@ from torch.profiler import ProfilerActivity
 from torch.profiler import record_function
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
+from torchinfo import summary
 from torchvision.datasets import ImageFolder
 from torchvision.datasets import ImageNet
 from torchvision.transforms import CenterCrop
@@ -29,19 +30,28 @@ from flashlipschitz.classparam import ClassParam
 from flashlipschitz.layers import OrthoConv2d
 from flashlipschitz.layers import OrthoConv2d as BCOP_new
 from flashlipschitz.layers.block_ortho_conv import BCOP as BCOP_old
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+from flashlipschitz.layers.conv.rko_conv import UnitNormLinear
+from flashlipschitz.layers.custom_activations import MaxMin
+from flashlipschitz.models_factory import LipResNet
+from flashlipschitz.models_factory import Residual
 from flashlipschitz.models_factory import SplitConcatNet
 from flashlipschitz.models_factory import SplitConcatNetConfigs
 
+# from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-layers = [("BCOP_new", BCOP_new), ("Conv2D", Conv2d)]
+layers = [
+    ("BCOP_new", BCOP_new),
+    ("BCOP_old", BCOP_old),
+    ("Conv2D", Conv2d),
+]
 
 
 class ImagenetDataModule(pytorch_lightning.LightningDataModule):
     # Dataset configuration
     _DATA_PATH = os.path.join(f"/local_data/imagenet_cache/ILSVRC/Data/CLS-LOC/")
-    _BATCH_SIZE = 128
+    _BATCH_SIZE = 256
     _NUM_WORKERS = 16  # Number of parallel processes fetching data
     _PREPROCESSING_PARAMS = {
         "img_mean": (0.41757566, 0.26098573, 0.25888634),
@@ -126,15 +136,40 @@ data_module = ImagenetDataModule()
 #     n_classes=1000,
 #     **SplitConcatNetConfigs["M3"],
 # )
+res = []
 
 for layer_name, layer_cls in layers:
-    config = SplitConcatNetConfigs["M3"].copy()
+    # config = SplitConcatNetConfigs["M3"].copy()
+    config = {}
     config["conv"] = ClassParam(
         layer_cls,
         bias=False,
         padding="same",
         padding_mode="zeros",
     )
+    # config = dict(
+    #     skip=ClassParam(
+    #         Residual,
+    #         init_val=1.0,
+    #     ),
+    #     conv=ClassParam(
+    #         layer_cls,
+    #         bias=False,
+    #         padding="same",
+    #         padding_mode="zeros",
+    #         # bjorck_params=BjorckParams(
+    #         #     power_it_niter=3,
+    #         #     eps=1e-6,
+    #         #     bjorck_iters=10,
+    #         #     beta=0.5,
+    #         #     contiguous_optimization=False,
+    #         # ),
+    #     ),
+    #     act=ClassParam(MaxMin),
+    #     lin=ClassParam(UnitNormLinear, bias=False),
+    #     norm=None,  # ClassParam(BatchCentering2D),
+    #     # pool=ClassParam(nn.LPPool2d, norm_type=2),
+    # )
     # dataloader that generate the random data, and random target
     # reset all memory
     torch.cuda.empty_cache()
@@ -143,7 +178,7 @@ for layer_name, layer_cls in layers:
     gc.collect()
     torch.cuda.synchronize()
     res_1 = get_model_memory(
-        lambda: SplitConcatNet(
+        lambda: LipResNet(
             img_shape=(3, 224, 224),
             n_classes=1000,
             **config,
@@ -153,12 +188,13 @@ for layer_name, layer_cls in layers:
         logging=print,
     )
 
-    conv_layer = SplitConcatNet(
+    conv_layer = LipResNet(
         img_shape=(3, 224, 224),
         n_classes=1000,
         **config,
     )
     conv_layer.to(device)
+    # summary(conv_layer, (1, 3, 224, 224))
     conv_layer.train()
     res_1.update(
         evaluate_all_model_time_statistics(
@@ -172,6 +208,10 @@ for layer_name, layer_cls in layers:
     print(f"{layer_name}")
     print("\n".join([f"{k}: {v}" for k, v in res_1.items()]))
     torch.cuda.empty_cache()
+    res_1["conv_type"] = layer_name
+    res.append(res_1)
     # clear memory
     del conv_layer
     del res_1
+
+pd.DataFrame.from_records(res).to_csv("result.csv")

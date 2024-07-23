@@ -4,7 +4,8 @@ import torch
 
 from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
 from flashlipschitz.layers.conv.ortho_conv import OrthoConvTranspose2d
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+from flashlipschitz.layers.conv.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
+from flashlipschitz.layers.conv.reparametrizers import OrthoParams
 from tests.test_orthogonality_conv import check_orthogonal_layer
 
 
@@ -55,12 +56,7 @@ def test_convtranspose(kernel_size, input_channels, output_channels, stride, gro
                     bias=False,
                     padding=padding,
                     padding_mode=padding_mode,
-                    bjorck_params=BjorckParams(
-                        power_it_niter=10,
-                        eps=1e-6,
-                        beta=0.5,
-                        bjorck_iters=50,
-                    ),
+                    ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
                 )
         else:
             orthoconvtranspose = OrthoConvTranspose2d(
@@ -72,12 +68,7 @@ def test_convtranspose(kernel_size, input_channels, output_channels, stride, gro
                 bias=False,
                 padding=padding,
                 padding_mode=padding_mode,
-                bjorck_params=BjorckParams(
-                    power_it_niter=10,
-                    eps=1e-6,
-                    beta=0.5,
-                    bjorck_iters=50,
-                ),
+                ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
             )
     except Exception as e:
         if kernel_size < stride:

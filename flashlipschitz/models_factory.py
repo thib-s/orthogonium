@@ -12,7 +12,8 @@ from flashlipschitz.layers import OrthoConv2d
 from flashlipschitz.layers import OrthoLinear
 from flashlipschitz.layers import ScaledAvgPool2d
 from flashlipschitz.layers import UnitNormLinear
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+from flashlipschitz.layers.conv.reparametrizers import DEFAULT_ORTHO_PARAMS
+from flashlipschitz.layers.conv.reparametrizers import OrthoParams
 from flashlipschitz.layers.custom_activations import Abs
 from flashlipschitz.layers.sll_layer import SDPBasedLipschitzConv
 
@@ -31,6 +32,19 @@ class ConcatResidual(nn.Module):
         return torch.cat([x1, out], dim=1)
 
 
+class L2NormResidual(nn.Module):
+    def __init__(self, fn, eps=1e-6):
+        super().__init__()
+        self.eps = eps
+        self.add_module("fn", fn)
+
+    def forward(self, x):
+        # apply function
+        out = self.fn(x)
+        # concat and return
+        return torch.sqrt(x**2 + out**2 + self.eps)
+
+
 class Residual(nn.Module):
     def __init__(self, fn, init_val=1.0):
         super().__init__()
@@ -38,13 +52,10 @@ class Residual(nn.Module):
         self.alpha = nn.Parameter(torch.tensor(init_val), requires_grad=True)
 
     def forward(self, x):
-        # split x
-        # x1, x2 = x.chunk(2, dim=1)
         # apply function
         out = self.fn(x)
-        # concat and return
-        # return torch.cat([x1, out], dim=1)
-        alpha = torch.sigmoid(self.alpha)
+        # alpha = self.alpha.clamp(0, 1)
+        alpha = torch.sigmoid(self.alpha)  # check if alpha don't grow to infinity
         return alpha * x + (1 - alpha) * out
 
 
@@ -134,13 +145,7 @@ def SplitConcatNet(
         bias=False,
         padding="same",
         padding_mode="zeros",
-        bjorck_params=BjorckParams(
-            power_it_niter=3,
-            eps=1e-6,
-            bjorck_iters=10,
-            beta=0.5,
-            contiguous_optimization=False,
-        ),
+        ortho_params=DEFAULT_ORTHO_PARAMS,
     ),
     act=ClassParam(MaxMin),
     lin=ClassParam(UnitNormLinear, bias=False),
@@ -182,7 +187,12 @@ def SplitConcatNet(
 
             if groups is None or groups > 1 or expand_factor > 1:
                 res_layers.append(
-                    conv(expand_factor * out_channels, out_channels, kernel_size=1)
+                    conv(
+                        expand_factor * out_channels,
+                        out_channels,
+                        kernel_size=kernel_size,
+                        groups=groups if groups is not None else out_channels // 2,
+                    )
                 )
             # if expand_factor > 1:
             #     res_layers.append(
@@ -198,10 +208,10 @@ def SplitConcatNet(
             else:
                 layers.append(nn.Sequential(*res_layers))
 
-            # if groups is None or groups > 1:
-            #     layers.append(conv(out_channels, out_channels, kernel_size=1))
-            #     # layers.append(act())
-            #     # layers.append(norm() if norm is not None else nn.Identity())
+            if groups is None or groups > 1:
+                layers.append(conv(out_channels, out_channels, kernel_size=1))
+                # layers.append(act())
+                # layers.append(norm() if norm is not None else nn.Identity())
         return layers
 
     layers = [
@@ -274,13 +284,7 @@ SplitConcatNetConfigs = {
             bias=False,
             padding="same",
             padding_mode="zeros",
-            bjorck_params=BjorckParams(
-                power_it_niter=3,
-                eps=1e-6,
-                bjorck_iters=10,
-                beta=0.5,
-                contiguous_optimization=False,
-            ),
+            ortho_params=DEFAULT_ORTHO_PARAMS,
         ),
         act=ClassParam(MaxMin),
         lin=ClassParam(UnitNormLinear, bias=False),
@@ -305,13 +309,7 @@ SplitConcatNetConfigs = {
             bias=False,
             padding="same",
             padding_mode="zeros",
-            bjorck_params=BjorckParams(
-                power_it_niter=3,
-                eps=1e-6,
-                bjorck_iters=10,
-                beta=0.5,
-                contiguous_optimization=False,
-            ),
+            ortho_params=DEFAULT_ORTHO_PARAMS,
         ),
         act=ClassParam(MaxMin),
         lin=ClassParam(UnitNormLinear, bias=False),
@@ -336,18 +334,12 @@ SplitConcatNetConfigs = {
             bias=False,
             padding="same",
             padding_mode="circular",
-            bjorck_params=BjorckParams(
-                power_it_niter=3,
-                eps=1e-6,
-                bjorck_iters=10,
-                beta=0.5,
-                contiguous_optimization=False,
-            ),
+            ortho_params=DEFAULT_ORTHO_PARAMS,
         ),
         act=ClassParam(MaxMin),
         lin=ClassParam(UnitNormLinear, bias=False),
-        # norm=None,
-        norm=ClassParam(LayerCentering2D),
+        norm=None,
+        # norm=ClassParam(LayerCentering2D),
         # pool=ClassParam(nn.AvgPool2d, divisor_override=7),
         pool=ClassParam(nn.LPPool2d, norm_type=2),
     ),
@@ -367,13 +359,7 @@ SplitConcatNetConfigs = {
             bias=False,
             padding="same",
             padding_mode="zeros",
-            bjorck_params=BjorckParams(
-                power_it_niter=3,
-                eps=1e-6,
-                bjorck_iters=10,
-                beta=0.5,
-                contiguous_optimization=False,
-            ),
+            ortho_params=DEFAULT_ORTHO_PARAMS,
         ),
         act=ClassParam(MaxMin),
         lin=ClassParam(UnitNormLinear, bias=False),
@@ -397,13 +383,7 @@ def LipResNet(
         bias=False,
         padding="same",
         padding_mode="zeros",
-        bjorck_params=BjorckParams(
-            power_it_niter=3,
-            eps=1e-6,
-            bjorck_iters=10,
-            beta=0.5,
-            contiguous_optimization=False,
-        ),
+        ortho_params=DEFAULT_ORTHO_PARAMS,
     ),
     act=ClassParam(MaxMin),
     lin=ClassParam(UnitNormLinear, bias=False),
@@ -653,7 +633,7 @@ def PatchBasedExapandedCNN(
         ],
         # scaledAvgPool2d is AvgPool2d but with a sqrt(w*h)
         # factor, as it would be 1/sqrt(w,h) lip otherwise
-        pool((img_shape[1] // patch_size, img_shape[2] // patch_size), None),
+        pool(),  # ((img_shape[1] // patch_size, img_shape[2] // patch_size), None),
         nn.Flatten(),
         lin(
             dim,
@@ -761,6 +741,7 @@ def BCOPLargeCNN(
 def StagedCNN(
     img_shape=(3, 32, 32),
     dim_repeats=[(64, 2), (128, 2)],
+    dim_nb_dense=(256, 2),
     n_classes=10,
     conv=ClassParam(
         OrthoConv2d,
@@ -768,48 +749,58 @@ def StagedCNN(
         padding="same",
     ),
     act=ClassParam(MaxMin),
+    pool=None,
     lin=ClassParam(OrthoLinear),
     norm=ClassParam(LayerCentering2D),
 ):
     layers = []
     in_channels = img_shape[0]
 
+    # enrich the list of dim_repeats with the next number of channels in the list
+    for i in range(len(dim_repeats) - 1):
+        dim_repeats[i] = (dim_repeats[i][0], dim_repeats[i][1], dim_repeats[i + 1][0])
+    dim_repeats[-1] = (dim_repeats[-1][0], dim_repeats[-1][1], None)
+
     # Create convolutional blocks
-    for dim, repeats in dim_repeats:
+    for dim, repeats, next_dim in dim_repeats:
         # Add repeated conv layers
         for _ in range(repeats):
-            layers.append(
-                conv(in_channels=in_channels, out_channels=dim, kernel_size=3)
-            )
+            layers.append(conv(in_channels=in_channels, out_channels=dim))
             layers.append(act())
             layers.append(norm() if norm is not None else nn.Identity())
             in_channels = dim
 
-        # Add strided convolution to separate blocks
-        layers.append(
-            conv(
-                in_channels=in_channels,
-                out_channels=in_channels * 2,
-                kernel_size=3,
-                stride=2,
+        if next_dim is not None:
+            # Add strided convolution to separate blocks
+            layers.append(
+                conv(
+                    in_channels=dim,
+                    out_channels=next_dim,
+                    stride=2,
+                )
             )
-        )
-        layers.append(act())
-        layers.append(norm() if norm is not None else nn.Identity())
-        in_channels *= 2
+            layers.append(act())
+            layers.append(norm() if norm is not None else nn.Identity())
+            in_channels = next_dim
 
+    feat_shape = img_shape[-1] // (2 ** (len(dim_repeats) - 1))
+    if pool is not None:
+        layers.append(pool(kernel_size=feat_shape))
+        feat_shape = 1
     # Flatten layer
     layers.append(nn.Flatten())
-
-    # Add linear layers
-    for dim, repeats in dim_repeats:
+    nb_features = dim * feat_shape**2
+    if dim_nb_dense is not None and len(dim_nb_dense) > 0:
+        # Add linear layers
+        dim, repeats = dim_nb_dense
         for _ in range(repeats):
-            layers.append(lin(in_channels, dim))
+            layers.append(lin(nb_features, dim))
             layers.append(act())
-            in_channels = dim
-
+            nb_features = dim
+    else:
+        dim = nb_features
     # Final linear layer for classification
-    layers.append(lin(in_channels, n_classes))
+    layers.append(lin(dim, n_classes))
 
     return nn.Sequential(*layers)
 
