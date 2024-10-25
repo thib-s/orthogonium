@@ -76,7 +76,7 @@ class BcopRkoConv2d(nn.Conv2d):
         self.stride = stride
         self.kernel_size = kernel_size
         self.groups = groups
-        self.intermediate_channels = in_channels
+        self.intermediate_channels = max(in_channels, out_channels // stride**2)
         ## oddly the following condition seems to not work
         # if in_channels >= out_channels * (stride**2):
         #     self.intermediate_channels = in_channels
