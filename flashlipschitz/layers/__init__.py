@@ -10,6 +10,7 @@ from .normalization import LayerCentering2D
 from .pooling import ScaledAvgPool2d
 from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
 from flashlipschitz.layers.conv.ortho_conv import OrthoConv2d
+from flashlipschitz.layers.conv.ortho_conv import OrthoConvTranspose2d
 from flashlipschitz.layers.conv.rko_conv import OrthoLinear
 from flashlipschitz.layers.conv.rko_conv import RKOConv2d
 from flashlipschitz.layers.conv.rko_conv import UnitNormLinear
