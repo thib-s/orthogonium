@@ -8,6 +8,7 @@ __pycache__
 .vscode
 .tox
 env_flashlipschitz
+env_d16_flashlipschitz
 *wandb
 
 # Files generated:
@@ -29,3 +30,13 @@ scripts/test_gan/data/
 output/
 *.tar
 *_args.txt
+
+logs/
+wandb/
+*.log
+*.ckpt
+*.pth
+scripts/data/
+scripts/test_gan/data/
+scripts/ortho_gan/data/
+*.csv
