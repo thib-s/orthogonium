@@ -143,6 +143,53 @@ def test_standard_configs(kernel_size, input_channels, output_channels, stride, 
     )
 
 
+# @pytest.mark.parametrize("kernel_size", [3, 5])
+# @pytest.mark.parametrize("input_channels", [8, 16])
+# @pytest.mark.parametrize(
+#     "output_channels", [8, 16]
+# )  # dilated convolutions are not supported for output_channels < input_channels
+# @pytest.mark.parametrize("stride", [1, 2])
+# @pytest.mark.parametrize("groups", [1, 2, 4])
+# def test_dilation(kernel_size, input_channels, output_channels, stride, groups):
+#     """
+#     test combinations of kernel size, input channels, output channels, stride and groups
+#     """
+#     # Test instantiation
+#     try:
+#         orthoconv = OrthoConv2d(
+#             kernel_size=kernel_size,
+#             in_channels=input_channels,
+#             out_channels=output_channels,
+#             stride=stride,
+#             dilation=2,
+#             groups=groups,
+#             bias=False,
+#             padding=(kernel_size // 2, kernel_size // 2),
+#             padding_mode="circular",
+#             ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
+#         )
+#     except Exception as e:
+#         if kernel_size < stride:
+#             # we expect this configuration to raise a RuntimeError
+#             # pytest.skip(f"BCOP instantiation failed with: {e}")
+#             return
+#         else:
+#             pytest.fail(f"BCOP instantiation failed with: {e}")
+#     check_orthogonal_layer(
+#         orthoconv,
+#         groups,
+#         input_channels,
+#         kernel_size,
+#         output_channels,
+#         (
+#             output_channels,
+#             input_channels // groups,
+#             kernel_size,
+#             kernel_size,
+#         ),
+#     )
+
+
 @pytest.mark.parametrize("kernel_size", [3, 4, 5])
 @pytest.mark.parametrize("input_channels", [2, 4, 8, 16, 32])
 @pytest.mark.parametrize("output_channels", [2, 4, 8, 16, 32])
