@@ -72,6 +72,17 @@ class BatchedPowerIteration(nn.Module):
         return normalized_kernel.to(self.u.dtype)
 
 
+class BatchedIdentity(nn.Module):
+    def __init__(self, weight_shape):
+        super(BatchedIdentity, self).__init__()
+
+    def forward(self, w):
+        return w
+
+    def right_inverse(self, w):
+        return w
+
+
 class BatchedBjorckOrthogonalization(nn.Module):
     def __init__(self, weight_shape, beta=0.5, niters=7):
         self.weight_shape = weight_shape
@@ -95,6 +106,81 @@ class BatchedBjorckOrthogonalization(nn.Module):
         for _ in range(self.niters):
             w = (1 + self.beta) * w - self.beta * self.wwtw_op(w)
         return w
+
+    def right_inverse(self, w):
+        return w
+
+
+def orth(X):
+    S = X @ X.mT
+    eps = S.diagonal(dim1=1, dim2=2).mean(1).mul(1e-3).detach()
+    eye = torch.eye(S.size(-1), dtype=S.dtype, device=S.device)
+    S = S + eps.view(-1, 1, 1) * eye.unsqueeze(0)
+    L = torch.linalg.cholesky(S)
+    W = torch.linalg.solve_triangular(L, X, upper=False)
+    return W
+
+
+class CholeskyOrthfn(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, X):
+        S = X @ X.mT
+        eps = S.diagonal(dim1=1, dim2=2).mean(1).mul(1e-3)
+        eye = torch.eye(S.size(-1), dtype=S.dtype, device=S.device)
+        S = S + eps.view(-1, 1, 1) * eye.unsqueeze(0)
+        L = torch.linalg.cholesky(S)
+        W = torch.linalg.solve_triangular(L, X, upper=False)
+        ctx.save_for_backward(W, L)
+        return W
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        W, L = ctx.saved_tensors
+        LmT = L.mT.contiguous()
+        gB = torch.linalg.solve_triangular(LmT, grad_output, upper=True)
+        gA = (-gB @ W.mT).tril()
+        gS = (LmT @ gA).tril()
+        gS = gS + gS.tril(-1).mT
+        gS = torch.linalg.solve_triangular(LmT, gS, upper=True)
+        gX = gS @ W + gB
+        return gX
+
+
+class CholeskyOrthfn_stable(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, X):
+        S = X @ X.mT
+        eps = S.diagonal(dim1=1, dim2=2).mean(1).mul(1e-3)
+        eye = torch.eye(S.size(-1), dtype=S.dtype, device=S.device)
+        S = S + eps.view(-1, 1, 1) * eye.unsqueeze(0)
+        L = torch.linalg.cholesky(S)
+        W = torch.linalg.solve_triangular(L, X, upper=False)
+        ctx.save_for_backward(X, W, L)
+        return W
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        X, W, L = ctx.saved_tensors
+        gB = torch.linalg.solve_triangular(L.mT, grad_output, upper=True)
+        gA = (-gB @ W.mT).tril()
+        gS = (L.mT @ gA).tril()
+        gS = gS + gS.tril(-1).mT
+        gS = torch.linalg.solve_triangular(L.mT, gS, upper=True)
+        gS = torch.linalg.solve_triangular(L, gS, upper=False, left=False)
+        gX = gS @ X + gB
+        return gX
+
+
+CholeskyOrth = CholeskyOrthfn.apply
+
+
+class BatchedCholeskyOrthogonalization(nn.Module):
+    def __init__(self, weight_shape):
+        self.weight_shape = weight_shape
+        super(BatchedCholeskyOrthogonalization, self).__init__()
+
+    def forward(self, w):
+        return CholeskyOrth(w)
 
     def right_inverse(self, w):
         return w
@@ -152,6 +238,7 @@ class BatchedQROrthogonalization(nn.Module):
 
 @dataclass
 class OrthoParams:
+    # spectral_normalizer: Callable[Tuple[int, ...], nn.Module] = BatchedIdentity
     spectral_normalizer: Callable[Tuple[int, ...], nn.Module] = ClassParam(  # type: ignore
         BatchedPowerIteration, power_it_niter=3, eps=1e-6
     )
@@ -160,6 +247,8 @@ class OrthoParams:
         beta=0.5,
         niters=12,
         # ClassParam(BatchedExponentialOrthogonalization, niters=12)
+        # BatchedCholeskyOrthogonalization,
+        # BatchedQROrthogonalization,
     )
     contiguous_optimization: bool = False
 
@@ -167,9 +256,9 @@ class OrthoParams:
 DEFAULT_ORTHO_PARAMS = OrthoParams()
 DEFAULT_TEST_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=3, eps=1e-6),  # type: ignore
-    # orthogonalizer=ClassParam(BatchedBjorckOrthogonalization, beta=0.5, niters=25),
+    orthogonalizer=ClassParam(BatchedBjorckOrthogonalization, beta=0.5, niters=25),
     # orthogonalizer=ClassParam(BatchedQROrthogonalization),
-    orthogonalizer=ClassParam(BatchedExponentialOrthogonalization, niters=12),  # type: ignore
+    # orthogonalizer=ClassParam(BatchedExponentialOrthogonalization, niters=12),  # type: ignore
     contiguous_optimization=False,
 )
 EXP_ORTHO_PARAMS = OrthoParams(
@@ -180,5 +269,10 @@ EXP_ORTHO_PARAMS = OrthoParams(
 QR_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=3, eps=1e-3),  # type: ignore
     orthogonalizer=ClassParam(BatchedQROrthogonalization),  # type: ignore
+    contiguous_optimization=False,
+)
+CHOLESKY_ORTHO_PARAMS = OrthoParams(
+    spectral_normalizer=BatchedIdentity,  # type: ignore
+    orthogonalizer=ClassParam(BatchedCholeskyOrthogonalization),  # type: ignore
     contiguous_optimization=False,
 )
