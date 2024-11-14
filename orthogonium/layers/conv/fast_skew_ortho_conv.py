@@ -1,25 +1,15 @@
-import math
-import time
-from math import ceil
-from typing import List
-from typing import Optional
-from typing import Tuple
 from typing import Union
 
-import einops
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.utils.parametrize as parametrize
-from torch.autograd import Function
-from torch.nn.common_types import _size_1_t
 from torch.nn.common_types import _size_2_t
-from torch.nn.common_types import _size_3_t
 
-from flashlipschitz.layers.bounds import compute_delattre2024
-from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
-from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
+from orthogonium.layers.bounds import compute_delattre2024
+from orthogonium.layers.linear.reparametrizers import BatchedBjorckOrthogonalization
+from orthogonium.layers.linear.reparametrizers import BatchedPowerIteration
 
 
 class Skew(nn.Module):

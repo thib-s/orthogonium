@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 import torch
 
-from flashlipschitz.layers import RKOConv2d
-from flashlipschitz.layers.conv.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
+from orthogonium.layers import RKOConv2d
+from orthogonium.layers.linear.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
 
-# from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
+# from orthogonium.layers.conv.fast_block_ortho_conv import FlashBCOP
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):

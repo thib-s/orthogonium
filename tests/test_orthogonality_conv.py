@@ -2,14 +2,11 @@ import numpy as np
 import pytest
 import torch
 
-from flashlipschitz.layers import FlashBCOP
-from flashlipschitz.layers import OrthoConv2d
-from flashlipschitz.layers import RKOConv2d
-from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConv2d
-from flashlipschitz.layers.conv.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
-from flashlipschitz.layers.conv.reparametrizers import OrthoParams
+from orthogonium.layers import AdaptiveOrthoConv2d
+from orthogonium.layers.linear.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
 
-# from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
+
+# from orthogonium.layers.conv.fast_block_ortho_conv import FlashBCOP
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
@@ -110,7 +107,7 @@ def test_standard_configs(kernel_size, input_channels, output_channels, stride, 
     """
     # Test instantiation
     try:
-        orthoconv = OrthoConv2d(
+        orthoconv = AdaptiveOrthoConv2d(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,
@@ -204,7 +201,7 @@ def test_strided(kernel_size, input_channels, output_channels, stride, groups):
     """
     # Test instantiation
     try:
-        orthoconv = OrthoConv2d(
+        orthoconv = AdaptiveOrthoConv2d(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,
@@ -248,7 +245,7 @@ def test_even_kernels(kernel_size, input_channels, output_channels, stride, grou
     """
     # Test instantiation
     try:
-        orthoconv = OrthoConv2d(
+        orthoconv = AdaptiveOrthoConv2d(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,
@@ -291,7 +288,7 @@ def test_rko(kernel_size, input_channels, output_channels, groups):
     """
     # Test instantiation
     try:
-        rkoconv = OrthoConv2d(
+        rkoconv = AdaptiveOrthoConv2d(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,
@@ -330,7 +327,7 @@ def test_depthwise(kernel_size, input_channels, output_channels, stride, groups)
     """
     # Test instantiation
     try:
-        orthoconv = OrthoConv2d(
+        orthoconv = AdaptiveOrthoConv2d(
             kernel_size=kernel_size,
             in_channels=input_channels,
             out_channels=output_channels,

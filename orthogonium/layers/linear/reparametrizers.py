@@ -7,7 +7,7 @@ import torch
 import torch.nn.utils.parametrize as parametrize
 from torch import nn as nn
 
-from flashlipschitz.classparam import ClassParam
+from orthogonium.classparam import ClassParam
 
 
 class L2Normalize(nn.Module):

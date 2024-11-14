@@ -1,17 +1,10 @@
-import numpy as np
 import pytest
 import torch
 
-from flashlipschitz.classparam import ClassParam
-from flashlipschitz.layers import OrthoConv2d
-from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
-from flashlipschitz.layers.conv.reparametrizers import (
-    BatchedExponentialOrthogonalization,
-)
-from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
-from flashlipschitz.layers.conv.reparametrizers import OrthoParams
+from orthogonium.layers import AdaptiveOrthoConv2d
+from orthogonium.layers.linear.reparametrizers import OrthoParams
 
-# from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
+# from orthogonium.layers.conv.fast_block_ortho_conv import FlashBCOP
 
 
 def check_expressiveness_layer(
@@ -55,7 +48,7 @@ def test_expressiveness_shifts(
     test combinations of kernel size, input channels, output channels, stride and groups
     """
     # Test instantiation
-    orthoconv = OrthoConv2d(
+    orthoconv = AdaptiveOrthoConv2d(
         kernel_size=kernel_size,
         in_channels=input_channels,
         out_channels=output_channels,

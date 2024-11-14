@@ -1,9 +1,7 @@
 from __future__ import print_function
 
-import os
 import random
 
-import schedulefree
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.nn.parallel
@@ -12,24 +10,22 @@ import torch.utils.data
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
-from deel.torchlip.functional import hkr_loss
 from torchinfo import summary
 
-from flashlipschitz.layers import MaxMin
-from flashlipschitz.layers import OrthoConv2d
-from flashlipschitz.layers import OrthoConvTranspose2d
-from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConv2d
-from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
+from orthogonium.layers import AdaptiveOrthoConv2d
+from orthogonium.layers import MaxMin
+from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConv2d
+from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConvTranspose2d
 
-# from flashlipschitz.layers import LayerCentering
+# from orthogonium.layers import LayerCentering
 
-# from flashlipschitz.layers import OrthoLinear
-# from flashlipschitz.layers import ScaledAvgPool2d
-# from flashlipschitz.layers import SOC
-# from flashlipschitz.layers import UnitNormLinear
-# from flashlipschitz.layers.custom_activations import Abs
-# from flashlipschitz.layers.custom_activations import HouseHolder
-# from flashlipschitz.layers.custom_activations import HouseHolder_Order_2
+# from orthogonium.layers import OrthoLinear
+# from orthogonium.layers import ScaledAvgPool2d
+# from orthogonium.layers import SOC
+# from orthogonium.layers import UnitNormLinear
+# from orthogonium.layers.custom_activations import Abs
+# from orthogonium.layers.custom_activations import HouseHolder
+# from orthogonium.layers.custom_activations import HouseHolder_Order_2
 
 cudnn.benchmark = True
 torch.set_float32_matmul_precision("medium")
@@ -452,7 +448,7 @@ class Discriminator(nn.Module):
             # LayerCentering(),
             MaxMin(),
             # state size. (ndf*8) x 4 x 4
-            OrthoConv2d(
+            AdaptiveOrthoConv2d(
                 ndf * 16,
                 1,
                 kernel_size=4,

@@ -2,16 +2,14 @@ import numpy as np
 import pytest
 import torch
 
-from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
-from flashlipschitz.layers.conv.ortho_conv import OrthoConvTranspose2d
-from flashlipschitz.layers.conv.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
-from flashlipschitz.layers.conv.reparametrizers import OrthoParams
+from orthogonium.layers.conv.AOC.ortho_conv import AdaptiveOrthoConvTranspose2d
+from orthogonium.layers.linear.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
 from tests.test_orthogonality_conv import check_orthogonal_layer
 
 
-# from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
+# from orthogonium.layers.conv.fast_block_ortho_conv import FlashBCOP
 
-# from flashlipschitz.layers.conv.ortho_conv import OrthoConv as FlashBCOP
+# from orthogonium.layers.conv.ortho_conv import OrthoConv as FlashBCOP
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
@@ -47,7 +45,7 @@ def test_convtranspose(kernel_size, input_channels, output_channels, stride, gro
             and output_channels * (stride**2) < input_channels
         ):
             with pytest.warns(RuntimeWarning):
-                orthoconvtranspose = OrthoConvTranspose2d(
+                orthoconvtranspose = AdaptiveOrthoConvTranspose2d(
                     kernel_size=kernel_size,
                     in_channels=input_channels,
                     out_channels=output_channels,
@@ -59,7 +57,7 @@ def test_convtranspose(kernel_size, input_channels, output_channels, stride, gro
                     ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
                 )
         else:
-            orthoconvtranspose = OrthoConvTranspose2d(
+            orthoconvtranspose = AdaptiveOrthoConvTranspose2d(
                 kernel_size=kernel_size,
                 in_channels=input_channels,
                 out_channels=output_channels,

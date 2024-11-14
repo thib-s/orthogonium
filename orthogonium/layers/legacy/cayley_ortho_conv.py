@@ -1,8 +1,8 @@
+import einops
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-import einops
 
 
 # Extend this class to get emulated striding (for stride 2 only)
