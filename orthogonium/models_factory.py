@@ -3,10 +3,10 @@ import torch.nn as nn
 from torch.nn import AvgPool2d
 
 from orthogonium.classparam import ClassParam
+from orthogonium.layers import AdaptiveOrthoConv2d
 from orthogonium.layers import BatchCentering2D
 from orthogonium.layers import LayerCentering2D
 from orthogonium.layers import MaxMin
-from orthogonium.layers import OrthoConv2d
 from orthogonium.layers import OrthoLinear
 from orthogonium.layers import UnitNormLinear
 from orthogonium.layers.conv.sll_layer import SDPBasedLipschitzConv
@@ -25,7 +25,7 @@ def SLLxBCOPResNet50(
     # act2 = Abs, MaxMin, ReLU
     layers = [
         # conv2d stride 2 + norm + act
-        OrthoConv2d(
+        AdaptiveOrthoConv2d(
             in_channels=img_shape[0],
             out_channels=64,
             kernel_size=7,
@@ -252,7 +252,7 @@ def AOCNetV1(
         init_val=1.0,
     ),
     conv=ClassParam(
-        OrthoConv2d,
+        AdaptiveOrthoConv2d,
         bias=False,
         padding="same",
         padding_mode="zeros",
@@ -366,7 +366,7 @@ SplitConcatNetConfigs = {
         embedding_dim=1024,
         groups=32,
         conv=ClassParam(
-            OrthoConv2d,
+            AdaptiveOrthoConv2d,
             bias=False,
             padding="same",
             padding_mode="zeros",
@@ -391,7 +391,7 @@ SplitConcatNetConfigs = {
             init_val=2.0,
         ),
         conv=ClassParam(
-            OrthoConv2d,
+            AdaptiveOrthoConv2d,
             bias=False,
             padding="same",
             padding_mode="zeros",
@@ -416,7 +416,7 @@ SplitConcatNetConfigs = {
             init_val=3.0,
         ),
         conv=ClassParam(
-            OrthoConv2d,
+            AdaptiveOrthoConv2d,
             bias=False,
             padding="same",
             padding_mode="zeros",
@@ -441,7 +441,7 @@ SplitConcatNetConfigs = {
             init_val=3.0,
         ),
         conv=ClassParam(
-            OrthoConv2d,
+            AdaptiveOrthoConv2d,
             bias=False,
             padding="same",
             padding_mode="circular",
@@ -466,7 +466,7 @@ SplitConcatNetConfigs = {
             init_val=3.0,
         ),
         conv=ClassParam(
-            OrthoConv2d,
+            AdaptiveOrthoConv2d,
             bias=False,
             padding="same",
             padding_mode="zeros",
@@ -490,7 +490,7 @@ def LipResNet(
         init_val=3.0,
     ),
     conv=ClassParam(
-        OrthoConv2d,
+        AdaptiveOrthoConv2d,
         bias=False,
         padding="same",
         padding_mode="zeros",
@@ -560,7 +560,7 @@ def LipVGG(
     img_shape=(3, 224, 224),
     n_classes=1000,
     conv=ClassParam(
-        OrthoConv2d,
+        AdaptiveOrthoConv2d,
         bias=False,
         padding="same",
         padding_mode="zeros",
@@ -628,7 +628,7 @@ def PatchBasedCNN(
     n_classes=10,
     groups=1,
     conv=ClassParam(
-        OrthoConv2d,
+        AdaptiveOrthoConv2d,
         bias=False,
         padding="same",
     ),
@@ -692,7 +692,7 @@ def PatchBasedExapandedCNN(
     n_classes=1000,
     skip=False,
     conv=ClassParam(
-        OrthoConv2d,
+        AdaptiveOrthoConv2d,
         bias=False,
         padding="same",
     ),
@@ -765,7 +765,7 @@ def ConvMixerInspired(
     channels_per_group=1,
     n_classes=10,
     conv=ClassParam(
-        OrthoConv2d,
+        AdaptiveOrthoConv2d,
         bias=False,
         padding="same",
     ),
@@ -819,7 +819,7 @@ def BCOPLargeCNN(
     img_shape=(3, 32, 32),
     n_classes=10,
     conv=ClassParam(
-        OrthoConv2d,
+        AdaptiveOrthoConv2d,
         bias=True,
         padding="circular",
     ),
@@ -863,7 +863,7 @@ def StagedCNN(
     dim_nb_dense=(256, 2),
     n_classes=10,
     conv=ClassParam(
-        OrthoConv2d,
+        AdaptiveOrthoConv2d,
         bias=False,
         padding="same",
     ),
@@ -931,7 +931,7 @@ def LargeStagedCNN(
     dim_nb_dense=(1024, 5),
     n_classes=1000,
     conv=ClassParam(
-        OrthoConv2d,
+        AdaptiveOrthoConv2d,
         bias=False,
         padding_mode="circular",
         kernel_size=3,

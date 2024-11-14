@@ -18,7 +18,7 @@ from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
 from orthogonium.classparam import ClassParam
-from orthogonium.layers import OrthoConv2d as BCOP_new
+from orthogonium.layers import AdaptiveOrthoConv2d as BCOP_new
 from orthogonium.layers.legacy.block_ortho_conv import BCOP as BCOP_old
 from orthogonium.layers.legacy.cayley_ortho_conv import Cayley
 from orthogonium.layers.legacy.skew_ortho_conv import SOC

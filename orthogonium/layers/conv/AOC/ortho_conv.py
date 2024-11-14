@@ -12,7 +12,7 @@ from orthogonium.layers.conv.AOC.rko_conv import RkoConvTranspose2d
 from orthogonium.layers.linear.reparametrizers import OrthoParams
 
 
-def OrthoConv2d(
+def AdaptiveOrthoConv2d(
     in_channels: int,
     out_channels: int,
     kernel_size: _size_2_t,
@@ -56,7 +56,7 @@ def OrthoConv2d(
     )
 
 
-def OrthoConvTranspose2d(
+def AdaptiveOrthoConvTranspose2d(
     in_channels: int,
     out_channels: int,
     kernel_size: _size_2_t,

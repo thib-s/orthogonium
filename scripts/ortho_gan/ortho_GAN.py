@@ -12,8 +12,8 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torchinfo import summary
 
+from orthogonium.layers import AdaptiveOrthoConv2d
 from orthogonium.layers import MaxMin
-from orthogonium.layers import OrthoConv2d
 from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConv2d
 from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConvTranspose2d
 
@@ -448,7 +448,7 @@ class Discriminator(nn.Module):
             # LayerCentering(),
             MaxMin(),
             # state size. (ndf*8) x 4 x 4
-            OrthoConv2d(
+            AdaptiveOrthoConv2d(
                 ndf * 16,
                 1,
                 kernel_size=4,

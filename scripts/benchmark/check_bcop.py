@@ -2,7 +2,7 @@ import torch
 from torch.profiler import profile
 from torch.profiler import ProfilerActivity
 
-from orthogonium.layers import OrthoConv2d as BCOP
+from orthogonium.layers import AdaptiveOrthoConv2d as BCOP
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 

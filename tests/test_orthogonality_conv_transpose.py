@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from orthogonium.layers.conv.AOC.ortho_conv import OrthoConvTranspose2d
+from orthogonium.layers.conv.AOC.ortho_conv import AdaptiveOrthoConvTranspose2d
 from orthogonium.layers.linear.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
 from tests.test_orthogonality_conv import check_orthogonal_layer
 
@@ -45,7 +45,7 @@ def test_convtranspose(kernel_size, input_channels, output_channels, stride, gro
             and output_channels * (stride**2) < input_channels
         ):
             with pytest.warns(RuntimeWarning):
-                orthoconvtranspose = OrthoConvTranspose2d(
+                orthoconvtranspose = AdaptiveOrthoConvTranspose2d(
                     kernel_size=kernel_size,
                     in_channels=input_channels,
                     out_channels=output_channels,
@@ -57,7 +57,7 @@ def test_convtranspose(kernel_size, input_channels, output_channels, stride, gro
                     ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
                 )
         else:
-            orthoconvtranspose = OrthoConvTranspose2d(
+            orthoconvtranspose = AdaptiveOrthoConvTranspose2d(
                 kernel_size=kernel_size,
                 in_channels=input_channels,
                 out_channels=output_channels,

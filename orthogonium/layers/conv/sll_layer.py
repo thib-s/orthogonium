@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.common_types import _size_2_t
 
-from orthogonium.layers import OrthoConv2d
+from orthogonium.layers import AdaptiveOrthoConv2d
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import fast_matrix_conv
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import transpose_kernel
 from orthogonium.layers.linear.reparametrizers import OrthoParams
@@ -37,10 +37,10 @@ class SDPBasedLipschitzResBlock(nn.Module):
         bound = 1 / np.sqrt(fan_in)
         nn.init.uniform_(self.bias, -bound, bound)  # bias init
 
-        self.pre_conv = OrthoConv2d(
+        self.pre_conv = AdaptiveOrthoConv2d(
             cin, cin, kernel_size=stride, stride=1, bias=False, padding=0
         )
-        self.post_conv = OrthoConv2d(
+        self.post_conv = AdaptiveOrthoConv2d(
             cin, cout, kernel_size=stride, stride=stride, bias=False, padding=0
         )
 
@@ -179,7 +179,7 @@ class SDPBasedLipschitzBCOPConv(nn.Module):
         else:
             self.padding = kernel_size // 2
 
-        self.in_conv = OrthoConv2d(
+        self.in_conv = AdaptiveOrthoConv2d(
             in_channels,
             inner_dim,
             kernel_size=kernel_size,

@@ -20,7 +20,7 @@ from torchvision.transforms import ToTensor
 
 from orthogonium.classparam import ClassParam
 from orthogonium.layers import UnitNormLinear
-from orthogonium.layers.conv import OrthoConv2d
+from orthogonium.layers.conv import AdaptiveOrthoConv2d
 from orthogonium.layers.custom_activations import MaxMin
 from orthogonium.layers.linear.reparametrizers import DEFAULT_ORTHO_PARAMS
 from orthogonium.losses import check_last_linear_layer_type
@@ -139,7 +139,7 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
                 init_val=3.0,
             ),
             conv=ClassParam(
-                OrthoConv2d,
+                AdaptiveOrthoConv2d,
                 bias=True,
                 padding="same",
                 padding_mode="zeros",
