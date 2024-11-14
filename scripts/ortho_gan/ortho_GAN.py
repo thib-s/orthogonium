@@ -15,20 +15,26 @@ import torchvision.utils as vutils
 from deel.torchlip.functional import hkr_loss
 from torchinfo import summary
 
-from flashlipschitz.layers import FlashBCOP
-from flashlipschitz.layers import LayerCentering
 from flashlipschitz.layers import MaxMin
-from flashlipschitz.layers import OrthoLinear
-from flashlipschitz.layers import ScaledAvgPool2d
-from flashlipschitz.layers import SOC
-from flashlipschitz.layers import UnitNormLinear
-from flashlipschitz.layers.custom_activations import Abs
-from flashlipschitz.layers.custom_activations import HouseHolder
-from flashlipschitz.layers.custom_activations import HouseHolder_Order_2
+from flashlipschitz.layers import OrthoConv2d
+from flashlipschitz.layers import OrthoConvTranspose2d
+from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConv2d
+from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
+
+# from flashlipschitz.layers import LayerCentering
+
+# from flashlipschitz.layers import OrthoLinear
+# from flashlipschitz.layers import ScaledAvgPool2d
+# from flashlipschitz.layers import SOC
+# from flashlipschitz.layers import UnitNormLinear
+# from flashlipschitz.layers.custom_activations import Abs
+# from flashlipschitz.layers.custom_activations import HouseHolder
+# from flashlipschitz.layers.custom_activations import HouseHolder_Order_2
 
 cudnn.benchmark = True
+torch.set_float32_matmul_precision("medium")
 
-bs = 1024
+bs = 512
 # set manual seed to a constant get a consistent output
 manualSeed = random.randint(1, 10000)
 print("Random Seed: ", manualSeed)
@@ -38,19 +44,21 @@ torch.manual_seed(manualSeed)
 # loading the dataset
 dataset = dset.ImageFolder(
     # dataset = dset.CIFAR10(
-    root="/local_data/imagenet_cache/ILSVRC/Data/CLS-LOC/train/",
+    # root="/local_data/imagenet_cache/ILSVRC/Data/CLS-LOC/train/",
+    root="/datasets/shared_datasets/imagenette/imagenette2-160/train/",
     # root="/mnt/deel/datasets/shared_datasets/imagenet/ILSVRC/Data/CLS-LOC/train/",
     # root="./data",
     # split="unlabeled",
     # download=True,
+    # )
     transform=transforms.Compose(
         [
             # transforms.Resize(64),
-            transforms.Resize(96),
+            transforms.Resize(64),
             transforms.RandomResizedCrop(64),
+            transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            transforms.RandomHorizontalFlip(),
             # transforms.RandomResizedCrop(64, scale=(0.8, 1.0)),
         ]
     ),
@@ -72,21 +80,23 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 # number of gpu's available
 ngpu = 1
 # input noise dimension
-nz = 1024
+nz = 128
 # number of generator filters
 ngf = 64
 # number of discriminator filters
 ndf = 64
 
+ks = 5
+
 
 # custom weights initialization called on netG and netD
 def weights_init(m):
     classname = m.__class__.__name__
-    if classname.find("Conv") != -1:
-        m.weight.data.normal_(0.0, 0.02)
-    elif classname.find("BatchNorm") != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
+    # if classname.find("Conv") != -1:
+    #     m.weight.data.normal_(0.0, 0.02)
+    # elif classname.find("BatchNorm") != -1:
+    #     m.weight.data.normal_(1.0, 0.02)
+    #     m.bias.data.fill_(0)
 
 
 class Residual(nn.Module):
@@ -110,19 +120,25 @@ class Generator(nn.Module):
         self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d(
-                nz // 4, ngf * 16, 3, 1, padding=1, output_padding=0, bias=False
+            BcopRkoConvTranspose2d(
+                nz,
+                ngf * 16,
+                4,
+                2,
+                padding=(1, 1),
+                output_padding=0,
+                bias=False,
             ),
             nn.BatchNorm2d(ngf * 16),
             # nn.ReLU(True),
             Residual(
                 nn.Sequential(
-                    nn.ConvTranspose2d(
+                    BcopRkoConvTranspose2d(
                         ngf * 16,
                         ngf * 16,
-                        3,
+                        ks,
                         1,
-                        padding=1,
+                        padding=(ks // 2, ks // 2),
                         output_padding=0,
                         bias=False,
                     ),
@@ -131,107 +147,193 @@ class Generator(nn.Module):
                 )
             ),
             # state size. (ngf*8) x 4 x 4
-            nn.ConvTranspose2d(
-                ngf * 16, ngf * 8, 3, 2, padding=1, output_padding=1, bias=False
+            BcopRkoConvTranspose2d(
+                ngf * 16,
+                ngf * 8,
+                4,
+                2,
+                padding=(1, 1),
+                output_padding=0,
+                bias=False,
             ),
             Residual(
                 nn.Sequential(
-                    nn.ConvTranspose2d(
-                        ngf * 8, ngf * 8, 3, 1, padding=1, output_padding=0, bias=False
+                    BcopRkoConvTranspose2d(
+                        ngf * 8,
+                        ngf * 8,
+                        ks,
+                        1,
+                        padding=(ks // 2, ks // 2),
+                        output_padding=0,
+                        bias=False,
                     ),
                     nn.BatchNorm2d(ngf * 8),
                     nn.ReLU(True),
-                    nn.ConvTranspose2d(
-                        ngf * 8, ngf * 8, 3, 1, padding=1, output_padding=0, bias=False
+                    BcopRkoConvTranspose2d(
+                        ngf * 8,
+                        ngf * 8,
+                        ks,
+                        1,
+                        padding=(ks // 2, ks // 2),
+                        output_padding=0,
+                        bias=False,
                     ),
                     nn.BatchNorm2d(ngf * 8),
                     nn.ReLU(True),
                 )
             ),
             # state size. (ngf*8) x  x 4
-            nn.ConvTranspose2d(
-                ngf * 8, ngf * 4, 3, 2, padding=1, output_padding=1, bias=False
+            BcopRkoConvTranspose2d(
+                ngf * 8,
+                ngf * 4,
+                4,
+                2,
+                padding=(1, 1),
+                output_padding=0,
+                bias=False,
             ),
             nn.BatchNorm2d(ngf * 4),
             # nn.ReLU(True),
             Residual(
                 nn.Sequential(
-                    nn.ConvTranspose2d(
-                        ngf * 4, ngf * 4, 3, 1, padding=1, output_padding=0, bias=False
+                    BcopRkoConvTranspose2d(
+                        ngf * 4,
+                        ngf * 4,
+                        ks,
+                        1,
+                        padding=(ks // 2, ks // 2),
+                        output_padding=0,
+                        bias=False,
                     ),
                     nn.BatchNorm2d(ngf * 4),
                     nn.ReLU(True),
-                    nn.ConvTranspose2d(
-                        ngf * 4, ngf * 4, 3, 1, padding=1, output_padding=0, bias=False
+                    BcopRkoConvTranspose2d(
+                        ngf * 4,
+                        ngf * 4,
+                        ks,
+                        1,
+                        padding=(ks // 2, ks // 2),
+                        output_padding=0,
+                        bias=False,
                     ),
                     nn.BatchNorm2d(ngf * 4),
                     nn.ReLU(True),
                 )
             ),
             # state size. (ngf*4) x 8 x 8
-            nn.ConvTranspose2d(
-                ngf * 4, ngf * 2, 3, 2, padding=1, output_padding=1, bias=False
+            BcopRkoConvTranspose2d(
+                ngf * 4,
+                ngf * 2,
+                4,
+                2,
+                padding=(1, 1),
+                output_padding=0,
+                bias=False,
             ),
             nn.BatchNorm2d(ngf * 2),
             # nn.ReLU(True),
             Residual(
                 nn.Sequential(
-                    nn.ConvTranspose2d(
-                        ngf * 2, ngf * 2, 3, 1, padding=1, output_padding=0, bias=False
+                    BcopRkoConvTranspose2d(
+                        ngf * 2,
+                        ngf * 2,
+                        ks,
+                        1,
+                        padding=(ks // 2, ks // 2),
+                        output_padding=0,
+                        bias=False,
                     ),
                     nn.BatchNorm2d(ngf * 2),
                     nn.ReLU(True),
-                    nn.ConvTranspose2d(
-                        ngf * 2, ngf * 2, 3, 1, padding=1, output_padding=0, bias=False
+                    BcopRkoConvTranspose2d(
+                        ngf * 2,
+                        ngf * 2,
+                        ks,
+                        1,
+                        padding=(ks // 2, ks // 2),
+                        output_padding=0,
+                        bias=False,
                     ),
                     nn.BatchNorm2d(ngf * 2),
                     nn.ReLU(True),
                 )
             ),
             # state size. (ngf*2) x 16 x 16
-            nn.ConvTranspose2d(
-                ngf * 2, ngf, 3, 2, padding=1, output_padding=1, bias=False
+            BcopRkoConvTranspose2d(
+                ngf * 2,
+                ngf,
+                4,
+                2,
+                padding=(1, 1),
+                output_padding=0,
+                bias=False,
             ),
             nn.BatchNorm2d(ngf),
             # nn.ReLU(True),
             Residual(
                 nn.Sequential(
-                    nn.ConvTranspose2d(
-                        ngf, ngf, 3, 1, padding=1, output_padding=0, bias=False
+                    BcopRkoConvTranspose2d(
+                        ngf,
+                        ngf,
+                        ks,
+                        1,
+                        padding=(ks // 2, ks // 2),
+                        output_padding=0,
+                        bias=False,
                     ),
                     nn.BatchNorm2d(ngf),
                     nn.ReLU(True),
-                    nn.ConvTranspose2d(
-                        ngf, ngf, 3, 1, padding=1, output_padding=0, bias=False
+                    BcopRkoConvTranspose2d(
+                        ngf,
+                        ngf,
+                        ks,
+                        1,
+                        padding=(ks // 2, ks // 2),
+                        output_padding=0,
+                        bias=False,
                     ),
                     nn.BatchNorm2d(ngf),
                     nn.ReLU(True),
                 )
             ),
             # state size. (ngf) x 32 x 32
-            nn.ConvTranspose2d(ngf, ngf, 3, 2, padding=1, output_padding=1, bias=False),
+            BcopRkoConvTranspose2d(
+                ngf,
+                ngf,
+                4,
+                2,
+                padding=(1, 1),
+                output_padding=0,
+                bias=False,
+            ),
             Residual(
                 nn.Sequential(
-                    nn.ConvTranspose2d(
-                        ngf, ngf, 3, 1, padding=1, output_padding=0, bias=False
+                    BcopRkoConvTranspose2d(
+                        ngf,
+                        ngf,
+                        ks,
+                        1,
+                        padding=(ks // 2, ks // 2),
+                        output_padding=0,
+                        bias=False,
                     ),
                     nn.BatchNorm2d(ngf),
                     nn.ReLU(True),
                 )
             ),
-            nn.ConvTranspose2d(ngf, nc, 3, 1, padding=1, output_padding=0, bias=False),
+            BcopRkoConvTranspose2d(
+                ngf, nc, ks, 1, padding=(ks // 2, ks // 2), output_padding=0, bias=False
+            ),
             nn.Tanh(),
             # state size. (nc) x 64 x 64
         )
 
     def forward(self, input):
-        bs, c, h, w = input.size()
-        input = torch.reshape(input, (bs, c // 4, 2, 2))
         if input.is_cuda and self.ngpu > 1:
             output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
         else:
             output = self.main(input)
-            return output
+        return output
 
 
 netG = Generator(ngpu).to(device)
@@ -247,116 +349,116 @@ class Discriminator(nn.Module):
         self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
-            FlashBCOP(
+            BcopRkoConv2d(
                 3,
                 ndf,
-                kernel_size=5,
+                kernel_size=ks,
                 stride=1,
-                padding="same",
-                padding_mode="zeros",
+                padding=(ks // 2, ks // 2),
+                padding_mode="circular",
                 bias=True,
             ),
             # LayerCentering(),
             MaxMin(),
-            FlashBCOP(
+            BcopRkoConv2d(
                 ndf,
                 ndf * 2,
-                kernel_size=5,
+                kernel_size=ks,
                 stride=2,
-                padding="valid",
-                # padding_mode="circular",
+                padding=(ks // 2, ks // 2),
+                padding_mode="circular",
                 bias=True,
             ),
             # LayerCentering(),
             MaxMin(),
-            FlashBCOP(
+            BcopRkoConv2d(
                 ndf * 2,
                 ndf * 2,
-                kernel_size=5,
+                kernel_size=ks,
                 stride=1,
-                padding="same",
-                padding_mode="zeros",
+                padding=(ks // 2, ks // 2),
+                padding_mode="circular",
                 bias=True,
             ),
             # LayerCentering(),
             MaxMin(),
             # state size. (ndf) x 32 x 32
-            FlashBCOP(
+            BcopRkoConv2d(
                 ndf * 2,
                 ndf * 4,
-                kernel_size=5,
+                kernel_size=ks,
                 stride=2,
-                padding="valid",
-                # padding_mode="circular",
+                padding=(ks // 2, ks // 2),
+                padding_mode="circular",
                 bias=True,
             ),
             # LayerCentering(),
             # MaxMin(),
-            FlashBCOP(
+            BcopRkoConv2d(
                 ndf * 4,
                 ndf * 4,
-                kernel_size=5,
+                kernel_size=ks,
                 stride=1,
-                padding="same",
-                padding_mode="zeros",
+                padding=(ks // 2, ks // 2),
+                padding_mode="circular",
                 bias=False,
             ),
             # LayerCentering(),
             MaxMin(),
             # state size. (ndf*2) x 16 x 16
-            FlashBCOP(
+            BcopRkoConv2d(
                 ndf * 4,
                 ndf * 8,
-                kernel_size=5,
+                kernel_size=ks,
                 stride=2,
-                padding="valid",
-                # padding_mode="circular",
+                padding=(ks // 2, ks // 2),
+                padding_mode="circular",
                 bias=True,
             ),
             # LayerCentering(),
             MaxMin(),
-            FlashBCOP(
+            BcopRkoConv2d(
                 ndf * 8,
                 ndf * 8,
-                kernel_size=5,
+                kernel_size=ks,
                 stride=1,
-                padding="same",
-                padding_mode="zeros",
+                padding=(ks // 2, ks // 2),
+                padding_mode="circular",
                 bias=True,
             ),
             # LayerCentering(),
             MaxMin(),
             # state size. (ndf*4) x 8 x 8
-            FlashBCOP(
+            BcopRkoConv2d(
                 ndf * 8,
                 ndf * 16,
-                kernel_size=5,
+                kernel_size=ks,
                 stride=2,
-                padding="valid",
-                # padding_mode="circular",
+                padding=(ks // 2, ks // 2),
+                padding_mode="circular",
                 bias=True,
             ),
             # LayerCentering(),
             MaxMin(),
-            FlashBCOP(
+            BcopRkoConv2d(
                 ndf * 16,
                 ndf * 16,
-                kernel_size=3,
+                kernel_size=ks,
                 stride=1,
-                padding="same",
-                padding_mode="zeros",
+                padding=(ks // 2, ks // 2),
+                padding_mode="circular",
                 bias=True,
             ),
             # LayerCentering(),
             MaxMin(),
             # state size. (ndf*8) x 4 x 4
-            FlashBCOP(
+            OrthoConv2d(
                 ndf * 16,
                 1,
                 kernel_size=4,
                 stride=4,
-                padding=0,
-                padding_mode="zeros",
+                padding=(0, 0),
+                # padding_mode="circular",
                 bias=False,
             ),
             nn.Flatten(),
@@ -369,8 +471,8 @@ class Discriminator(nn.Module):
             output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
         else:
             output = self.main(input)
-
-        return output.view(-1, 1).squeeze(1)
+        return output
+        # return output.view(-1, 1).squeeze(1)
 
 
 netD = Discriminator(ngpu).to(device)

@@ -17,6 +17,7 @@ from torch.nn.common_types import _size_1_t
 from torch.nn.common_types import _size_2_t
 from torch.nn.common_types import _size_3_t
 
+from flashlipschitz.layers.bounds import compute_delattre2024
 from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
 from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
 
@@ -53,91 +54,25 @@ class PowerIterationConv(nn.Module):
         self.kernel_size = kernel_size
         self.groups = groups
         self.power_it_niter = power_it_niter
-        # init u
-        self.u = nn.Parameter(
-            torch.Tensor(
-                torch.randn(
-                    self.groups,
-                    1,
-                    self.in_channels,
-                    2 * self.kernel_size + 1,
-                    2 * self.kernel_size + 1,
-                )
-            ),
-            requires_grad=False,
+
+    def forward(self, kernel):
+        kernel = kernel.view(
+            self.groups,
+            self.in_channels // self.groups,
+            self.in_channels // self.groups,
+            self.kernel_size,
+            self.kernel_size,
         )
-        parametrize.register_parametrization(self, "u", L2Normalize())
-
-    def forward(self, kernel):
-        # TODO: when cin != cout
-        # we should have conv(conv_transpose(x))
-        # with the appropriate order
-        for i in range(self.power_it_niter):
-            # since we are doing circular padding, we can use u whose shape is 2*k+1
-            u2 = F.conv2d(
-                F.pad(
-                    self.u.detach(),
-                    (
-                        self.kernel_size // 2,
-                        self.kernel_size // 2,
-                        self.kernel_size // 2,
-                        self.kernel_size // 2,
-                    ),
-                    mode="circular",
-                ),
-                kernel,
-            )
-            self.u = u2  # assignment will normalize self.u
-        sigmas = torch.norm(u2, dim=(2, 3), keepdim=True)
-        self.u.data = u2
-        return kernel / sigmas.transpose(0, 1)
-
-    def right_inverse(self, normalized_kernel):
-        # we assume that the kernel is normalized
-        return normalized_kernel
-
-
-class FantasticFour(nn.Module):
-    def __init__(self, in_channels, kernel_shape, power_it_niter=3):
-        super(FantasticFour, self).__init__()
-        self.in_channels = in_channels
-        self.kernel_shape = kernel_shape
-        self.power_it_niter = power_it_niter
-        # init u
-        out_ch, in_ch, h, w = kernel_shape
-        self.u1 = nn.Parameter(torch.randn((1, in_ch, 1, w)), requires_grad=False)
-        parametrize.register_parametrization(self, "u1", L2Normalize(dim=(0, 1, 2, 3)))
-        self.u2 = nn.Parameter(torch.randn((1, in_ch, h, 1)), requires_grad=False)
-        parametrize.register_parametrization(self, "u2", L2Normalize(dim=(0, 1, 2, 3)))
-        self.u3 = nn.Parameter(torch.randn((1, in_ch, h, w)), requires_grad=False)
-        parametrize.register_parametrization(self, "u3", L2Normalize(dim=(0, 1, 2, 3)))
-        self.u4 = nn.Parameter(torch.randn((out_ch, 1, h, w)), requires_grad=False)
-        parametrize.register_parametrization(self, "u4", L2Normalize(dim=(0, 1, 2, 3)))
-        self.v1 = nn.Parameter(torch.randn((out_ch, 1, h, 1)), requires_grad=False)
-        parametrize.register_parametrization(self, "v1", L2Normalize(dim=(0, 1, 2, 3)))
-        self.v2 = nn.Parameter(torch.randn((out_ch, 1, 1, w)), requires_grad=False)
-        parametrize.register_parametrization(self, "v2", L2Normalize(dim=(0, 1, 2, 3)))
-        self.v3 = nn.Parameter(torch.randn((out_ch, 1, 1, 1)), requires_grad=False)
-        parametrize.register_parametrization(self, "v3", L2Normalize(dim=(0, 1, 2, 3)))
-        self.v4 = nn.Parameter(torch.randn((1, in_ch, 1, 1)), requires_grad=False)
-        parametrize.register_parametrization(self, "v4", L2Normalize(dim=(0, 1, 2, 3)))
-
-    def forward(self, kernel):
-        for i in range(self.power_it_niter):
-            self.v1 = (kernel * self.u1).sum((1, 3), keepdim=True)
-            self.u1 = (kernel * self.v1).sum((0, 2), keepdim=True)
-            self.v2 = (kernel * self.u2).sum((1, 2), keepdim=True)
-            self.u2 = (kernel * self.v2).sum((0, 3), keepdim=True)
-            self.v3 = (kernel * self.u3).sum((1, 2, 3), keepdim=True)
-            self.u3 = (kernel * self.v3).sum(0, keepdim=True)
-            self.v4 = (kernel * self.u4.data).sum((0, 2, 3), keepdim=True)
-            self.u4 = (kernel * self.v4).sum(1, keepdim=True)
-        sigma1 = torch.sum(kernel * self.u1.detach() * self.v1.detach())
-        sigma2 = torch.sum(kernel * self.u2.detach() * self.v2.detach())
-        sigma3 = torch.sum(kernel * self.u3.detach() * self.v3.detach())
-        sigma4 = torch.sum(kernel * self.u4.detach() * self.v4.detach())
-        sigma = torch.min(torch.min(torch.min(sigma1, sigma2), sigma3), sigma4)
-        return kernel / sigma
+        sigmas = compute_delattre2024(
+            kernel, n_iter=self.power_it_niter, return_time=False
+        )
+        kernel = kernel / sigmas.view(-1, 1, 1, 1, 1)
+        return kernel.view(
+            self.in_channels * self.groups,
+            self.in_channels,
+            self.kernel_size,
+            self.kernel_size,
+        )
 
     def right_inverse(self, normalized_kernel):
         # we assume that the kernel is normalized

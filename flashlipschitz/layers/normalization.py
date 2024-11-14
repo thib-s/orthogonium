@@ -15,7 +15,7 @@ class LayerCentering2D(nn.Module):
 
 
 class BatchCentering2D(nn.Module):
-    def __init__(self, num_features, momentum=0.1):
+    def __init__(self, num_features, momentum=0.10):
         super(BatchCentering2D, self).__init__()
         self.momentum = momentum
         self.register_buffer("running_mean", torch.zeros(1))
@@ -29,6 +29,6 @@ class BatchCentering2D(nn.Module):
             self.running_mean = (
                 1 - self.momentum
             ) * self.running_mean + self.momentum * mean.detach()
-            return x - mean + self.bias
+            return x - self.running_mean.detach() + self.bias
         else:
             return x - self.running_mean + self.bias

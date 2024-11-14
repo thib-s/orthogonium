@@ -3,8 +3,40 @@ import math
 import torch
 import torch.nn as nn
 
+from flashlipschitz.layers import OrthoLinear
+from flashlipschitz.layers import UnitNormLinear
 
-def VRA(output, class_indices, L=1.0, eps=36 / 255, return_certs=False):
+
+def check_last_linear_layer_type(model):
+    # Find the last linear layer in the model
+    last_linear_layer = None
+    layers = list(model.children())
+    for layer in reversed(layers):
+        if (
+            isinstance(layer, nn.Linear)
+            or isinstance(layer, OrthoLinear)
+            or isinstance(layer, UnitNormLinear)
+        ):
+            last_linear_layer = layer
+            break
+
+    # Check the type of the last linear layer
+    if isinstance(last_linear_layer, OrthoLinear):
+        return "global"
+    elif isinstance(last_linear_layer, UnitNormLinear):
+        return "classwise"
+    else:
+        return "unknown"
+
+
+def VRA(
+    output,
+    class_indices,
+    last_layer_type="classwise",
+    L=1.0,
+    eps=36 / 255,
+    return_certs=False,
+):
     """Compute the verified robust accuracy (VRA) of a model's output.
 
     Args:
@@ -12,6 +44,8 @@ def VRA(output, class_indices, L=1.0, eps=36 / 255, return_certs=False):
             The output of the model.
         class_indices : torch.Tensor
             The indices of the correct classes. Should not be one-hot encoded.
+        last_layer_type : str
+            The type of the last layer of the model. Should be either "classwise" (L-lip per class) or "global" (L-lip globally).
         L : float
             The Lipschitz constant of the model.
         eps : float
@@ -38,7 +72,15 @@ def VRA(output, class_indices, L=1.0, eps=36 / 255, return_certs=False):
     output_nextmax = torch.max(output_trunc, dim=1)[0]
     # now we can compute the certificates
     output_diff = output_class_indices - output_nextmax
-    certs = output_diff / (math.sqrt(2) * L)
+    if last_layer_type == "global":
+        den = math.sqrt(2) * L
+    elif last_layer_type == "classwise":
+        den = 2 * L
+    else:
+        raise ValueError(
+            "[VRA] last_layer_type should be either 'global' or 'classwise'"
+        )
+    certs = output_diff / den
     # now we can compute the vra
     # vra is percentage of certs > eps
     vra = (certs > eps).float()
@@ -58,6 +100,22 @@ def VRA(output, class_indices, L=1.0, eps=36 / 255, return_certs=False):
 # )
 
 
+class LossXent(nn.Module):
+    def __init__(self, n_classes, offset=2.12132, temperature=0.25):
+        super(LossXent, self).__init__()
+        self.criterion = nn.CrossEntropyLoss()
+        self.n_classes = n_classes
+        self.offset = offset
+        self.temperature = temperature
+
+    def __call__(self, outputs, labels):
+        one_hot_labels = torch.nn.functional.one_hot(labels, num_classes=self.n_classes)
+        offset_outputs = outputs - self.offset * one_hot_labels
+        offset_outputs /= self.temperature
+        loss = self.criterion(offset_outputs, labels) * self.temperature
+        return loss
+
+
 class CosineLoss(nn.Module):
     def __init__(self):
         super(CosineLoss, self).__init__()
@@ -69,26 +127,41 @@ class CosineLoss(nn.Module):
 
 
 class Cosine_VRA_Loss(nn.Module):
-    def __init__(self, gamma=0.1, L=1.0, eps=36 / 255):
+    def __init__(self, gamma=0.1, L=1.0, eps=36 / 255, last_layer_type="classwise"):
         super(Cosine_VRA_Loss, self).__init__()
         self.gamma = gamma
         self.L = L
         self.eps = eps
+        self.last_layer_type = last_layer_type
 
-    def forward(self, yp, yt):
-        return -(
-            (
-                (1 - self.gamma)
-                * torch.nn.functional.cosine_similarity(
-                    yp, torch.nn.functional.one_hot(yt, yp.shape[1])
-                )
-            )
-            + (
-                self.gamma
-                * torch.clamp(
-                    VRA(yp, yt, L=self.L, eps=self.eps, return_certs=True), 0, self.eps
-                )
-            )
+    def SoftVRA(self, yp, yt):
+        batch_size, nb_classes = yp.shape
+        # create a mask indicating the correct class
+        mask = yt.bool()
+        # get the values of the correct class
+        output_class_indices = yp[mask].view(-1, 1)
+        # compute all the differences
+        output_diff = output_class_indices - yp
+        # select all the values that are not the correct class
+        output_diff = output_diff[~mask].view(batch_size, nb_classes - 1)
+        if self.last_layer_type == "global":
+            den = math.sqrt(2) * self.L
+        elif self.last_layer_type == "classwise":
+            den = 2 * self.L
+        certs = output_diff / den
+        # now we can compute the vra
+        # vra is percentage of certs > eps
+        certs = torch.nn.functional.relu(self.eps - certs).float()
+        # the loss is the mean of the certificates weighted by the softmax of the output_diff
+        return torch.sum(certs * torch.nn.functional.softmax(certs, dim=1), dim=1)
+
+    def forward(self, yp, yt, gamma=None):
+        if gamma is None:
+            gamma = self.gamma
+        yt = torch.nn.functional.one_hot(yt, yp.shape[1])
+        return (
+            -((1 - gamma) * torch.nn.functional.cosine_similarity(yp, yt))
+            + (gamma * self.SoftVRA(yp, yt))
         ).mean()
 
 
@@ -221,6 +294,7 @@ class SoftHKRMulticlassLoss(torch.nn.Module):
         return (1 - self.alpha) * loss_softkr + self.alpha * loss_softhinge
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        target = torch.nn.functional.one_hot(target, num_classes=input.shape[1])
         if not (isinstance(input, torch.Tensor)):  # required for dtype.max
             input = torch.Tensor(input, dtype=input.dtype)
         if not (isinstance(target, torch.Tensor)):

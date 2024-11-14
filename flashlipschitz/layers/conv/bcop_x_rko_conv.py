@@ -10,7 +10,7 @@ from torch.nn.utils import parametrize as parametrize
 from flashlipschitz.layers.conv.fast_block_ortho_conv import attach_bcop_weight
 from flashlipschitz.layers.conv.fast_block_ortho_conv import conv_singular_values_numpy
 from flashlipschitz.layers.conv.fast_block_ortho_conv import fast_matrix_conv
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+from flashlipschitz.layers.conv.reparametrizers import OrthoParams
 from flashlipschitz.layers.conv.rko_conv import attach_rko_weight
 
 
@@ -26,7 +26,7 @@ class BcopRkoConv2d(nn.Conv2d):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "circular",
-        bjorck_params: BjorckParams = BjorckParams(),
+        ortho_params: OrthoParams = OrthoParams(),
     ):
         """
         This class handle native striding by combining a k-s x k-s convolution
@@ -76,7 +76,7 @@ class BcopRkoConv2d(nn.Conv2d):
         self.stride = stride
         self.kernel_size = kernel_size
         self.groups = groups
-        self.intermediate_channels = in_channels
+        self.intermediate_channels = max(in_channels, out_channels // stride**2)
         ## oddly the following condition seems to not work
         # if in_channels >= out_channels * (stride**2):
         #     self.intermediate_channels = in_channels
@@ -93,7 +93,7 @@ class BcopRkoConv2d(nn.Conv2d):
                 kernel_size - (stride - 1),
             ),
             groups,
-            bjorck_params,
+            ortho_params,
         )
         attach_rko_weight(
             self,
@@ -101,7 +101,7 @@ class BcopRkoConv2d(nn.Conv2d):
             (out_channels, self.intermediate_channels // groups, stride, stride),
             groups,
             scale=1.0,
-            bjorck_params=bjorck_params,
+            ortho_params=ortho_params,
         )
 
         if bias:
@@ -187,7 +187,7 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
         bias: bool = True,
         dilation: _size_2_t = 1,
         padding_mode: str = "zeros",
-        bjorck_params: BjorckParams = BjorckParams(),
+        ortho_params: OrthoParams = OrthoParams(),
     ):
         """As BcopRkoConv2d handle native striding with explicit kernel. It unlocks
         the possibility to use the same parametrization for transposed convolutions.
@@ -258,7 +258,7 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
                 kernel_size - (stride - 1),
             ),
             groups,
-            bjorck_params,
+            ortho_params=ortho_params,
         )
         attach_rko_weight(
             self,
@@ -266,7 +266,7 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
             (in_channels, self.intermediate_channels // groups, stride, stride),
             groups,
             scale=1.0,
-            bjorck_params=bjorck_params,
+            ortho_params=ortho_params,
         )
 
         if bias:

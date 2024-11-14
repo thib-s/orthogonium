@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from flashlipschitz.layers import RKOConv2d
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+from flashlipschitz.layers.conv.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
 
 # from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
 
@@ -127,12 +127,7 @@ def test_standard_configs(kernel_size, input_channels, output_channels, stride, 
             bias=False,
             padding=(kernel_size // 2, kernel_size // 2),
             padding_mode="circular",
-            bjorck_params=BjorckParams(
-                power_it_niter=3,
-                eps=1e-6,
-                beta=0.5,
-                bjorck_iters=20,
-            ),
+            ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
         )
     except Exception as e:
         if kernel_size < stride:
@@ -180,12 +175,7 @@ def test_strided(kernel_size, input_channels, output_channels, stride, groups):
             bias=False,
             padding=((kernel_size - 1) // 2, (kernel_size - 1) // 2),
             padding_mode="circular",
-            bjorck_params=BjorckParams(
-                power_it_niter=3,
-                eps=1e-6,
-                beta=0.5,
-                bjorck_iters=20,
-            ),
+            ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
         )
     except Exception as e:
         if kernel_size < stride:
@@ -230,12 +220,7 @@ def test_even_kernels(kernel_size, input_channels, output_channels, stride, grou
             bias=False,
             padding="same",
             padding_mode="circular",
-            bjorck_params=BjorckParams(
-                power_it_niter=3,
-                eps=1e-6,
-                beta=0.5,
-                bjorck_iters=20,
-            ),
+            ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
         )
     except Exception as e:
         if kernel_size < stride:
@@ -279,12 +264,7 @@ def test_rko(kernel_size, input_channels, output_channels, groups):
             bias=False,
             padding=(0, 0),
             padding_mode="zeros",
-            bjorck_params=BjorckParams(
-                power_it_niter=3,
-                eps=1e-6,
-                beta=0.5,
-                bjorck_iters=20,
-            ),
+            ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
         )
     except Exception as e:
         pytest.fail(f"BCOP instantiation failed with: {e}")
@@ -324,12 +304,7 @@ def test_depthwise(kernel_size, input_channels, output_channels, stride, groups)
             bias=False,
             padding=(kernel_size // 2, kernel_size // 2),
             padding_mode="circular",
-            bjorck_params=BjorckParams(
-                power_it_niter=3,
-                eps=1e-6,
-                beta=0.5,
-                bjorck_iters=20,
-            ),
+            ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
         )
     except Exception as e:
         if input_channels == 1 and output_channels == 1:

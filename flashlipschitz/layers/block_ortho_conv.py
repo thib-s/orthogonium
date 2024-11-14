@@ -173,7 +173,7 @@ class BCOP(nn.Module):
         padding_mode="circular",
         bias=True,
         bjorck_beta=0.5,
-        bjorck_iters=10,
+        bjorck_iters=12,
         bjorck_order=1,
         power_iteration_scaling=True,
     ):
