@@ -1,13 +1,13 @@
 # Orthogonium: Improved implementations of orthogonal layers
 
 This library aims to centralize, standardize and improve methods to 
-build orthogonal layers. We noticed that a layer's implementation play a
+build orthogonal layers, with a focus on convolutional layers . We noticed that a layer's implementation play a
 significant role in the final performance : a more efficient implementation 
 allows larger networks and more training steps within the same compute 
 budget. So our implementation differs from original papers in order to 
 be faster, to consume less memory or more flexible.
 
-## our flagship: AOC
+## Our flagship: AOC
 
 AOC is a method that allows to build orthogonal convolutions with 
 an explicit kernel, that support all features like stride, conv transposed,
@@ -16,6 +16,8 @@ be applied to problems like Imagenet-1K.
 
 ### Install the library:
 
+The library will soon be available on pip, in the meanwhile, you can clone the repository and run the following command 
+to install it locally:
 ```
 pip install -e .
 ```
