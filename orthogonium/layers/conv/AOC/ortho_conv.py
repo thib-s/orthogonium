@@ -3,13 +3,13 @@ from typing import Union
 from torch import nn as nn
 from torch.nn.common_types import _size_2_t
 
-from orthogonium.layers.conv.bcop_x_rko_conv import BcopRkoConv2d
-from orthogonium.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
-from orthogonium.layers.conv.fast_block_ortho_conv import BCOPTranspose
-from orthogonium.layers.conv.fast_block_ortho_conv import FlashBCOP
-from orthogonium.layers.conv.reparametrizers import OrthoParams
-from orthogonium.layers.conv.rko_conv import RKOConv2d
-from orthogonium.layers.conv.rko_conv import RkoConvTranspose2d
+from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConv2d
+from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConvTranspose2d
+from orthogonium.layers.conv.AOC.fast_block_ortho_conv import BCOPTranspose
+from orthogonium.layers.conv.AOC.fast_block_ortho_conv import FlashBCOP
+from orthogonium.layers.conv.AOC.rko_conv import RKOConv2d
+from orthogonium.layers.conv.AOC.rko_conv import RkoConvTranspose2d
+from orthogonium.layers.linear.reparametrizers import OrthoParams
 
 
 def OrthoConv2d(

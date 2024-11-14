@@ -8,7 +8,7 @@ Use the layer:
 
 ```python
 from orthogonium.layers import OrthoConv2d
-from orthogonium.layers.conv.reparametrizers import BjorckParams
+from orthogonium.layers.linear.reparametrizers import BjorckParams
 
 # use OrthoConv2d with the same params as torch.nn.Conv2d
 

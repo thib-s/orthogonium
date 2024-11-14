@@ -2,10 +2,8 @@ import numpy as np
 import pytest
 import torch
 
-from orthogonium.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
-from orthogonium.layers.conv.ortho_conv import OrthoConvTranspose2d
-from orthogonium.layers.conv.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
-from orthogonium.layers.conv.reparametrizers import OrthoParams
+from orthogonium.layers.conv.AOC.ortho_conv import OrthoConvTranspose2d
+from orthogonium.layers.linear.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
 from tests.test_orthogonality_conv import check_orthogonal_layer
 
 

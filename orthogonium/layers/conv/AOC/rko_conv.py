@@ -7,16 +7,8 @@ import torch.nn as nn
 import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_2_t
 
-from orthogonium.layers.conv.fast_block_ortho_conv import conv_singular_values_numpy
-from orthogonium.layers.conv.reparametrizers import (
-    BatchedBjorckOrthogonalization,
-    # OrthoParams,
-)
-from orthogonium.layers.conv.reparametrizers import (
-    BatchedPowerIteration,
-)
-from orthogonium.layers.conv.reparametrizers import L2Normalize
-from orthogonium.layers.conv.reparametrizers import OrthoParams
+from orthogonium.layers.conv.AOC.fast_block_ortho_conv import conv_singular_values_numpy
+from orthogonium.layers.linear.reparametrizers import OrthoParams
 
 
 class RKOParametrizer(nn.Module):
@@ -314,55 +306,3 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
     def forward(self, X):
         self._input_shape = X.shape[2:]
         return super(RkoConvTranspose2d, self).forward(X)
-
-
-class OrthoLinear(nn.Linear):
-    def __init__(
-        self,
-        in_features: int,
-        out_features: int,
-        bias: bool = True,
-        ortho_params: OrthoParams = OrthoParams(),
-    ):
-        super(OrthoLinear, self).__init__(in_features, out_features, bias=bias)
-        torch.nn.init.orthogonal_(self.weight)
-        parametrize.register_parametrization(
-            self,
-            "weight",
-            ortho_params.spectral_normalizer(
-                weight_shape=(self.out_features, self.in_features)
-            ),
-        )
-        parametrize.register_parametrization(
-            self, "weight", ortho_params.orthogonalizer(weight_shape=self.weight.shape)
-        )
-
-    def singular_values(self):
-        svs = np.linalg.svd(
-            self.weight.detach().cpu().numpy(), full_matrices=False, compute_uv=False
-        )
-        stable_rank = np.sum(np.mean(svs)) / (svs.max() ** 2)
-        return svs.min(), svs.max(), stable_rank
-
-
-class UnitNormLinear(nn.Linear):
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
-        """LInear layer where each output unit is normalized to have Frobenius norm 1"""
-        super(UnitNormLinear, self).__init__(*args, **kwargs)
-        torch.nn.init.orthogonal_(self.weight)
-        parametrize.register_parametrization(
-            self,
-            "weight",
-            L2Normalize(dtype=self.weight.dtype, dim=1),
-        )
-
-    def singular_values(self):
-        svs = np.linalg.svd(
-            self.weight.detach().cpu().numpy(), full_matrices=False, compute_uv=False
-        )
-        stable_rank = np.sum(np.mean(svs)) / (svs.max() ** 2)
-        return svs.min(), svs.max(), stable_rank

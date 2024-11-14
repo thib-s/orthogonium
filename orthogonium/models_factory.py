@@ -1,22 +1,17 @@
 import torch
 import torch.nn as nn
+from torch.nn import AvgPool2d
 
 from orthogonium.classparam import ClassParam
 from orthogonium.layers import BatchCentering2D
-from orthogonium.layers import GroupMix
-from orthogonium.layers import HouseHolder
-from orthogonium.layers import HouseHolder_Order_2
 from orthogonium.layers import LayerCentering2D
 from orthogonium.layers import MaxMin
 from orthogonium.layers import OrthoConv2d
 from orthogonium.layers import OrthoLinear
-from orthogonium.layers import ScaledAvgPool2d
 from orthogonium.layers import UnitNormLinear
-from orthogonium.layers.conv.reparametrizers import DEFAULT_ORTHO_PARAMS
-from orthogonium.layers.conv.reparametrizers import OrthoParams
-from orthogonium.layers.custom_activations import Abs
-from orthogonium.layers.sll_layer import SDPBasedLipschitzConv
-from orthogonium.layers.sll_layer import SDPBasedLipschitzResBlock
+from orthogonium.layers.conv.sll_layer import SDPBasedLipschitzConv
+from orthogonium.layers.conv.sll_layer import SDPBasedLipschitzResBlock
+from orthogonium.layers.linear.reparametrizers import DEFAULT_ORTHO_PARAMS
 
 
 def SLLxBCOPResNet50(
@@ -664,7 +659,7 @@ def PatchBasedCNN(
                 norm() if norm is not None else nn.Identity(),
                 act(),
                 # (
-                #     GroupMix(g, dim // g)
+                #     ChannelShuffle(g, dim // g)
                 #     if (g := (groups if i % 2 == 0 else dim // groups))
                 #     > 1  # number of group switch every layer
                 #     else nn.Identity()
@@ -672,7 +667,7 @@ def PatchBasedCNN(
             )
             for i in range(depth)
         ],
-        # scaledAvgPool2d is AvgPool2d but with a sqrt(w*h)
+        # AvgPool2d is AvgPool2d but with a sqrt(w*h)
         # factor, as it would be 1/sqrt(w,h) lip otherwise
         pool(
             kernel_size=(img_shape[1] // patch_size, img_shape[2] // patch_size),
@@ -702,7 +697,7 @@ def PatchBasedExapandedCNN(
         padding="same",
     ),
     act=ClassParam(MaxMin),
-    pool=ClassParam(ScaledAvgPool2d),
+    pool=ClassParam(AvgPool2d),
     lin=ClassParam(OrthoLinear),
     norm=ClassParam(LayerCentering2D),
 ):
@@ -734,7 +729,7 @@ def PatchBasedExapandedCNN(
                     act(),
                     norm() if norm is not None else nn.Identity(),
                     # (
-                    #     GroupMix(groups, dim * expand_factor // groups)
+                    #     ChannelShuffle(groups, dim * expand_factor // groups)
                     #     if groups > 1
                     #     else nn.Identity()
                     # ),
@@ -744,12 +739,12 @@ def PatchBasedExapandedCNN(
                         kernel_size=1,
                         groups=1,
                     ),
-                    # GroupMix(dim // groups, groups) if groups > 1 else nn.Identity(),
+                    # ChannelShuffle(dim // groups, groups) if groups > 1 else nn.Identity(),
                 )
             )
             for i in range(depth)
         ],
-        # scaledAvgPool2d is AvgPool2d but with a sqrt(w*h)
+        # AvgPool2d is AvgPool2d but with a sqrt(w*h)
         # factor, as it would be 1/sqrt(w,h) lip otherwise
         pool(),  # ((img_shape[1] // patch_size, img_shape[2] // patch_size), None),
         nn.Flatten(),
@@ -775,7 +770,7 @@ def ConvMixerInspired(
         padding="same",
     ),
     act=ClassParam(MaxMin),
-    pool=ClassParam(ScaledAvgPool2d),
+    pool=ClassParam(AvgPool2d),
     lin=ClassParam(OrthoLinear),
     norm=ClassParam(LayerCentering2D),
 ):
@@ -809,7 +804,7 @@ def ConvMixerInspired(
             )
             for i in range(depth)
         ],
-        # scaledAvgPool2d is AvgPool2d but with a sqrt(w*h)
+        # AvgPool2d is AvgPool2d but with a sqrt(w*h)
         # factor, as it would be 1/sqrt(w,h) lip otherwise
         pool((img_shape[1] // patch_size, img_shape[2] // patch_size), None),
         nn.Flatten(),

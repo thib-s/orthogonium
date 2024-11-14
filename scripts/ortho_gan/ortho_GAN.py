@@ -1,9 +1,7 @@
 from __future__ import print_function
 
-import os
 import random
 
-import schedulefree
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.nn.parallel
@@ -12,14 +10,12 @@ import torch.utils.data
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
-from deel.torchlip.functional import hkr_loss
 from torchinfo import summary
 
 from orthogonium.layers import MaxMin
 from orthogonium.layers import OrthoConv2d
-from orthogonium.layers import OrthoConvTranspose2d
-from orthogonium.layers.conv.bcop_x_rko_conv import BcopRkoConv2d
-from orthogonium.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
+from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConv2d
+from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConvTranspose2d
 
 # from orthogonium.layers import LayerCentering
 

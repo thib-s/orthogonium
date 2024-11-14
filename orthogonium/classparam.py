@@ -26,9 +26,9 @@ class ClassParam:
                 cp('a', c='c') == ('a', 2, 'c')
 
                 # a more realistic use
-                dense = ClassParam(layers.Dense, use_bias=True, activation='relu')
-                dense(64) # dense with 64 neurons, bias and relu
-                dense(64, activation=None) # similar but with no activation
+                linear = ClassParam(layers.Dense, use_bias=True, activation='relu')
+                linear(64) # linear with 64 neurons, bias and relu
+                linear(64, activation=None) # similar but with no activation
 
         Args:
             fct: Callable the function to be called with default arguments
