@@ -3,8 +3,8 @@ import math
 import torch
 import torch.nn as nn
 
-from flashlipschitz.layers import OrthoLinear
-from flashlipschitz.layers import UnitNormLinear
+from orthogonium.layers import OrthoLinear
+from orthogonium.layers import UnitNormLinear
 
 
 def check_last_linear_layer_type(model):

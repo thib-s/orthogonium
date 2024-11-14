@@ -7,25 +7,26 @@ pip install -e .
 Use the layer:
 
 ```python
-from flashlipschitz.layers import OrthoConv2d
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+from orthogonium.layers import OrthoConv2d
+from orthogonium.layers.conv.reparametrizers import BjorckParams
+
 # use OrthoConv2d with the same params as torch.nn.Conv2d
 
 conv = OrthoConv2d(
-    kernel_size=3,
-    in_channels=256,
-    out_channels=256,
-    stride=2,
-    groups=16,
-    bias=bias,
-    padding=(kernel_size // 2, kernel_size // 2),
-    padding_mode="circular",
-    bjorck_params=BjorckParams(
-        power_it_niter=3,
-        eps=1e-6,
-        beta=0.5,
-        bjorck_iters=20,
-    ),
+   kernel_size=3,
+   in_channels=256,
+   out_channels=256,
+   stride=2,
+   groups=16,
+   bias=bias,
+   padding=(kernel_size // 2, kernel_size // 2),
+   padding_mode="circular",
+   bjorck_params=BjorckParams(
+      power_it_niter=3,
+      eps=1e-6,
+      beta=0.5,
+      bjorck_iters=20,
+   ),
 )
 ```
 

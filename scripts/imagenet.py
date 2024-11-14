@@ -23,9 +23,9 @@ from torch.optim.lr_scheduler import LinearLR
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
 
-from flashlipschitz.losses import Cosine_VRA_Loss
-from flashlipschitz.losses import VRA
-from flashlipschitz.models_factory import MODELS
+from orthogonium.losses import Cosine_VRA_Loss
+from orthogonium.losses import VRA
+from orthogonium.models_factory import MODELS
 
 model_names = sorted(
     name

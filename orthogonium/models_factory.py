@@ -1,22 +1,22 @@
 import torch
 import torch.nn as nn
 
-from flashlipschitz.classparam import ClassParam
-from flashlipschitz.layers import BatchCentering2D
-from flashlipschitz.layers import GroupMix
-from flashlipschitz.layers import HouseHolder
-from flashlipschitz.layers import HouseHolder_Order_2
-from flashlipschitz.layers import LayerCentering2D
-from flashlipschitz.layers import MaxMin
-from flashlipschitz.layers import OrthoConv2d
-from flashlipschitz.layers import OrthoLinear
-from flashlipschitz.layers import ScaledAvgPool2d
-from flashlipschitz.layers import UnitNormLinear
-from flashlipschitz.layers.conv.reparametrizers import DEFAULT_ORTHO_PARAMS
-from flashlipschitz.layers.conv.reparametrizers import OrthoParams
-from flashlipschitz.layers.custom_activations import Abs
-from flashlipschitz.layers.sll_layer import SDPBasedLipschitzConv
-from flashlipschitz.layers.sll_layer import SDPBasedLipschitzResBlock
+from orthogonium.classparam import ClassParam
+from orthogonium.layers import BatchCentering2D
+from orthogonium.layers import GroupMix
+from orthogonium.layers import HouseHolder
+from orthogonium.layers import HouseHolder_Order_2
+from orthogonium.layers import LayerCentering2D
+from orthogonium.layers import MaxMin
+from orthogonium.layers import OrthoConv2d
+from orthogonium.layers import OrthoLinear
+from orthogonium.layers import ScaledAvgPool2d
+from orthogonium.layers import UnitNormLinear
+from orthogonium.layers.conv.reparametrizers import DEFAULT_ORTHO_PARAMS
+from orthogonium.layers.conv.reparametrizers import OrthoParams
+from orthogonium.layers.custom_activations import Abs
+from orthogonium.layers.sll_layer import SDPBasedLipschitzConv
+from orthogonium.layers.sll_layer import SDPBasedLipschitzResBlock
 
 
 def SLLxBCOPResNet50(

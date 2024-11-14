@@ -26,21 +26,21 @@ from torchvision.transforms import RandomResizedCrop
 from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
-from flashlipschitz.classparam import ClassParam
-from flashlipschitz.layers import OrthoConv2d
-from flashlipschitz.layers import OrthoConv2d as BCOP_new
-from flashlipschitz.layers.block_ortho_conv import BCOP as BCOP_old
-from flashlipschitz.layers.cayley_ortho_conv import Cayley
-from flashlipschitz.layers.conv.rko_conv import UnitNormLinear
-from flashlipschitz.layers.custom_activations import MaxMin
-from flashlipschitz.layers.skew_ortho_conv import SOC
-from flashlipschitz.layers.sll_layer import SDPBasedLipschitzConv
-from flashlipschitz.models_factory import LipResNet
-from flashlipschitz.models_factory import Residual
-from flashlipschitz.models_factory import SplitConcatNet
-from flashlipschitz.models_factory import SplitConcatNetConfigs
+from orthogonium.classparam import ClassParam
+from orthogonium.layers import OrthoConv2d
+from orthogonium.layers import OrthoConv2d as BCOP_new
+from orthogonium.layers.block_ortho_conv import BCOP as BCOP_old
+from orthogonium.layers.cayley_ortho_conv import Cayley
+from orthogonium.layers.conv.rko_conv import UnitNormLinear
+from orthogonium.layers.custom_activations import MaxMin
+from orthogonium.layers.skew_ortho_conv import SOC
+from orthogonium.layers.sll_layer import SDPBasedLipschitzConv
+from orthogonium.models_factory import LipResNet
+from orthogonium.models_factory import Residual
+from orthogonium.models_factory import SplitConcatNet
+from orthogonium.models_factory import SplitConcatNetConfigs
 
-# from flashlipschitz.layers.conv.reparametrizers import BjorckParams
+# from orthogonium.layers.conv.reparametrizers import BjorckParams
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 

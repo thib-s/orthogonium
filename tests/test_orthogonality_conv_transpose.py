@@ -2,16 +2,16 @@ import numpy as np
 import pytest
 import torch
 
-from flashlipschitz.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
-from flashlipschitz.layers.conv.ortho_conv import OrthoConvTranspose2d
-from flashlipschitz.layers.conv.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
-from flashlipschitz.layers.conv.reparametrizers import OrthoParams
+from orthogonium.layers.conv.bcop_x_rko_conv import BcopRkoConvTranspose2d
+from orthogonium.layers.conv.ortho_conv import OrthoConvTranspose2d
+from orthogonium.layers.conv.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
+from orthogonium.layers.conv.reparametrizers import OrthoParams
 from tests.test_orthogonality_conv import check_orthogonal_layer
 
 
-# from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
+# from orthogonium.layers.conv.fast_block_ortho_conv import FlashBCOP
 
-# from flashlipschitz.layers.conv.ortho_conv import OrthoConv as FlashBCOP
+# from orthogonium.layers.conv.ortho_conv import OrthoConv as FlashBCOP
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):

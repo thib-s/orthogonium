@@ -7,10 +7,10 @@ import torch.nn as nn
 import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_2_t
 
-from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
-from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
-from flashlipschitz.layers.conv.reparametrizers import L2Normalize
-from flashlipschitz.layers.conv.reparametrizers import OrthoParams
+from orthogonium.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
+from orthogonium.layers.conv.reparametrizers import BatchedPowerIteration
+from orthogonium.layers.conv.reparametrizers import L2Normalize
+from orthogonium.layers.conv.reparametrizers import OrthoParams
 
 
 def conv_singular_values_numpy(kernel, input_shape):

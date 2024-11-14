@@ -1,11 +1,12 @@
-from torch.autograd import Function
-import torch.nn.functional as F
-import torch.nn as nn
-import torch
-import numpy as np
 import math
 import time
+
 import einops
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.autograd import Function
 
 
 def fantastic_four(conv_filter, num_iters=50):

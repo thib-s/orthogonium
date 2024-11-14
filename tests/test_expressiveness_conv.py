@@ -2,16 +2,16 @@ import numpy as np
 import pytest
 import torch
 
-from flashlipschitz.classparam import ClassParam
-from flashlipschitz.layers import OrthoConv2d
-from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
-from flashlipschitz.layers.conv.reparametrizers import (
+from orthogonium.classparam import ClassParam
+from orthogonium.layers import OrthoConv2d
+from orthogonium.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
+from orthogonium.layers.conv.reparametrizers import (
     BatchedExponentialOrthogonalization,
 )
-from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
-from flashlipschitz.layers.conv.reparametrizers import OrthoParams
+from orthogonium.layers.conv.reparametrizers import BatchedPowerIteration
+from orthogonium.layers.conv.reparametrizers import OrthoParams
 
-# from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
+# from orthogonium.layers.conv.fast_block_ortho_conv import FlashBCOP
 
 
 def check_expressiveness_layer(

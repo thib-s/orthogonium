@@ -17,9 +17,9 @@ from torch.nn.common_types import _size_1_t
 from torch.nn.common_types import _size_2_t
 from torch.nn.common_types import _size_3_t
 
-from flashlipschitz.layers.bounds import compute_delattre2024
-from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
-from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
+from orthogonium.layers.bounds import compute_delattre2024
+from orthogonium.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
+from orthogonium.layers.conv.reparametrizers import BatchedPowerIteration
 
 
 class Skew(nn.Module):

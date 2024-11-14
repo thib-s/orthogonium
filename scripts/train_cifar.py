@@ -12,21 +12,21 @@ import torchvision.transforms as transforms
 from torchinfo import summary
 from tqdm import tqdm
 
-from flashlipschitz.classparam import ClassParam
-from flashlipschitz.layers import MaxMin
-from flashlipschitz.layers import OrthoConv2d
-from flashlipschitz.layers import OrthoLinear
-from flashlipschitz.layers import ScaledAvgPool2d
-from flashlipschitz.layers import SOC
-from flashlipschitz.layers import UnitNormLinear
-from flashlipschitz.layers.custom_activations import Abs
-from flashlipschitz.layers.custom_activations import HouseHolder
-from flashlipschitz.layers.custom_activations import HouseHolder_Order_2
-from flashlipschitz.losses import Cosine_VRA_Loss
-from flashlipschitz.losses import LossXent
-from flashlipschitz.losses import SoftHKRMulticlassLoss
-from flashlipschitz.models_factory import PatchBasedCNN
-from flashlipschitz.models_factory import PatchBasedExapandedCNN
+from orthogonium.classparam import ClassParam
+from orthogonium.layers import MaxMin
+from orthogonium.layers import OrthoConv2d
+from orthogonium.layers import OrthoLinear
+from orthogonium.layers import ScaledAvgPool2d
+from orthogonium.layers import SOC
+from orthogonium.layers import UnitNormLinear
+from orthogonium.layers.custom_activations import Abs
+from orthogonium.layers.custom_activations import HouseHolder
+from orthogonium.layers.custom_activations import HouseHolder_Order_2
+from orthogonium.losses import Cosine_VRA_Loss
+from orthogonium.losses import LossXent
+from orthogonium.losses import SoftHKRMulticlassLoss
+from orthogonium.models_factory import PatchBasedCNN
+from orthogonium.models_factory import PatchBasedExapandedCNN
 
 # from deel import torchlip as tl  ## copy pasted code from the lib to reduce dependencies
 
