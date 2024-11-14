@@ -3,6 +3,7 @@ import math
 import time
 
 import numpy as np
+import schedulefree
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,8 +13,8 @@ from torchinfo import summary
 from tqdm import tqdm
 
 from flashlipschitz.classparam import ClassParam
-from flashlipschitz.layers import FlashBCOP
 from flashlipschitz.layers import MaxMin
+from flashlipschitz.layers import OrthoConv2d
 from flashlipschitz.layers import OrthoLinear
 from flashlipschitz.layers import ScaledAvgPool2d
 from flashlipschitz.layers import SOC
@@ -22,10 +23,10 @@ from flashlipschitz.layers.custom_activations import Abs
 from flashlipschitz.layers.custom_activations import HouseHolder
 from flashlipschitz.layers.custom_activations import HouseHolder_Order_2
 from flashlipschitz.losses import Cosine_VRA_Loss
+from flashlipschitz.losses import LossXent
+from flashlipschitz.losses import SoftHKRMulticlassLoss
 from flashlipschitz.models_factory import PatchBasedCNN
 from flashlipschitz.models_factory import PatchBasedExapandedCNN
-
-# import schedulefree
 
 # from deel import torchlip as tl  ## copy pasted code from the lib to reduce dependencies
 
@@ -77,7 +78,7 @@ def VRA(output, class_indices, L=1.0, eps=36 / 255, return_certs=False):
     output_class_indices = output[batch_indices, class_indices]
     output_nextmax = torch.max(output_trunc, dim=1)[0]
     output_diff = output_class_indices - output_nextmax
-    certs = output_diff / (2 * L)
+    certs = output_diff / (math.sqrt(2) * L)
     # vra is percentage of certs > eps
     vra = (certs > eps).float()
     if return_certs:
@@ -199,24 +200,35 @@ testloader = torch.utils.data.DataLoader(
 
 model = PatchBasedExapandedCNN(
     (3, 32, 32),
-    args.hdim,
-    args.depth,
+    n_classes=10,
+    dim=args.hdim,
+    depth=args.depth,
     groups=1,
     skip=True,
     conv=ClassParam(
-        FlashBCOP,
-        bias=False,
+        OrthoConv2d,
+        bias=True,
         padding="same",
-        padding_mode="zeros",
-        pi_iters=3,
-        bjorck_beta=0.5,
-        bjorck_bp_iters=10,
-        bjorck_nbp_iters=0,
+        padding_mode="circular",
+        # padding_mode="zeros",
+        # bjorck_params=BjorckParams(
+        #     power_it_niter=3,
+        #     eps=1e-6,
+        #     bjorck_iters=15,
+        #     beta=0.5,
+        #     contiguous_optimization=False,
+        # ),
     ),
     patch_size=args.psize,
     kernel_size=args.conv_ks,
-    n_classes=10,
+    norm=None,
     expand_factor=args.expand_factor,
+    pool=ClassParam(torch.nn.LPPool2d, norm_type=2, kernel_size=32 // args.psize),
+    # pool=ClassParam(
+    #     torch.nn.AvgPool2d,
+    #     kernel_size=32 // args.psize,
+    #     divisor_override=32 // args.psize,
+    # ),
 )
 
 model = model.cuda()
@@ -236,22 +248,29 @@ summary(model, (args.batch_size, 3, 32, 32))
 #     [1e-5, args.gamma],
 # )[0]
 # use cosine lr schedule
-lr_schedule = (
-    lambda t: 1e-7 + args.lr_max * (1 + math.cos(math.pi * t / args.epochs)) / 2
-)
+# lr_schedule = (
+#     lambda t: 1e-7 + args.lr_max * (1 + math.cos(math.pi * t / args.epochs)) / 2
+# )
 
 
-opt = optim.AdamW(
-    model.parameters(), lr=args.lr_max, weight_decay=args.wd, betas=(0.9, 0.99)
-)
-# opt = schedulefree.AdamWScheduleFree(model.parameters(), lr=args.lr_max)
-criterion = Cosine_VRA_Loss()  # here, I used the cosine (only accuracy, no robustness)
+# opt = optim.AdamW(
+#     model.parameters(), lr=args.lr_max, weight_decay=args.wd, betas=(0.9, 0.99)
+# )
+opt = schedulefree.AdamWScheduleFree(model.parameters(), lr=args.lr_max)
+std = torch.tensor(cifar10_std).cuda()
+L = 1 / torch.max(std)
+# criterion = Cosine_VRA_Loss(
+#     args.gamma, L=L
+# )  # here, I used the cosine (only accuracy, no robustness)
+
+# criterion = SoftHKRMulticlassLoss(
+#     alpha=0.75, min_margin=2*36 / 255, alpha_mean=0.99, temperature=2
+# )
+criterion = LossXent(10, offset=2 * 36 / 255, temperature=0.125)
 # criterion = nn.CrossEntropyLoss()
 if args.amp_enabled:
     scaler = torch.cuda.amp.GradScaler()
 
-std = torch.tensor(cifar10_std).cuda()
-L = 1 / torch.max(std)
 
 for epoch in range(args.epochs):
     start = time.time()
@@ -262,8 +281,8 @@ for epoch in range(args.epochs):
         # opt.train()
         X, y = X.cuda(), y.cuda()
 
-        lr = lr_schedule(epoch + (i + 1) / len(trainloader))
-        # lr = args.lr_max
+        # lr = lr_schedule(epoch + (i + 1) / len(trainloader))
+        lr = args.lr_max
         # gamma = gamma_schedule(epoch + (i + 1) / len(trainloader))
         gamma = args.gamma
         opt.param_groups[0].update(lr=lr)
@@ -273,11 +292,12 @@ for epoch in range(args.epochs):
             with torch.cuda.amp.autocast():
                 output = model(X)
                 certs = VRA(output, y, L=L, eps=36 / 255, return_certs=True)
-                # loss = criterion(output, y)
-                loss = (
-                    -(1.0 - gamma) * criterion(output, nn.functional.one_hot(y, 10))
-                    - gamma * torch.clamp(certs, min=0.0, max=36 / 255)
-                ).mean()
+                loss = criterion(output, y)
+                # loss = criterion(output, nn.functional.one_hot(y, 10))
+                # loss = (
+                #     -(1.0 - gamma) * criterion(output, nn.functional.one_hot(y, 10))
+                #     - gamma * torch.clamp(certs, min=0.0, max=36 / 255)
+                # ).mean()
 
             scaler.scale(loss).backward()
             if args.clip_norm:
@@ -290,8 +310,8 @@ for epoch in range(args.epochs):
             certs = VRA(output, y, L=L, eps=36 / 255, return_certs=True)
             loss = criterion(output, y)
             # loss = (
-            #     -criterion(output, nn.functional.one_hot(y, 10))
-            #     - args.gamma * torch.clamp(certs, min=0.0, max=36 / 255)
+            #     -(1.0 - gamma) * criterion(output, nn.functional.one_hot(y, 10))
+            #     - gamma * torch.clamp(certs, min=0.0, max=36 / 255)
             # ).mean()
             loss.backward()
             if args.clip_norm:
@@ -308,7 +328,10 @@ for epoch in range(args.epochs):
     with torch.no_grad():
         for i, (X, y) in enumerate(testloader):
             X, y = X.cuda(), y.cuda()
-            with torch.cuda.amp.autocast():
+            if args.amp_enabled:
+                with torch.cuda.amp.autocast():
+                    output = model(X)
+            else:
                 output = model(X)
             test_acc += (output.max(1)[1] == y).sum().item()
             test_vra += VRA(output, y, L=L, eps=36 / 255).sum().item()
@@ -330,10 +353,10 @@ def print_sv(layer):
 
 model.apply(print_sv)
 
-print("saving model")
-torch.save(
-    model.state_dict(), f"{args.name}_acc_{test_acc/m:.2f}_vra_{test_vra/m:.2f}.pth"
-)
-# save args
-with open(f"{args.name}_args.txt", "w") as f:
-    f.write(str(args))
+# print("saving model")
+# # torch.save(
+# #     model.state_dict(), f"{args.name}_acc_{test_acc/m:.2f}_vra_{test_vra/m:.2f}.pth"
+# # )
+# # save args
+# with open(f"{args.name}_args.txt", "w") as f:
+#     f.write(str(args))

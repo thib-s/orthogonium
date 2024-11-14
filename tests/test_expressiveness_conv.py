@@ -1,11 +1,17 @@
+import numpy as np
 import pytest
 import torch
-import numpy as np
 
+from flashlipschitz.classparam import ClassParam
 from flashlipschitz.layers import OrthoConv2d
+from flashlipschitz.layers.conv.reparametrizers import BatchedBjorckOrthogonalization
+from flashlipschitz.layers.conv.reparametrizers import (
+    BatchedExponentialOrthogonalization,
+)
+from flashlipschitz.layers.conv.reparametrizers import BatchedPowerIteration
+from flashlipschitz.layers.conv.reparametrizers import OrthoParams
 
 # from flashlipschitz.layers.conv.fast_block_ortho_conv import FlashBCOP
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
 
 
 def check_expressiveness_layer(
@@ -18,26 +24,28 @@ def check_expressiveness_layer(
     try:
         orthoconv.train()
         opt = torch.optim.Adam(orthoconv.parameters(), lr=0.05)
-        for i in range(250):
+        for i in range(500):
             opt.zero_grad()
-            inp = torch.randn(1, input_channels, imsize, imsize)
+            # inp = torch.randn(1, input_channels, imsize, imsize)
             # output = orthoconv(inp)
             loss = torch.norm(orthoconv.weight - target_weight, p="fro")
             loss.backward()
             opt.step()
+            # if loss < 1e-3:
+            #     break
         orthoconv.eval()  # so impulse response test checks the eval mode
     except Exception as e:
         pytest.fail(f"Backpropagation or weight update failed with: {e}")
     print(f"max diff: {torch.max(torch.abs(orthoconv.weight - target_weight)):0.4f}")
-    assert torch.allclose(
-        orthoconv.weight, target_weight, atol=0.05
-    ), (f"layer failed to converge to target weight. Max diff: "
-        f"{torch.max(torch.abs(orthoconv.weight - target_weight)):0.4f}")
+    assert torch.allclose(orthoconv.weight, target_weight, atol=0.05), (
+        f"layer failed to converge to target weight. Max diff: "
+        f"{torch.max(torch.abs(orthoconv.weight - target_weight)):0.4f}"
+    )
 
 
-@pytest.mark.parametrize("kernel_size", [3])
-@pytest.mark.parametrize("input_channels", [1, 4])
-@pytest.mark.parametrize("output_channels", [1, 4])
+@pytest.mark.parametrize("kernel_size", [5])
+@pytest.mark.parametrize("input_channels", [2, 4])
+@pytest.mark.parametrize("output_channels", [2, 4])
 @pytest.mark.parametrize("shift_x", [-1, 0, 1])
 @pytest.mark.parametrize("shift_y", [-1, 0, 1])
 def test_expressiveness_shifts(
@@ -56,13 +64,7 @@ def test_expressiveness_shifts(
         bias=False,
         padding=(kernel_size // 2, kernel_size // 2),
         padding_mode="circular",
-        bjorck_params=BjorckParams(
-            power_it_niter=3,
-            eps=1e-6,
-            beta=0.5,
-            bjorck_iters=12,
-            contiguous_optimization=True,
-        ),
+        ortho_params=OrthoParams(),
     )
     target_weight = torch.eye(output_channels, input_channels).view(
         output_channels, input_channels, 1, 1

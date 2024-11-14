@@ -15,8 +15,6 @@ from torch.utils.data import Dataset
 
 from flashlipschitz.layers import OrthoConv2d as BCOP_new
 from flashlipschitz.layers.block_ortho_conv import BCOP as BCOP_old
-from flashlipschitz.layers.conv.reparametrizers import BjorckParams
-
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -90,85 +88,89 @@ niter = 10
 padding = None
 res = []
 
-for kernel_size in [3, 5, 7, 11]:
-    for stride in [1, 2]:
-        for input_channels in [2, 32, 64, 128, 256]:
-            for out_channels in [2, 32, 64, 128, 256]:
-                for layer_name, layer_cls in layers:
-                    # dataloader that generate the random data, and random target
-                    random_data_loader = DataLoader(
-                        RandomDataset(
-                            (input_channels, 32, 32),
-                            (out_channels, 32 // stride, 32 // stride),
-                            256,
-                        ),
-                        batch_size=256,
-                    )
-                    input_shape = [128, input_channels, 32, 32]
-                    # reset all memory
-                    torch.cuda.empty_cache()
-                    torch.cuda.reset_peak_memory_stats()
-                    torch.cuda.reset_max_memory_allocated()
-                    gc.collect()
-                    torch.cuda.synchronize()
-                    res_1 = get_model_memory(
-                        lambda: layer_cls(
+for batch_size in [8, 16, 32, 64, 128]:
+    for kernel_size in [3, 5, 7, 11]:
+        for stride in [1, 2]:
+            for input_channels in [2, 32, 64, 128, 256]:
+                for out_channels in [2, 32, 64, 128, 256]:
+                    for layer_name, layer_cls in layers:
+                        # dataloader that generate the random data, and random target
+                        random_data_loader = DataLoader(
+                            RandomDataset(
+                                (input_channels, 32, 32),
+                                (out_channels, 32 // stride, 32 // stride),
+                                256,
+                            ),
+                            batch_size=256,
+                        )
+                        input_shape = [batch_size, input_channels, 32, 32]
+                        # reset all memory
+                        torch.cuda.empty_cache()
+                        torch.cuda.reset_peak_memory_stats()
+                        torch.cuda.reset_max_memory_allocated()
+                        gc.collect()
+                        torch.cuda.synchronize()
+                        res_1 = get_model_memory(
+                            lambda: layer_cls(
+                                input_channels,
+                                out_channels,
+                                kernel_size,
+                                stride,
+                                padding_mode="circular",
+                                padding=(
+                                    "same" if stride == 1 else (kernel_size - 1) // 2
+                                ),
+                                bias=False,
+                            ),
+                            test_loader=random_data_loader,
+                            train_loader=random_data_loader,
+                            logging=print,
+                        )
+
+                        conv_layer = layer_cls(
                             input_channels,
                             out_channels,
                             kernel_size,
                             stride,
                             padding_mode="circular",
-                            padding="same" if stride == 1 else (kernel_size - 1) // 2,
+                            padding="same" if stride == 1 else "valid",
                             bias=False,
-                        ),
-                        test_loader=random_data_loader,
-                        train_loader=random_data_loader,
-                        logging=print,
-                    )
-
-                    conv_layer = layer_cls(
-                        input_channels,
-                        out_channels,
-                        kernel_size,
-                        stride,
-                        padding_mode="circular",
-                        padding="same" if stride == 1 else "valid",
-                        bias=False,
-                    )
-                    conv_layer.to(device)
-                    conv_layer.train()
-                    res_1.update(
-                        evaluate_all_model_time_statistics(
-                            conv_layer,
-                            train_loader=random_data_loader,
-                            test_loader=random_data_loader,
-                            nrof_batches=25,
-                            log=print,
                         )
-                    )
-                    # res_1 = sim_learning(
-                    #     conv_layer,
-                    #     input_shape,
-                    #     niter,
-                    # )
-                    metadata = {
-                        "method": layer_name,
-                        "input_channels": input_channels,
-                        "out_channels": out_channels,
-                        "stride": stride,
-                        "kernel_size": kernel_size,
-                    }
-                    res_1.update(
-                        metadata,
-                    )
-                    res.append(res_1)
-                    # print(",".join([f"{k}:{v}" for k, v in res_1.items()]))
-                    # clear cuda cache
-                    torch.cuda.empty_cache()
-                    # clear memory
-                    del conv_layer
-                    del random_data_loader
-                    print(f"Done: {metadata}")
-                    del res_1
-                    del metadata
-pd.DataFrame(res).to_csv("bench_bcop.csv")
+                        conv_layer.to(device)
+                        conv_layer.train()
+                        res_1.update(
+                            evaluate_all_model_time_statistics(
+                                conv_layer,
+                                train_loader=random_data_loader,
+                                test_loader=random_data_loader,
+                                nrof_batches=25,
+                                log=print,
+                            )
+                        )
+                        # res_1 = sim_learning(
+                        #     conv_layer,
+                        #     input_shape,
+                        #     niter,
+                        # )
+                        metadata = {
+                            "method": layer_name,
+                            "input_channels": input_channels,
+                            "out_channels": out_channels,
+                            "stride": stride,
+                            "kernel_size": kernel_size,
+                            "batch_size": batch_size,
+                        }
+                        res_1.update(
+                            metadata,
+                        )
+                        res.append(res_1)
+                        # print(",".join([f"{k}:{v}" for k, v in res_1.items()]))
+                        # clear cuda cache
+                        torch.cuda.empty_cache()
+                        # clear memory
+                        del conv_layer
+                        del random_data_loader
+                        print(f"Done: {metadata}")
+                        del res_1
+                        del metadata
+pd.DataFrame(res).to_csv("res_bench_bcop.csv")

@@ -16,6 +16,122 @@ from flashlipschitz.layers.conv.reparametrizers import DEFAULT_ORTHO_PARAMS
 from flashlipschitz.layers.conv.reparametrizers import OrthoParams
 from flashlipschitz.layers.custom_activations import Abs
 from flashlipschitz.layers.sll_layer import SDPBasedLipschitzConv
+from flashlipschitz.layers.sll_layer import SDPBasedLipschitzResBlock
+
+
+def SLLxBCOPResNet50(
+    img_shape=(3, 224, 224),
+    n_classes=1000,
+    norm=None,  # ClassParam(BatchCentering2D),
+    # norm=ClassParam(LayerCentering2D),
+    # pool=ClassParam(nn.LPPool2d, norm_type=2),
+):
+    act = MaxMin  # torch.nn.ReLU
+    # act2 = Abs, MaxMin, ReLU
+    layers = [
+        # conv2d stride 2 + norm + act
+        OrthoConv2d(
+            in_channels=img_shape[0],
+            out_channels=64,
+            kernel_size=7,
+            stride=2,
+            padding=3,
+        ),
+        act(),
+        # SDPBasedLipschitzResBlock(
+        #     cin=3,
+        #     cout=64,
+        #     inner_dim_factor=0.25,
+        #     kernel_size=7,
+        #     stride=2,
+        # ),
+        norm(64) if norm is not None else nn.Identity(),
+        # max pool ks 3 stride 2
+        # opt 1: replace max pool with l2 pool
+        # opt 2: replace max pool with strided conv
+        # SDPBasedLipschitzResBlock(
+        #     cin=64,
+        #     cout=64,
+        #     inner_dim_factor=0.25,
+        #     kernel_size=7,
+        #     stride=2,
+        # ),
+        # nn.AvgPool2d(2, stride=2, padding=0, divisor_override=2),
+        nn.LPPool2d(kernel_size=2, norm_type=2),
+        # OrthoConv2d(
+        #     in_channels=64,
+        #     out_channels=64,
+        #     kernel_size=3,
+        #     stride=2,
+        #     padding=1,
+        # ),
+        # act(),
+        norm(64) if norm is not None else nn.Identity(),
+        *ResNet50Block(64, 256, 3, norm, act, stride=1),
+        *ResNet50Block(256, 512, 4, norm, act, stride=2),
+        *ResNet50Block(512, 1024, 6, norm, act, stride=2),
+        *ResNet50Block(1024, 2048, 3, norm, act, stride=2),
+        nn.LPPool2d(kernel_size=7, norm_type=2),
+        # nn.AvgPool2d(7, divisor_override=7),
+        # OrthoConv2d(
+        #     in_channels=2048,
+        #     out_channels=2048,
+        #     kernel_size=7,
+        #     stride=7,
+        #     padding=0,
+        # ),
+        # norm() if norm is not None else nn.Identity(),
+        nn.Flatten(),
+        # OrthoLinear(2048, 2048),
+        # norm() if norm is not None else nn.Identity(),
+        # act2(),
+        OrthoLinear(2048, n_classes, bias=True),
+    ]
+    return nn.Sequential(*layers)
+
+
+def ResNet50Block(in_channels, out_channels, n_blocks, norm, act, stride=2):
+    layers = []
+    layers.append(
+        SDPBasedLipschitzResBlock(
+            cin=in_channels,
+            cout=out_channels,
+            inner_dim_factor=1.0,
+            kernel_size=3,
+            stride=stride,
+        )
+        # OrthoConv2d(
+        #     in_channels=in_channels,
+        #     out_channels=out_channels,
+        #     kernel_size=3,
+        #     stride=stride,
+        #     padding=1,
+        # )
+    )
+    # if act is not None:
+    #     layers.append(act())
+    if norm is not None:
+        layers.append(norm(out_channels))
+    for _ in range(n_blocks - 1):
+        layers.append(
+            # SDPBasedLipschitzResBlock(
+            #     cin = out_channels,
+            #     cout=out_channels,
+            #     inner_dim_factor=0.25,
+            #     kernel_size=3,
+            #     stride=1,
+            # )
+            SDPBasedLipschitzConv(
+                cin=out_channels,
+                inner_dim_factor=2.0,
+                kernel_size=3,
+            )
+        )
+        # if act is not None:
+        #     layers.append(act())
+        if norm is not None:
+            layers.append(norm(out_channels))
+    return layers
 
 
 class ConcatResidual(nn.Module):
@@ -607,10 +723,12 @@ def PatchBasedExapandedCNN(
                 nn.Sequential(
                     conv(
                         in_channels=dim,
-                        out_channels=dim * expand_factor,
+                        out_channels=int(dim * expand_factor),
                         kernel_size=kernel_size,
                         groups=(
-                            groups if groups is not None else dim * expand_factor // 2
+                            groups
+                            if groups is not None
+                            else min(int(dim * expand_factor) // 2, dim // 2)
                         ),
                     ),
                     act(),
@@ -621,7 +739,7 @@ def PatchBasedExapandedCNN(
                     #     else nn.Identity()
                     # ),
                     conv(
-                        in_channels=dim * expand_factor,
+                        in_channels=int(dim * expand_factor),
                         out_channels=dim,
                         kernel_size=1,
                         groups=1,
@@ -712,19 +830,25 @@ def BCOPLargeCNN(
     ),
     act=ClassParam(MaxMin),
     lin=ClassParam(OrthoLinear),
-    norm=ClassParam(LayerCentering2D),
+    norm=None,
 ):
     layers = [
-        conv(in_channels=img_shape[0], out_channels=32, kernel_size=3, stride=1),
+        conv(
+            in_channels=img_shape[0],
+            out_channels=32,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+        ),
         act(),
         norm() if norm is not None else nn.Identity(),
-        conv(in_channels=32, out_channels=64, kernel_size=5, stride=2),
+        conv(in_channels=32, out_channels=64, kernel_size=5, stride=2, padding=2),
         act(),
         norm() if norm is not None else nn.Identity(),
-        conv(in_channels=64, out_channels=64, kernel_size=3, stride=1),
+        conv(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1),
         act(),
         norm() if norm is not None else nn.Identity(),
-        conv(in_channels=64, out_channels=64, kernel_size=5, stride=2),
+        conv(in_channels=64, out_channels=64, kernel_size=5, stride=2, padding=2),
         act(),
         norm() if norm is not None else nn.Identity(),
         nn.Flatten(),
@@ -784,6 +908,89 @@ def StagedCNN(
             in_channels = next_dim
 
     feat_shape = img_shape[-1] // (2 ** (len(dim_repeats) - 1))
+    if pool is not None:
+        layers.append(pool(kernel_size=feat_shape))
+        feat_shape = 1
+    # Flatten layer
+    layers.append(nn.Flatten())
+    nb_features = dim * feat_shape**2
+    if dim_nb_dense is not None and len(dim_nb_dense) > 0:
+        # Add linear layers
+        dim, repeats = dim_nb_dense
+        for _ in range(repeats):
+            layers.append(lin(nb_features, dim))
+            layers.append(act())
+            nb_features = dim
+    else:
+        dim = nb_features
+    # Final linear layer for classification
+    layers.append(lin(dim, n_classes))
+
+    return nn.Sequential(*layers)
+
+
+def LargeStagedCNN(
+    img_shape=(3, 224, 224),
+    patch_size=7,
+    dim_repeats=[(128, 4), (256, 4), (512, 4), (1024, 4)],
+    dim_nb_dense=(1024, 5),
+    n_classes=1000,
+    conv=ClassParam(
+        OrthoConv2d,
+        bias=False,
+        padding_mode="circular",
+        kernel_size=3,
+        padding=1,
+    ),
+    act=ClassParam(MaxMin),
+    lin=ClassParam(UnitNormLinear, bias=False),
+    norm=None,
+    pool=None,
+):
+    layers = []
+
+    layers.append(
+        conv(
+            in_channels=img_shape[0],
+            out_channels=dim_repeats[0][0],
+            kernel_size=patch_size,
+            stride=patch_size,
+            padding=0,
+        )
+    )
+    layers.append(act())
+    layers.append(norm() if norm is not None else nn.Identity())
+
+    in_channels = dim_repeats[0][0]
+
+    # enrich the list of dim_repeats with the next number of channels in the list
+    for i in range(len(dim_repeats) - 1):
+        dim_repeats[i] = (dim_repeats[i][0], dim_repeats[i][1], dim_repeats[i + 1][0])
+    dim_repeats[-1] = (dim_repeats[-1][0], dim_repeats[-1][1], None)
+
+    # Create convolutional blocks
+    for dim, repeats, next_dim in dim_repeats:
+        # Add repeated conv layers
+        for _ in range(repeats):
+            layers.append(conv(in_channels=in_channels, out_channels=dim))
+            layers.append(act())
+            layers.append(norm() if norm is not None else nn.Identity())
+            in_channels = dim
+
+        if next_dim is not None:
+            # Add strided convolution to separate blocks
+            layers.append(
+                conv(
+                    in_channels=dim,
+                    out_channels=next_dim,
+                    stride=2,
+                )
+            )
+            layers.append(act())
+            layers.append(norm() if norm is not None else nn.Identity())
+            in_channels = next_dim
+
+    feat_shape = img_shape[-1] // (patch_size * (2 ** (len(dim_repeats) - 1)))
     if pool is not None:
         layers.append(pool(kernel_size=feat_shape))
         feat_shape = 1

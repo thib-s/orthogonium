@@ -508,7 +508,7 @@ class BCOPTranspose(nn.ConvTranspose2d):
         self.padding_mode = padding_mode
         self.kernel_size = kernel_size
         self.stride = stride
-        self.padding = padding
+        # self.padding = padding
         self.groups = groups
         self.in_channels = in_channels
         self.out_channels = out_channels

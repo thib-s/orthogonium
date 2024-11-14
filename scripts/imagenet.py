@@ -7,6 +7,7 @@ import time
 import warnings
 from enum import Enum
 
+import schedulefree
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -285,9 +286,15 @@ def main_worker(gpu, ngpus_per_node, args):
         device = torch.device("cpu")
     # define loss function (criterion), optimizer, and learning rate scheduler
     # criterion = nn.CrossEntropyLoss().to(device)
-    criterion = Cosine_VRA_Loss(gamma=0.1, L=2 / 0.225, eps=36 / 255).to(device)
+    criterion = Cosine_VRA_Loss(gamma=0.0, L=2 / 0.225, eps=36 / 255).to(device)
 
-    optimizer = torch.optim.NAdam(
+    # optimizer = torch.optim.NAdam(
+    #     model.parameters(),
+    #     args.lr,
+    #     # momentum=args.momentum,
+    #     weight_decay=args.weight_decay,
+    # )
+    optimizer = schedulefree.AdamWScheduleFree(
         model.parameters(),
         args.lr,
         # momentum=args.momentum,
@@ -295,12 +302,12 @@ def main_worker(gpu, ngpus_per_node, args):
     )
 
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    scheduler = ChainedScheduler(
-        [
-            LinearLR(optimizer, 0.1, 1.0, 1),
-            StepLR(optimizer, step_size=30, gamma=0.1),
-        ]
-    )
+    # scheduler = ChainedScheduler(
+    #     [
+    #         LinearLR(optimizer, 0.1, 1.0, 1),
+    #         StepLR(optimizer, step_size=30, gamma=0.1),
+    #     ]
+    # )
     # StepLR(optimizer, step_size=30, gamma=0.1)
 
     # optionally resume from a checkpoint
@@ -320,7 +327,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 best_acc1 = best_acc1.to(args.gpu)
             model.load_state_dict(checkpoint["state_dict"])
             optimizer.load_state_dict(checkpoint["optimizer"])
-            scheduler.load_state_dict(checkpoint["scheduler"])
+            # scheduler.load_state_dict(checkpoint["scheduler"])
             print(
                 "=> loaded checkpoint '{}' (epoch {})".format(
                     args.resume, checkpoint["epoch"]
@@ -412,7 +419,7 @@ def main_worker(gpu, ngpus_per_node, args):
         # evaluate on validation set
         acc1 = validate(val_loader, model, criterion, args)
 
-        scheduler.step()
+        # scheduler.step()
 
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
@@ -428,7 +435,7 @@ def main_worker(gpu, ngpus_per_node, args):
                     "state_dict": model.state_dict(),
                     "best_acc1": best_acc1,
                     "optimizer": optimizer.state_dict(),
-                    "scheduler": scheduler.state_dict(),
+                    # "scheduler": scheduler.state_dict(),
                 },
                 is_best,
                 filename=f"checkpoint_{args.arch}_{best_acc1}.pth.tar",
