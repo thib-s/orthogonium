@@ -239,7 +239,7 @@ class Residual(nn.Module):
 #     )
 
 
-def SplitConcatNet(
+def AOCNetV1(
     img_shape=(3, 224, 224),
     n_classes=1000,
     expand_factor=2,
@@ -1008,10 +1008,10 @@ def LargeStagedCNN(
 
 
 MODELS = {
-    "SplitConcatNet-M": lambda *args, **kwargs: SplitConcatNet(
+    "SplitConcatNet-M": lambda *args, **kwargs: AOCNetV1(
         *args, **kwargs, **SplitConcatNetConfigs["M"]
     ),
-    "SplitConcatNet-M2": lambda *args, **kwargs: SplitConcatNet(
+    "SplitConcatNet-M2": lambda *args, **kwargs: AOCNetV1(
         *args, **kwargs, **SplitConcatNetConfigs["M2"]
     ),
     "LipResNet": LipResNet,
