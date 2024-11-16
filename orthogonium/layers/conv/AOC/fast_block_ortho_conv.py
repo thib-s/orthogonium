@@ -95,7 +95,7 @@ def fast_batched_matrix_conv(m1, m2, groups=1):
     return r2
 
 
-def block_orth(p1, p2):
+def block_orth(p1, p2, c1, c2):
     """Construct a 2x2 orthogonal matrix from two orthogonal orthogonal projectors.
     Each projector can be seen as a 1x1 convolution, hence the stacking spatial stacking
     of [pi, I-pi] can be seen as a 2x1 or 1x2 orthogonal convolution. By using the block
@@ -116,7 +116,11 @@ def block_orth(p1, p2):
     eye = torch.eye(n, device=p1.device, dtype=p1.dtype)
     # sorry for using x as a batch dimension, but this einsum was hard to write (thank you unit tests!)
     res = torch.einsum(
-        "bgxij,cgxjk->xgikbc", torch.stack([p1, eye - p1]), torch.stack([p2, eye - p2])
+        "bgxij,cgxjk,gxkl,gxlm->xgimbc",
+        torch.stack([p1, eye - p1]),
+        torch.stack([p2, eye - p2]),
+        c1,
+        c2,
     )
     # we reshape the result to get a 2x2 conv kernel
     res = res.reshape(x, g * n, n, 2, 2)
@@ -200,26 +204,26 @@ class BCOPTrivializer(nn.Module):
         # we can rewrite PQ@PQ.t as an einsum
         PQ = torch.einsum("gijl,gikl->gijk", PQ, PQ)
         # PQ = PQ @ PQ.transpose(-1, -2)
-        # we build the 1x1 conv using the two first matrices
-        # we construct the (c, c) matrix by computing (I - 2*PQ[0]) @ (I - 2*PQ[1])
-        # this is an extension of Householder reflection to the matrix case where
-        # instead of reflecting a vector and compose c matrices, we reflect 2
-        # (c, c//2) matrices. This results in an orthogonal matrix, but the fact that
-        # any orthogonal matrix can be decomposed this way is yet to be proven.
-        c11 = ident - 2 * PQ[:, 0]
-        c11 = c11 @ (ident - 2 * PQ[:, 1])
-        # reshape the matrix to build a 1x1 conv
-        c11 = c11.view(
-            self.max_channels,
-            self.max_channels // self.groups,
-            1,
-            1,
-        )
-        # if the number of channels is different, we need to remove the extra channels
-        # this results in a row/column othogonal matrix. It is still more efficient than
-        # doing a separate orthogonalization (as shapes differs).
-        if self.in_channels != self.out_channels:
-            c11 = c11[:, : self.min_channels // self.groups, :, :]
+        # # we build the 1x1 conv using the two first matrices
+        # # we construct the (c, c) matrix by computing (I - 2*PQ[0]) @ (I - 2*PQ[1])
+        # # this is an extension of Householder reflection to the matrix case where
+        # # instead of reflecting a vector and compose c matrices, we reflect 2
+        # # (c, c//2) matrices. This results in an orthogonal matrix, but the fact that
+        # # any orthogonal matrix can be decomposed this way is yet to be proven.
+        # c11 = ident - 2 * PQ[:, 0]
+        # c11 = c11 @ (ident - 2 * PQ[:, 1])
+        # # reshape the matrix to build a 1x1 conv
+        # c11 = c11.view(
+        #     self.max_channels,
+        #     self.max_channels // self.groups,
+        #     1,
+        #     1,
+        # )
+        # # if the number of channels is different, we need to remove the extra channels
+        # # this results in a row/column othogonal matrix. It is still more efficient than
+        # # doing a separate orthogonalization (as shapes differs).
+        # if self.in_channels != self.out_channels:
+        #     c11 = c11[:, : self.min_channels // self.groups, :, :]
 
         # build all 2x2 convs in parallel
         # half of the matrices will be used to create a 2x1 conv while the other half
@@ -227,14 +231,18 @@ class BCOPTrivializer(nn.Module):
         # to build a 2x2 conv. c12 and c21 are notation abuse, since the tensors represent
         # 1x1 convs (it is the vertical/horizontal stacking of c12/c21 with (I-c12) and (I-c21)
         # that will result in a 1x2/2x1 conv)
-        c12 = PQ[:, 2 : 2 + (self.kernel_size - 1), :, :]
-        c21 = PQ[:, 2 + (self.kernel_size - 1) :, :, :]
+        c12 = PQ[:, : (self.kernel_size - 1), :, :]
+        c21 = PQ[:, (self.kernel_size - 1) : 2 * (self.kernel_size - 1), :, :]
+        c11 = PQ[:, 2 * (self.kernel_size - 1) :, :, :]
+        c11 = (
+            ident.view(
+                1, 1, self.max_channels // self.groups, self.max_channels // self.groups
+            )
+            - 2 * c11
+        )
         c22 = block_orth(
-            c12, c21
+            c12, c21, c11[:, : (self.kernel_size - 1)], c11[:, (self.kernel_size - 1) :]
         )  # this is an efficient and parallel way to compute the 2x2 convs
-        # i used to belive that transposing half of the matrices would alleviate the expressiveness
-        # issue, but it is not notable.
-        # c22[1::2] = -c22[1::2].flip(-1, -2)
 
         # we now need to compose the 2x2 convs to build the k*k kernel
         # by using the associativity of the block conv operator we can
@@ -246,8 +254,8 @@ class BCOPTrivializer(nn.Module):
             mid = c22.shape[0] // 2
             c22 = fast_batched_matrix_conv(c22[:mid], c22[mid:], self.groups)
         # we finally compose the 1x1 conv with the kxk conv
-        res = c11
-        for i in range(c22.shape[0]):  # c22.shape[0] == 1 if k-1 is a power of two
+        res = c22[0]
+        for i in range(1, c22.shape[0]):  # c22.shape[0] == 1 if k-1 is a power of two
             res = fast_matrix_conv(res, c22[i], self.groups)
         # if contiguous optimization is enabled, we constructed a conv with twice the number
         # of channels, we need to remove the extra channels
@@ -255,6 +263,9 @@ class BCOPTrivializer(nn.Module):
             res = res[
                 : self.max_channels // 2, : self.min_channels // self.groups, :, :
             ]
+        if self.in_channels != self.out_channels:
+            res = res[:, : self.min_channels // self.groups, :, :]
+
         # since it is less expensive to compute the transposed kernel when co < ci
         # we transpose the kernel if needed
         if self.transpose:
@@ -285,9 +296,9 @@ def attach_bcop_weight(
     in_channels *= groups  # compute the real number of input channels
     assert kernel_size == k2, "only square kernels are supported for the moment"
     max_channels = max(in_channels, out_channels)
-    num_kernels = (
-        2 * kernel_size
-    )  # the number of projectors needed to create the kernel
+    num_kernels = 4 * (
+        kernel_size - 1
+    )  # 2 per 2x2 blocs + 2 per 1x1 convs  # the number of projectors needed to create the kernel
     contiguous_optimization = ortho_params.contiguous_optimization
     # register projectors matrices
     layer.register_parameter(
