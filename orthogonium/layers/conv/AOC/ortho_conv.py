@@ -39,7 +39,7 @@ def AdaptiveOrthoConv2d(
     if kernel_size == stride:
         convclass = RKOConv2d
     elif (stride == 1) or (in_channels >= out_channels):
-        convclass = FlashBCOP
+        convclass = BcopRkoConv2d
     else:
         convclass = BcopRkoConv2d
     return convclass(

@@ -17,8 +17,8 @@ from torchvision.transforms import RandomResizedCrop
 from torchvision.transforms import ToTensor
 
 from orthogonium.classparam import ClassParam
-from orthogonium.layers.conv.ortho_conv import OrthoConv2d
-from orthogonium.layers.conv.rko_conv import OrthoLinear
+from orthogonium.layers.conv.AOC import AdaptiveOrthoConv2d
+from orthogonium.layers.linear import OrthoLinear
 from orthogonium.layers.custom_activations import MaxMin
 from orthogonium.losses import LossXent
 from orthogonium.losses import VRA
@@ -33,8 +33,7 @@ torch.set_float32_matmul_precision("medium")
 this_directory = os.path.abspath(os.path.dirname(__file__))
 parent_directory = os.path.abspath(os.path.join(this_directory, os.pardir))
 
-MAX_EPOCHS = 3000  # might seem large, but training is shorter
-# than the setup of https://arxiv.org/abs/2311.16833
+MAX_EPOCHS = 3000  # might seem large, but this amounts to only 150k steps
 
 
 class Cifar10DataModule(pytorch_lightning.LightningDataModule):
@@ -132,7 +131,7 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
             dim_nb_dense=(1024, 5),
             n_classes=10,
             conv=ClassParam(
-                OrthoConv2d,
+                AdaptiveOrthoConv2d,
                 bias=True,
                 padding_mode="circular",
                 kernel_size=3,
@@ -257,9 +256,8 @@ def train():
     wandb_logger = WandbLogger(project="lipschitz-robust-cifar10", log_model=True)
     trainer = pytorch_lightning.Trainer(
         accelerator="gpu",
-        devices=[1],  # GPUs per node
+        devices=-1,  # GPUs per node
         num_nodes=1,  # Number of nodes
-        # num_nodes=3,  # Number of nodes
         strategy="ddp",  # Distributed strategy
         precision="bf16-mixed",
         max_epochs=MAX_EPOCHS,

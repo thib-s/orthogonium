@@ -9,8 +9,8 @@ from orthogonium.layers import LayerCentering2D
 from orthogonium.layers import MaxMin
 from orthogonium.layers import OrthoLinear
 from orthogonium.layers import UnitNormLinear
-from orthogonium.layers.conv.sll_layer import SDPBasedLipschitzConv
-from orthogonium.layers.conv.sll_layer import SDPBasedLipschitzResBlock
+from orthogonium.layers.conv.SLL.sll_layer import SDPBasedLipschitzConv
+from orthogonium.layers.conv.SLL.sll_layer import SDPBasedLipschitzResBlock
 from orthogonium.layers.linear.reparametrizers import DEFAULT_ORTHO_PARAMS
 
 
