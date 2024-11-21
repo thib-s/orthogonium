@@ -29,7 +29,7 @@
 </div>
 <br>
 
-# Orthogonium: Improved implementations of orthogonal layers
+# ✨ Orthogonium: Improved implementations of orthogonal layers
 
 This library aims to centralize, standardize and improve methods to 
 build orthogonal layers, with a focus on convolutional layers . We noticed that a layer's implementation play a
@@ -38,18 +38,19 @@ allows larger networks and more training steps within the same compute
 budget. So our implementation differs from original papers in order to 
 be faster, to consume less memory or be more flexible.
 
-## What is included in this library ?
+# 📃 What is included in this library ?
 
-| Layer name   | Description                                                                                                                        | Orthogonal ? | Usage                                                                                                                              | Status         |
-|--------------|------------------------------------------------------------------------------------------------------------------------------------|--------------|------------------------------------------------------------------------------------------------------------------------------------|----------------|
-| AOC          | The most scalable method to build orthogonal convolution. Allows control of kernel size, stride, groups dilation and convtranspose | Orthogonal   | A flexible method for complex architectures. Preserve orthogonality and works on large scale images.                               | done           |
-| Adaptive-SOC | SOC modified to be: i) faster and memory efficient ii) handle stride, groups, dilation & convtranspose                             | Orthogonal   | Good for depthwise convolutions and cases where control over the kernel size is not required                                       | in progress    |
-| SLL          | The original SLL layer, which is already quite efficient.                                                                          | 1-Lipschitz  | Well suited for residual blocks, it also contains ReLU activations.                                                                | done           |
-| SLL-AOC      | SLL-AOC is to the downsampling block what SLL is to the residual block (see ResNet paper)                                          | 1-Lipschitz  | Allows to construct a "strided" residual block than can change the number of channels. It adds a convolution in the residual path. | done           |
-| Sandwish-AOC | Sandwish convolutions that uses AOC to replace the FFT. Allowing it to scale to large images.                                      | 1-Lipschitz  |                                                                                                                                    | pending        |
-| Adaptive-ECO | ECO modified to i) handle stride, groups & convtranspose                                                                           | Orthogonal   |                                                                                                                                    | (low priority) |
+| Layer name          | Description                                                                                                                        | Orthogonal ? | Usage                                                                                                                              | Status         |
+|---------------------|------------------------------------------------------------------------------------------------------------------------------------|--------------|------------------------------------------------------------------------------------------------------------------------------------|----------------|
+| AOC (Adaptive-BCOP) | The most scalable method to build orthogonal convolution. Allows control of kernel size, stride, groups dilation and convtranspose | Orthogonal   | A flexible method for complex architectures. Preserve orthogonality and works on large scale images.                               | done           |
+| Adaptive-SC-Fac     | Same as previous layer but based on SC-Fac instead of BCOP, which claims a complete parametrization of separable convolutions      | Orthogonal   | Same as above                                                                                                                      | pending        |
+| Adaptive-SOC        | SOC modified to be: i) faster and memory efficient ii) handle stride, groups, dilation & convtranspose                             | Orthogonal   | Good for depthwise convolutions and cases where control over the kernel size is not required                                       | in progress    |
+| SLL                 | The original SLL layer, which is already quite efficient.                                                                          | 1-Lipschitz  | Well suited for residual blocks, it also contains ReLU activations.                                                                | done           |
+| SLL-AOC             | SLL-AOC is to the downsampling block what SLL is to the residual block (see ResNet paper)                                          | 1-Lipschitz  | Allows to construct a "strided" residual block than can change the number of channels. It adds a convolution in the residual path. | done           |
+| Sandwish-AOC        | Sandwish convolutions that uses AOC to replace the FFT. Allowing it to scale to large images.                                      | 1-Lipschitz  |                                                                                                                                    | pending        |
+| Adaptive-ECO        | ECO modified to i) handle stride, groups & convtranspose                                                                           | Orthogonal   |                                                                                                                                    | (low priority) |
 
-### directory structure
+## directory structure
 
 ```
 orthogonium
@@ -72,14 +73,20 @@ orthogonium
 ├── losses # loss functions, VRA estimation
 ```
 
-### AOC:
+## AOC:
 
 AOC is a method that allows to build orthogonal convolutions with 
 an explicit kernel, that support all features like stride, conv transposed,
 grouped convolutions and dilation (and all compositions of these parameters). This approach is highly scalable, and can
 be applied to problems like Imagenet-1K.
 
-### Adaptive-SOC:
+## Adaptive-SC-FAC:
+
+As AOC is built on top of BCOP method, we can construct an equivalent method constructed on top of SC-Fac instead.
+This will allow to compare performance of the two methods given that they have very similar parametrization. (See our 
+paper for discussions about the similarities and differences between the two methods).
+
+## Adaptive-SOC:
 
 Adaptive-SOC blend the approach of AOC and SOC. It differs from SOC in the way that it is more memory efficient and 
 sometimes faster. It also allows to handle stride, groups, dilation and transposed convolutions. However, it does not allow to 
@@ -88,15 +95,15 @@ It is due to the computation to the exponential of a kernel that increases the k
 
 Its development is still in progress, so extra testing is still require to ensure exact orthogonality.
 
-### SLL:
+## SLL:
 
 SLL is a method that allows to construct small residual blocks with ReLU activations. We kept most to the original 
 implementation, and added `SDPBasedLipschitzAOCConv` that construct a down-sampling residual block by fusing SLL with 
 $AOC.
 
-### more layers are coming soon !
+## more layers are coming soon !
 
-## Install the library:
+# 🏠 Install the library:
 
 The library will soon be available on pip, in the meanwhile, you can clone the repository and run the following command 
 to install it locally:
@@ -104,7 +111,7 @@ to install it locally:
 pip install -e .
 ```
 
-### Use the layer:
+## Use the layer:
 
 ```python
 from orthogonium.layers.conv.AOC import AdaptiveOrthoConv2d
@@ -113,25 +120,25 @@ from orthogonium.layers.linear.reparametrizers import DEFAULT_ORTHO_PARAMS
 # use OrthoConv2d with the same params as torch.nn.Conv2d
 
 conv = AdaptiveOrthoConv2d(
-  kernel_size=3,
+  kernel_size=kernel_size,
   in_channels=256,
   out_channels=256,
   stride=2,
   groups=16,
-  bias=bias,
+  bias=True,
   padding=(kernel_size // 2, kernel_size // 2),
   padding_mode="circular",
   ortho_params=DEFAULT_ORTHO_PARAMS
 )
 ```
 
-## Model Zoo
+# 🐯 Model Zoo
 
 Stay tuned, a model zoo will be available soon !
 
 
 
-# Disclaimer
+# 💥Disclaimer
 
 Given the great quality of the original implementations, orthogonium do not focus on reproducing exactly the results of
 the original papers, but rather on providing a more efficient implementation. Some degradations in the final provable 
@@ -139,7 +146,29 @@ accuracy may be observed when reproducing the results of the original papers, we
 in terms of scalability is worth it. This library aims to provide more scalable and versatile implementations for people who seek to use orthogonal layers 
 in a larger scale setting.
 
-# Contributing
+# 🔭 Ressources
+
+## 1 Lipschitz CNNs and orthogonal CNNs
+
+- 1-Lipschitz Layers Compared: [github](https://github.com/berndprach/1LipschitzLayersCompared) and [paper](https://berndprach.github.io/publication/1LipschitzLayersCompared)
+- BCOP: [github](https://github.com/ColinQiyangLi/LConvNet) and [paper](https://arxiv.org/abs/1911.00937)
+- SC-Fac: [paper](https://arxiv.org/abs/2106.09121)
+- ECO: [paper](https://openreview.net/forum?id=Zr5W2LSRhD)
+- Cayley: [github](https://github.com/locuslab/orthogonal-convolutions) and [paper](https://arxiv.org/abs/2104.07167)
+- LOT: [github](https://github.com/AI-secure/Layerwise-Orthogonal-Training) and [paper](https://arxiv.org/abs/2210.11620)
+- ProjUNN-T: [github](https://github.com/facebookresearch/projUNN) and [paper](https://arxiv.org/abs/2203.05483)
+- SLL: [github](https://github.com/araujoalexandre/Lipschitz-SLL-Networks) and [paper](https://arxiv.org/abs/2303.03169)
+- Sandwish: [github](https://github.com/acfr/LBDN) and [paper](https://arxiv.org/abs/2301.11526)
+- AOL: [github](https://github.com/berndprach/AOL) and [paper](https://arxiv.org/abs/2208.03160)
+- SOC: [github](https://github.com/singlasahil14/SOC) and [paper 1](https://arxiv.org/abs/2105.11417), [paper 2](https://arxiv.org/abs/2211.08453)
+
+## Lipschitz constant evaluation
+
+- [Spectral Norm of Convolutional Layers with Circular and Zero Paddings](https://arxiv.org/abs/2402.00240) 
+- [Efficient Bound of Lipschitz Constant for Convolutional Layers by Gram Iteration](https://arxiv.org/abs/2305.16173)
+- [github of the two papers](https://github.com/blaisedelattre/lip4conv/tree/main)
+
+# 🍻 Contributing
 
 This library is still in a very early stage, so expect some bugs and missing features. Also, before the version 1.0.0,
 the API may change and no backward compatibility will be ensured, this will allow a rapid integration of new features.
