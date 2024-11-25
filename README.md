@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="assets/banner.png" width="75%" alt="Orthogonium" align="center" />
+    <img src="assets/banner.png" width="50%" alt="Orthogonium" align="center" />
 </div>
 <br>
 
