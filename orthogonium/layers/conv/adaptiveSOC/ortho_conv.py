@@ -1,18 +1,20 @@
 from typing import Union
-
 from torch import nn as nn
 from torch.nn.common_types import _size_2_t
-
-from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConv2d
-from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConvTranspose2d
-from orthogonium.layers.conv.AOC.fast_block_ortho_conv import BCOPTranspose
-from orthogonium.layers.conv.AOC.fast_block_ortho_conv import FlashBCOP
 from orthogonium.layers.conv.AOC.rko_conv import RKOConv2d
 from orthogonium.layers.conv.AOC.rko_conv import RkoConvTranspose2d
+from orthogonium.layers.conv.adaptiveSOC.fast_skew_ortho_conv import (
+    FastSOC,
+    SOCTranspose,
+)
+from orthogonium.layers.conv.adaptiveSOC.soc_x_rko_conv import (
+    SOCRkoConv2d,
+    SOCRkoConvTranspose2d,
+)
 from orthogonium.layers.linear.reparametrizers import OrthoParams
 
 
-def AdaptiveOrthoConv2d(
+def AdaptiveSOCConv2d(
     in_channels: int,
     out_channels: int,
     kernel_size: _size_2_t,
@@ -39,9 +41,9 @@ def AdaptiveOrthoConv2d(
     if kernel_size == stride:
         convclass = RKOConv2d
     elif (stride == 1) or (in_channels >= out_channels):
-        convclass = BcopRkoConv2d
+        convclass = FastSOC
     else:
-        convclass = BcopRkoConv2d
+        convclass = SOCRkoConv2d
     return convclass(
         in_channels,
         out_channels,
@@ -52,11 +54,11 @@ def AdaptiveOrthoConv2d(
         groups,
         bias,
         padding_mode,
-        ortho_params=ortho_params,
+        # ortho_params=ortho_params,
     )
 
 
-def AdaptiveOrthoConvTranspose2d(
+def AdaptiveSOCConvTranspose2d(
     in_channels: int,
     out_channels: int,
     kernel_size: _size_2_t,
@@ -88,9 +90,9 @@ def AdaptiveOrthoConvTranspose2d(
     if kernel_size == stride:
         convclass = RkoConvTranspose2d
     elif stride == 1:
-        convclass = BCOPTranspose
+        convclass = SOCTranspose
     else:
-        convclass = BcopRkoConvTranspose2d
+        convclass = SOCRkoConvTranspose2d
     return convclass(
         in_channels,
         out_channels,
@@ -102,5 +104,5 @@ def AdaptiveOrthoConvTranspose2d(
         bias,
         dilation,
         padding_mode,
-        ortho_params=ortho_params,
+        # ortho_params=ortho_params,
     )

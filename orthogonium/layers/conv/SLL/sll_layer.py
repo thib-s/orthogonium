@@ -155,7 +155,7 @@ class SDPBasedLipschitzDense(nn.Module):
         return out
 
 
-class SDPBasedLipschitzBCOPConv(nn.Module):
+class SDPBasedLipschitzAOCConv(nn.Module):
     def __init__(
         self,
         in_channels: int,
