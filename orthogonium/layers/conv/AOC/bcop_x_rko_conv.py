@@ -7,7 +7,10 @@ from torch import nn as nn
 from torch.nn.common_types import _size_2_t
 from torch.nn.utils import parametrize as parametrize
 
-from orthogonium.layers.conv.AOC.fast_block_ortho_conv import attach_bcop_weight
+from orthogonium.layers.conv.AOC.fast_block_ortho_conv import (
+    attach_bcop_weight,
+    transpose_kernel,
+)
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import conv_singular_values_numpy
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import fast_matrix_conv
 from orthogonium.layers.conv.AOC.rko_conv import attach_rko_weight
@@ -50,6 +53,12 @@ class BcopRkoConv2d(nn.Conv2d):
             bias,
             padding_mode,
         )
+        if (self.dilation[0] != 1 or self.dilation[1] != 1) and (
+            self.stride[0] != 1 or self.stride[1] != 1
+        ):
+            raise RuntimeError(
+                "dilation must be 1 when stride is not 1. The set of orthonal convolutions is empty in this setting."
+            )
         # raise runtime error if kernel size >= stride
         if self.kernel_size[0] < self.stride[0] or self.kernel_size[1] < self.stride[1]:
             raise RuntimeError(
@@ -197,6 +206,12 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
         )
 
         # raise runtime error if kernel size >= stride
+        if (self.dilation[0] != 1 or self.dilation[1] != 1) and (
+            self.stride[0] != 1 or self.stride[1] != 1
+        ):
+            raise RuntimeError(
+                "dilation must be 1 when stride is not 1. The set of orthonal convolutions is empty in this setting."
+            )
         if self.kernel_size[0] < self.stride[0] or self.kernel_size[1] < self.stride[1]:
             raise RuntimeError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
