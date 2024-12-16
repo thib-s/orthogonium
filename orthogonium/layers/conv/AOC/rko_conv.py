@@ -121,8 +121,14 @@ class RKOConv2d(nn.Conv2d):
             padding_mode,
         )
         # torch.nn.init.orthogonal_(self.weight)
-        if stride != kernel_size:
-            self.scale = 1 / math.sqrt(kernel_size * kernel_size)
+        if (
+            self.stride[0] != self.kernel_size[0]
+            or self.stride[1] != self.kernel_size[1]
+        ):
+            self.scale = 1 / math.sqrt(
+                math.ceil(self.kernel_size[0] / self.stride[0])
+                * math.ceil(self.kernel_size[1] / self.stride[1])
+            )
         else:
             self.scale = 1
         parametrize.register_parametrization(
@@ -132,8 +138,8 @@ class RKOConv2d(nn.Conv2d):
                 kernel_shape=(
                     out_channels,
                     in_channels // self.groups,
-                    kernel_size,
-                    kernel_size,
+                    self.kernel_size[0],
+                    self.kernel_size[1],
                 ),
                 groups=self.groups,
                 scale=self.scale,
@@ -146,20 +152,15 @@ class RKOConv2d(nn.Conv2d):
         return super(RKOConv2d, self).forward(X)
 
     def singular_values(self):
-        if isinstance(self.kernel_size, tuple):
-            kernel_size = self.kernel_size
-        else:
-            kernel_size = (self.kernel_size, self.kernel_size)
-        if isinstance(self.stride, tuple):
-            stride = self.stride
-        else:
-            stride = (self.stride, self.stride)
-        if (stride[0] == kernel_size[0]) and (stride[1] == kernel_size[1]):
+        if (self.stride[0] == self.kernel_size[0]) and (
+            self.stride[1] == self.kernel_size[1]
+        ):
             svs = np.linalg.svd(
                 self.weight.reshape(
                     self.groups,
                     self.out_channels // self.groups,
-                    (self.in_channels // self.groups) * (stride[0] * stride[1]),
+                    (self.in_channels // self.groups)
+                    * (self.stride[0] * self.stride[1]),
                 )
                 .detach()
                 .cpu()
@@ -170,7 +171,7 @@ class RKOConv2d(nn.Conv2d):
             sv_max = svs.max()
             stable_rank = np.mean(svs) / (svs.max() ** 2)
             return sv_min, sv_max, stable_rank
-        elif stride[0] > 1 or stride[1] > 1:
+        elif self.stride[0] > 1 or self.stride[1] > 1:
             raise RuntimeError(
                 "Not able to compute singular values for this " "configuration"
             )
@@ -182,8 +183,8 @@ class RKOConv2d(nn.Conv2d):
                 self.groups,
                 self.out_channels // self.groups,
                 self.in_channels // self.groups,
-                kernel_size[0],
-                kernel_size[1],
+                self.kernel_size[0],
+                self.kernel_size[1],
             )
             .numpy(),
             self._input_shape,
@@ -206,8 +207,6 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
         padding_mode: str = "zeros",
         ortho_params: OrthoParams = OrthoParams(),
     ):
-        if dilation != 1:
-            raise RuntimeError("dilation not supported")
         super(RkoConvTranspose2d, self).__init__(
             in_channels,
             out_channels,
@@ -220,17 +219,9 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
             dilation,
             padding_mode,
         )
-        self.padding_mode = padding_mode
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-        self.groups = groups
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.max_channels = max(in_channels, out_channels)
 
         # raise runtime error if kernel size >= stride
-        if kernel_size < stride:
+        if self.kernel_size[0] > self.stride[0] or self.kernel_size[1] > self.stride[1]:
             raise RuntimeError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
             )
@@ -238,41 +229,37 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
             raise RuntimeError(
                 "in_channels and out_channels must be divisible by groups"
             )
-        self.padding = padding
-        self.stride = stride
-        self.kernel_size = kernel_size
-        self.groups = groups
+
+        if (
+            self.stride[0] != self.kernel_size[0]
+            or self.stride[1] != self.kernel_size[1]
+        ):
+            self.scale = 1 / math.sqrt(
+                math.ceil(self.kernel_size[0] / self.stride[0])
+                * math.ceil(self.kernel_size[1] / self.stride[1])
+            )
+        else:
+            self.scale = 1
         del self.weight
         attach_rko_weight(
             self,
             "weight",
-            (in_channels, out_channels // groups, stride, stride),
+            (in_channels, out_channels // groups, self.stride[0], self.stride[1]),
             groups,
-            scale=1.0,
+            scale=self.scale,
             ortho_params=ortho_params,
         )
 
-        if bias:
-            self.bias = nn.Parameter(torch.Tensor(out_channels))
-            nn.init.zeros_(self.bias)
-        else:
-            self.register_parameter("bias", None)
-
     def singular_values(self):
-        if isinstance(self.kernel_size, tuple):
-            kernel_size = self.kernel_size
-        else:
-            kernel_size = (self.kernel_size, self.kernel_size)
-        if isinstance(self.stride, tuple):
-            stride = self.stride
-        else:
-            stride = (self.stride, self.stride)
-        if (stride[0] == kernel_size[0]) and (stride[1] == kernel_size[1]):
+        if (self.stride[0] == self.kernel_size[0]) and (
+            self.stride[1] == self.kernel_size[1]
+        ):
             svs = np.linalg.svd(
                 self.weight.reshape(
                     self.groups,
                     self.in_channels // self.groups,
-                    (self.out_channels // self.groups) * (stride[0] * stride[1]),
+                    (self.out_channels // self.groups)
+                    * (self.stride[0] * self.stride[1]),
                 )
                 .detach()
                 .cpu()
@@ -283,7 +270,7 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
             sv_max = svs.max()
             stable_rank = np.mean(svs) / (svs.max() ** 2)
             return sv_min, sv_max, stable_rank
-        elif stride[0] > 1 or stride[1] > 1:
+        elif self.stride[0] > 1 or self.stride[1] > 1:
             raise RuntimeError(
                 "Not able to compute singular values for this " "configuration"
             )
@@ -295,8 +282,8 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
                 self.groups,
                 self.out_channels // self.groups,
                 self.in_channels // self.groups,
-                kernel_size[0],
-                kernel_size[1],
+                self.kernel_size[0],
+                self.kernel_size[1],
             )
             .numpy(),
             self._input_shape,

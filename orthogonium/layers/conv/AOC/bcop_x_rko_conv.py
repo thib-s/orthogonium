@@ -39,8 +39,6 @@ class BcopRkoConv2d(nn.Conv2d):
         It is advised to use the OrthogonalConv2d class instead of this one, as it
         instanciates the most efficient convolution for the given configuration.
         """
-        if dilation != 1:
-            warnings.warn("dilation not supported", RuntimeWarning)
         super(BcopRkoConv2d, self).__init__(
             in_channels,
             out_channels,
@@ -52,17 +50,8 @@ class BcopRkoConv2d(nn.Conv2d):
             bias,
             padding_mode,
         )
-        self.padding_mode = padding_mode
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-        self.groups = groups
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.max_channels = max(in_channels, out_channels)
-
         # raise runtime error if kernel size >= stride
-        if kernel_size < stride:
+        if self.kernel_size[0] < self.stride[0] or self.kernel_size[1] < self.stride[1]:
             raise RuntimeError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
             )
@@ -70,18 +59,15 @@ class BcopRkoConv2d(nn.Conv2d):
             raise RuntimeError(
                 "in_channels and out_channels must be divisible by groups"
             )
-        if ((self.max_channels // groups) < 2) and (kernel_size != stride):
+        if (
+            ((max(in_channels, out_channels) // groups) < 2)
+            and (self.kernel_size[0] != self.stride[0])
+            and (self.kernel_size[1] != self.stride[1])
+        ):
             raise RuntimeError("inner conv must have at least 2 channels")
-        self.padding = padding
-        self.stride = stride
-        self.kernel_size = kernel_size
-        self.groups = groups
-        self.intermediate_channels = max(in_channels, out_channels // stride**2)
-        ## oddly the following condition seems to not work
-        # if in_channels >= out_channels * (stride**2):
-        #     self.intermediate_channels = in_channels
-        # else:
-        #     self.intermediate_channels = out_channels * (stride**2)
+        self.intermediate_channels = max(
+            in_channels, out_channels // (self.stride[0] * self.stride[1])
+        )
         del self.weight
         attach_bcop_weight(
             self,
@@ -89,8 +75,8 @@ class BcopRkoConv2d(nn.Conv2d):
             (
                 self.intermediate_channels,
                 in_channels // groups,
-                kernel_size - (stride - 1),
-                kernel_size - (stride - 1),
+                max(1, self.kernel_size[0] - (self.stride[0] - 1)),
+                max(1, self.kernel_size[1] - (self.stride[1] - 1)),
             ),
             groups,
             ortho_params,
@@ -98,17 +84,16 @@ class BcopRkoConv2d(nn.Conv2d):
         attach_rko_weight(
             self,
             "weight_2",
-            (out_channels, self.intermediate_channels // groups, stride, stride),
+            (
+                out_channels,
+                self.intermediate_channels // groups,
+                self.stride[0],
+                self.stride[1],
+            ),
             groups,
             scale=1.0,
             ortho_params=ortho_params,
         )
-
-        if bias:
-            self.bias = nn.Parameter(torch.Tensor(out_channels))
-            nn.init.zeros_(self.bias)
-        else:
-            self.register_parameter("bias", None)
 
     @property
     def weight(self):
@@ -147,8 +132,8 @@ class BcopRkoConv2d(nn.Conv2d):
                 self.groups,
                 self.intermediate_channels // self.groups,
                 self.in_channels // self.groups,
-                self.kernel_size - (self.stride - 1),
-                self.kernel_size - (self.stride - 1),
+                max(1, self.kernel_size[0] - (self.stride[0] - 1)),
+                max(1, self.kernel_size[1] - (self.stride[1] - 1)),
             )
             .numpy(),
             self._input_shape,
@@ -157,7 +142,8 @@ class BcopRkoConv2d(nn.Conv2d):
             self.weight_2.reshape(
                 self.groups,
                 self.out_channels // self.groups,
-                (self.intermediate_channels // self.groups) * (self.stride**2),
+                (self.intermediate_channels // self.groups)
+                * (self.stride[0] * self.stride[1]),
             )
             .detach()
             .cpu()
@@ -195,10 +181,8 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
 
         Unfortunately, circular padding is not supported for the transposed convolution.
         But unit testing have shown that the convolution is still orthogonal when
-         `out_channels * (stride**2) > in_channels`.
+         `out_channels * (self.stride[0]*self.stride[1]) > in_channels`.
         """
-        if dilation != 1:
-            raise RuntimeError("dilation not supported")
         super(BcopRkoConvTranspose2d, self).__init__(
             in_channels,
             out_channels,
@@ -211,17 +195,9 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
             dilation,
             padding_mode,
         )
-        self.padding_mode = padding_mode
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-        self.groups = groups
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.max_channels = max(in_channels, out_channels)
 
         # raise runtime error if kernel size >= stride
-        if kernel_size < stride:
+        if self.kernel_size[0] < self.stride[0] or self.kernel_size[1] < self.stride[1]:
             raise RuntimeError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
             )
@@ -229,14 +205,16 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
             raise RuntimeError(
                 "in_channels and out_channels must be divisible by groups"
             )
-        if ((self.max_channels // groups) < 2) and (kernel_size != stride):
+        if (
+            ((max(in_channels, out_channels) // groups) < 2)
+            and (self.kernel_size[0] != self.stride[0])
+            and (self.kernel_size[1] != self.stride[1])
+        ):
             raise RuntimeError("inner conv must have at least 2 channels")
-        self.padding = padding
-        self.stride = stride
-        self.kernel_size = kernel_size
-        self.groups = groups
-        if out_channels * (stride**2) >= in_channels:
-            self.intermediate_channels = max(in_channels // (stride**2), out_channels)
+        if out_channels * (self.stride[0] * self.stride[1]) >= in_channels:
+            self.intermediate_channels = max(
+                in_channels // (self.stride[0] * self.stride[1]), out_channels
+            )
         else:
             self.intermediate_channels = out_channels
             # raise warning because this configuration don't yield orthogonal
@@ -254,8 +232,8 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
             (
                 self.intermediate_channels,
                 out_channels // groups,
-                kernel_size - (stride - 1),
-                kernel_size - (stride - 1),
+                max(1, self.kernel_size[0] - (self.stride[0] - 1)),
+                max(1, self.kernel_size[1] - (self.stride[1] - 1)),
             ),
             groups,
             ortho_params=ortho_params,
@@ -263,17 +241,16 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
         attach_rko_weight(
             self,
             "weight_2",
-            (in_channels, self.intermediate_channels // groups, stride, stride),
+            (
+                in_channels,
+                self.intermediate_channels // groups,
+                self.stride[0],
+                self.stride[1],
+            ),
             groups,
             scale=1.0,
             ortho_params=ortho_params,
         )
-
-        if bias:
-            self.bias = nn.Parameter(torch.Tensor(out_channels))
-            nn.init.zeros_(self.bias)
-        else:
-            self.register_parameter("bias", None)
 
     def singular_values(self):
         if self.padding_mode != "circular":
@@ -289,8 +266,8 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
                 self.groups,
                 self.intermediate_channels // self.groups,
                 self.out_channels // self.groups,
-                self.kernel_size - (self.stride - 1),
-                self.kernel_size - (self.stride - 1),
+                max(1, self.kernel_size[0] - (self.stride[0] - 1)),
+                max(1, self.kernel_size[1] - (self.stride[1] - 1)),
             )
             .numpy(),
             self._input_shape,
@@ -299,7 +276,8 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
             self.weight_2.reshape(
                 self.groups,
                 self.in_channels // self.groups,
-                self.intermediate_channels // self.groups * (self.stride**2),
+                (self.intermediate_channels // self.groups)
+                * (self.stride[0] * self.stride[1]),
             )
             .detach()
             .cpu()
@@ -318,21 +296,6 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
         else:
             with parametrize.cached():
                 kernel = fast_matrix_conv(self.weight_1, self.weight_2, self.groups)
-        # kernel = kernel.view(
-        #     self.groups,
-        #     self.out_channels // self.groups,
-        #     self.in_channels // self.groups,
-        #     self.kernel_size,
-        #     self.kernel_size,
-        # )
-        # kernel = kernel.transpose(-3,-4).flip([-2, -1])
-        # kernel = kernel.view(
-        #     self.in_channels,
-        #     self.out_channels // self.groups,
-        #     self.kernel_size,
-        #     self.kernel_size,
-        #
-        # )
         return kernel.contiguous()
 
     def forward(self, X):
