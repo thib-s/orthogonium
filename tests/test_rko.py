@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from orthogonium.layers import RKOConv2d
+from orthogonium.layers.conv.AOC.rko_conv import RKOConv2d
 from orthogonium.layers.linear.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
 
 # from orthogonium.layers.conv.fast_block_ortho_conv import FlashBCOP

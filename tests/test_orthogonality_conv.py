@@ -6,7 +6,7 @@ from orthogonium.layers import AdaptiveOrthoConv2d
 from orthogonium.layers.linear.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
 
 
-# from orthogonium.layers.conv.fast_block_ortho_conv import FlashBCOP
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
@@ -37,11 +37,12 @@ def check_orthogonal_layer(
     imsize = 8
     # Test backpropagation and weight update
     try:
+        orthoconv.to(device)
         orthoconv.train()
         opt = torch.optim.SGD(orthoconv.parameters(), lr=0.001)
         for i in range(25):
             opt.zero_grad()
-            inp = torch.randn(1, input_channels, imsize, imsize)
+            inp = torch.randn(1, input_channels, imsize, imsize).to(device)
             output = orthoconv(inp)
             loss = -output.mean()
             loss.backward()
