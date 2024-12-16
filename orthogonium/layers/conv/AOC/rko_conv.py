@@ -120,17 +120,16 @@ class RKOConv2d(nn.Conv2d):
             bias,
             padding_mode,
         )
-        # torch.nn.init.orthogonal_(self.weight)
-        if (
-            self.stride[0] != self.kernel_size[0]
-            or self.stride[1] != self.kernel_size[1]
-        ):
-            self.scale = 1 / math.sqrt(
-                math.ceil(self.kernel_size[0] / self.stride[0])
-                * math.ceil(self.kernel_size[1] / self.stride[1])
+        if self.dilation[0] > 1 or self.dilation[1] > 1:
+            raise RuntimeWarning(
+                "Dilation must be 1 in the RKO convolution."
+                "Use RkoConvTranspose2d instead."
             )
-        else:
-            self.scale = 1
+        # torch.nn.init.orthogonal_(self.weight)
+        self.scale = 1 / math.sqrt(
+            math.ceil(self.dilation[0] * self.kernel_size[0] / self.stride[0])
+            * math.ceil(self.dilation[1] * self.kernel_size[1] / self.stride[1])
+        )
         parametrize.register_parametrization(
             self,
             "weight",
