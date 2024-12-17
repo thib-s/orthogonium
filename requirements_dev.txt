@@ -3,6 +3,7 @@ pre-commit
 tox
 black
 pytest
+pytest-cov
 pylint
 mkdocs
 mkdocs-material
