@@ -5,4 +5,3 @@ torchvision
 tqdm
 torchinfo
 einops
-pytorch-lightning

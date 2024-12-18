@@ -1,10 +1,12 @@
 import math
 import os
 
-import pytorch_lightning
 import schedulefree
 import torch.utils.data
 import torchmetrics
+from lightning.pytorch import Trainer
+from lightning.pytorch import LightningModule
+from lightning.pytorch import LightningDataModule
 from lightning.pytorch.loggers import WandbLogger
 from torch.utils.data import DataLoader
 from torchinfo import summary
@@ -36,9 +38,8 @@ parent_directory = os.path.abspath(os.path.join(this_directory, os.pardir))
 MAX_EPOCHS = 3000  # might seem large, but this amounts to only 150k steps
 
 
-class Cifar10DataModule(pytorch_lightning.LightningDataModule):
+class Cifar10DataModule(LightningDataModule):
     # Dataset configuration
-    _DATA_PATH = f"/local_data/imagenet_cache/ILSVRC/Data/CLS-LOC/"
     _BATCH_SIZE = 1024
     _NUM_WORKERS = 8  # Number of parallel processes fetching data
     _PREPROCESSING_PARAMS = {
@@ -121,7 +122,7 @@ class Cifar10DataModule(pytorch_lightning.LightningDataModule):
         )
 
 
-class ClassificationLightningModule(pytorch_lightning.LightningModule):
+class ClassificationLightningModule(LightningModule):
     def __init__(self, num_classes=10):
         super().__init__()
         self.num_classes = num_classes
@@ -254,7 +255,7 @@ def train():
     classification_module = ClassificationLightningModule(num_classes=10)
     data_module = Cifar10DataModule()
     wandb_logger = WandbLogger(project="lipschitz-robust-cifar10", log_model=True)
-    trainer = pytorch_lightning.Trainer(
+    trainer = Trainer(
         accelerator="gpu",
         devices=-1,  # GPUs per node
         num_nodes=1,  # Number of nodes

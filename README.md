@@ -61,7 +61,7 @@ orthogonium
 │   │   ├── AdaptiveSOC
 │   │   │   ├── ortho_conv.py # contains AdaptiveSOCConv2d layer (untested)
 │   │   ├── SLL
-│   │   │   ├── sll_layer.py # contains SDPBasedLipschitzConv, SDPBasedLipschitzDense, SDPBasedLipschitzAOCConv
+│   │   │   ├── sll_layer.py # contains SDPBasedLipschitzConv, SDPBasedLipschitzDense, SLLxAOCLipschitzResBlock
 │   ├── legacy
 │   │   ├── original code of BCOP, SOC, Cayley etc.
 │   ├── linear
@@ -98,7 +98,7 @@ Its development is still in progress, so extra testing is still require to ensur
 ## SLL:
 
 SLL is a method that allows to construct small residual blocks with ReLU activations. We kept most to the original 
-implementation, and added `SDPBasedLipschitzAOCConv` that construct a down-sampling residual block by fusing SLL with 
+implementation, and added `SLLxAOCLipschitzResBlock` that construct a down-sampling residual block by fusing SLL with 
 $AOC.
 
 ## more layers are coming soon !

@@ -1,12 +1,9 @@
 from dataclasses import dataclass
 from typing import Callable
 from typing import Tuple
-from typing import Union
-
 import torch
 import torch.nn.utils.parametrize as parametrize
 from torch import nn as nn
-
 from orthogonium.classparam import ClassParam
 
 
