@@ -10,5 +10,3 @@ mkdocs-material
 mkdocstrings[python]
 mknotebooks
 bump2version
-wandb
-torchsummary

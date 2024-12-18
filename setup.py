@@ -52,15 +52,15 @@ with open(os.path.join(this_directory, "orthogonium/VERSION")) as f:
 
 setup(
     # Name of the package:
-    name="flash-lipschitz",
+    name="orthogonium",
     # Version of the package:
     version=version,
     # Find the package automatically (include everything):
     packages=find_packages(include=["orthogonium"]),
     package_data={},
     # Author information:
-    author="",
-    author_email="",
+    author="Thibaut Boissin",
+    author_email="thibaut.boissin@gmail.com",
     # Description of the package:
     description="",
     long_description=readme_contents,

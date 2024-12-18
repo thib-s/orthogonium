@@ -80,7 +80,7 @@ class SDPBasedLipschitzResBlock(nn.Module):
         return out
 
 
-class SDPBasedLipschitzConv(nn.Module):
+class SLLxAOCLipschitzResBlock(nn.Module):
     def __init__(self, cin, inner_dim_factor, kernel_size=3, **kwargs):
         super().__init__()
 
@@ -155,7 +155,7 @@ class SDPBasedLipschitzDense(nn.Module):
         return out
 
 
-class SDPBasedLipschitzAOCConv(nn.Module):
+class AOCLipschitzResBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,

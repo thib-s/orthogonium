@@ -9,7 +9,7 @@ from orthogonium.layers import LayerCentering2D
 from orthogonium.layers import MaxMin
 from orthogonium.layers import OrthoLinear
 from orthogonium.layers import UnitNormLinear
-from orthogonium.layers.conv.SLL.sll_layer import SDPBasedLipschitzConv
+from orthogonium.layers.conv.SLL.sll_layer import SLLxAOCLipschitzResBlock
 from orthogonium.layers.conv.SLL.sll_layer import SDPBasedLipschitzResBlock
 from orthogonium.layers.linear.reparametrizers import DEFAULT_ORTHO_PARAMS
 
@@ -116,7 +116,7 @@ def ResNet50Block(in_channels, out_channels, n_blocks, norm, act, stride=2):
             #     kernel_size=3,
             #     stride=1,
             # )
-            SDPBasedLipschitzConv(
+            SLLxAOCLipschitzResBlock(
                 cin=out_channels,
                 inner_dim_factor=2.0,
                 kernel_size=3,

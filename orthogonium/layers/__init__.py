@@ -6,9 +6,12 @@ from .linear.ortho_linear import OrthoLinear
 from .linear.ortho_linear import UnitNormLinear
 from .normalization import BatchCentering2D
 from .normalization import LayerCentering2D
-# from orthogonium.layers.conv.AOC.fast_block_ortho_conv import FlashBCOP
+from .channel_shuffle import ChannelShuffle
 from orthogonium.layers.conv.AOC.ortho_conv import AdaptiveOrthoConv2d
 from orthogonium.layers.conv.AOC.ortho_conv import AdaptiveOrthoConvTranspose2d
-# from orthogonium.layers.conv.AOC.rko_conv import RKOConv2d
-# from orthogonium.layers.conv.fast_skew_ortho_conv import SOC
-# from orthogonium.layers.legacy.block_ortho_conv import BCOP as OldBCOP
+from orthogonium.layers.linear.reparametrizers import OrthoParams
+from orthogonium.layers.linear.reparametrizers import (
+    DEFAULT_ORTHO_PARAMS,
+    EXP_ORTHO_PARAMS,
+    CHOLESKY_ORTHO_PARAMS,
+)
