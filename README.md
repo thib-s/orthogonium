@@ -6,19 +6,22 @@
 
 <div align="center">
     <a href="#">
-        <img src="https://img.shields.io/badge/Python-3.9 ... 3.12-efefef">
+        <img src="https://img.shields.io/badge/Python-3.9+-efefef">
     </a>
     <a href="#">
-        <img src="https://img.shields.io/badge/Pytorch-2.0 ... 2.5-00008b">
+        <img src="https://img.shields.io/badge/Pytorch-2.0+-00008b">
     </a>
-    <a href="https://github.com/TODO/orthogonium/actions/workflows/python-lints.yml">
-        <img alt="PyLint" src="https://github.com/TODO/orthogonium/actions/workflows/python-lints.yml/badge.svg">
+    <a href="https://github.com/thib-s/orthogonium/actions/workflows/linters.yml">
+        <img alt="PyLint" src="https://github.com/thib-s/orthogonium/actions/workflows/linters.yml/badge.svg">
     </a>
-    <a href="https://github.com/TODO/orthogonium/actions/workflows/python-tests.yml">
-        <img alt="Tox" src="https://github.com/TODO/orthogonium/actions/workflows/python-tests.yml/badge.svg">
+    <a href='https://coveralls.io/github/thib-s/orthogonium?branch=main'>
+        <img src='https://coveralls.io/repos/github/thib-s/orthogonium/badge.svg?branch=main' alt='Coverage Status' />
     </a>
-    <a href="https://github.com/TODO/orthogonium/actions/workflows/python-publish.yml">
-        <img alt="Pypi" src="https://github.com/TODO/orthogonium/actions/workflows/python-publish.yml/badge.svg">
+    <a href="https://github.com/thib-s/orthogonium/actions/workflows/tests.yml">
+        <img alt="Tests" src="https://github.com/thib-s/orthogonium/actions/workflows/tests.yml/badge.svg">
+    </a>
+    <a href="https://github.com/thib-s/orthogonium/actions/workflows/python-publish.yml">
+        <img alt="Pypi" src="https://github.com/thib-s/orthogonium/actions/workflows/python-publish.yml/badge.svg">
     </a>
     <a href="https://pepy.tech/project/orthogonium">
         <img alt="Pepy" src="https://static.pepy.tech/badge/orthogonium">
