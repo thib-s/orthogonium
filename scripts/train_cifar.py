@@ -18,13 +18,13 @@ from torchvision.transforms import RandomHorizontalFlip
 from torchvision.transforms import RandomResizedCrop
 from torchvision.transforms import ToTensor
 
-from orthogonium.classparam import ClassParam
+from orthogonium.model_factory.classparam import ClassParam
 from orthogonium.layers.conv.AOC import AdaptiveOrthoConv2d
 from orthogonium.layers.linear import OrthoLinear
 from orthogonium.layers.custom_activations import MaxMin
 from orthogonium.losses import LossXent
 from orthogonium.losses import VRA
-from orthogonium.models_factory import (
+from orthogonium.model_factory.models_factory import (
     StagedCNN,
 )
 

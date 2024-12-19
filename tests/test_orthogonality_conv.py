@@ -6,7 +6,7 @@ import torch
 #     BcopRkoConv2d as AdaptiveOrthoConv2d,
 # )
 from orthogonium.layers import AdaptiveOrthoConv2d
-from orthogonium.layers.linear.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
+from orthogonium.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import AvgPool2d
 
-from orthogonium.classparam import ClassParam
+from orthogonium.model_factory.classparam import ClassParam
 from orthogonium.layers import AdaptiveOrthoConv2d
 from orthogonium.layers import BatchCentering2D
 from orthogonium.layers import LayerCentering2D
@@ -11,7 +11,7 @@ from orthogonium.layers import OrthoLinear
 from orthogonium.layers import UnitNormLinear
 from orthogonium.layers.conv.SLL.sll_layer import SLLxAOCLipschitzResBlock
 from orthogonium.layers.conv.SLL.sll_layer import SDPBasedLipschitzResBlock
-from orthogonium.layers.linear.reparametrizers import DEFAULT_ORTHO_PARAMS
+from orthogonium.reparametrizers import DEFAULT_ORTHO_PARAMS
 
 
 def SLLxBCOPResNet50(

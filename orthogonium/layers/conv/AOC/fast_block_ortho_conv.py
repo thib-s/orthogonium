@@ -7,8 +7,8 @@ import torch.nn as nn
 import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_2_t
 
-from orthogonium.layers.linear.reparametrizers import L2Normalize
-from orthogonium.layers.linear.reparametrizers import OrthoParams
+from orthogonium.reparametrizers import L2Normalize
+from orthogonium.reparametrizers import OrthoParams
 
 
 def conv_singular_values_numpy(kernel, input_shape):
@@ -350,7 +350,7 @@ def attach_bcop_weight(
     return weight
 
 
-class FlashBCOP(nn.Conv2d):
+class FastBlockConv2d(nn.Conv2d):
     def __init__(
         self,
         in_channels: int,
@@ -377,7 +377,7 @@ class FlashBCOP(nn.Conv2d):
         Striding is not supported when out_channels > in_channels. Real striding is supported in BcopRkoConv2d. The use of
         OrthogonalConv2d is recommended.
         """
-        super(FlashBCOP, self).__init__(
+        super(FastBlockConv2d, self).__init__(
             in_channels,
             out_channels,
             kernel_size,
@@ -455,10 +455,10 @@ class FlashBCOP(nn.Conv2d):
 
     def forward(self, X):
         self._input_shape = X.shape[2:]
-        return super(FlashBCOP, self).forward(X)
+        return super(FastBlockConv2d, self).forward(X)
 
 
-class BCOPTranspose(nn.ConvTranspose2d):
+class FastBlockConvTranspose2D(nn.ConvTranspose2d):
     def __init__(
         self,
         in_channels: int,
@@ -478,7 +478,7 @@ class BCOPTranspose(nn.ConvTranspose2d):
         uses the same algorithm as the FlashBCOP layer, but the layer acts as a transposed
         convolutional layer.
         """
-        super(BCOPTranspose, self).__init__(
+        super(FastBlockConvTranspose2D, self).__init__(
             in_channels,
             out_channels,
             kernel_size,
@@ -552,4 +552,4 @@ class BCOPTranspose(nn.ConvTranspose2d):
 
     def forward(self, X):
         self._input_shape = X.shape[2:]
-        return super(BCOPTranspose, self).forward(X)
+        return super(FastBlockConvTranspose2D, self).forward(X)

@@ -3,8 +3,8 @@ import torch
 from torch import nn as nn
 from torch.nn.utils import parametrize as parametrize
 
-from orthogonium.layers.linear.reparametrizers import L2Normalize
-from orthogonium.layers.linear.reparametrizers import OrthoParams
+from orthogonium.reparametrizers import L2Normalize
+from orthogonium.reparametrizers import OrthoParams
 
 
 class OrthoLinear(nn.Linear):
