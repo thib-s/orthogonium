@@ -7,8 +7,7 @@ __pycache__
 # IDE / Tools files
 .vscode
 .tox
-env_flashlipschitz
-env_d16_flashlipschitz
+env_orthogonium
 *wandb
 
 # Files generated:
@@ -19,14 +18,11 @@ docs/build
 # mkdocs documentation
 /site
 
-env_opacus/
-
 # all pth files
 *.pth
 
 lightning_logs/
 scripts/data/
-scripts/test_gan/data/
 output/
 *.tar
 *_args.txt
@@ -37,6 +33,5 @@ wandb/
 *.ckpt
 *.pth
 scripts/data/
-scripts/test_gan/data/
 scripts/ortho_gan/data/
 *.csv

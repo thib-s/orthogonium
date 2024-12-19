@@ -4,17 +4,17 @@ Thanks for taking the time to contribute!
 
 From opening a bug report to creating a pull request: every contribution is
 appreciated and welcome. If you're planning to implement a new feature or change
-the api please create an [issue first](https://https://github.com/deel-ai/dp-lipschitz/issues/new). This way we can ensure that your precious
+the api please create an [issue first](https://https://github.com/thib-s/orthogonium/issues/new). This way we can ensure that your precious
 work is not in vain.
 
 
 ## Setup with make
 
-- Clone the repo `git clone https://github.com/deel-ai/dp-lipschitz.git`.
-- Go to your freshly downloaded repo `cd lipdp`
+- Clone the repo `git clone https://github.com/thib-s/orthogonium.git`.
+- Go to your freshly downloaded repo `cd orthogonium`
 - Create a virtual environment and install the necessary dependencies for development:
 
-  `make prepare-dev && source lipdp_dev_env/bin/activate`.
+  `make prepare-dev && source orthogonium_dev_env/bin/activate`.
 
 Welcome to the team !
 
@@ -42,7 +42,7 @@ Basically, it will check that your code follow a certain number of convention. A
 
 After getting some feedback, push to your fork and submit a pull request. We
 may suggest some changes or improvements or alternatives, but for small changes
-your pull request should be accepted quickly (see [Governance policy](https://github.com/deel-ai/lipdp/blob/master/GOVERNANCE.md)).
+your pull request should be accepted quickly (see [Governance policy](https://github.com/thib-s/orthogonium/blob/master/GOVERNANCE.md)).
 
 Something that will increase the chance that your pull request is accepted:
 

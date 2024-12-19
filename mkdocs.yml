@@ -1,18 +1,18 @@
-site_name: lipdp
+site_name: orthogonium
 
 # Set navigation here
 nav:
   - Home: index.md
   - API Reference:
-      - deel.lipdp.layers module: api/layers.md
+      - orthogonium.layers module: api/layers.md
 #  - Tutorials:
 #    - "Demo 0: How to use notebook in documentation": notebooks/demo_fake.ipynb
   - Contributing: CONTRIBUTING.md
 
 theme:
   name: "material"
-  logo: assets/logo.png
-  favicon: assets/logo.png
+  logo: assets/banner.png
+  favicon: assets/banner.png
   palette:
     - scheme: default
       primary: dark
@@ -50,8 +50,8 @@ markdown_extensions:
       custom_checkbox: true
       clickable_checkbox: true
   - pymdownx.emoji:
-      emoji_index: !!python/name:materialx.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 extra_css:
   - css/custom.css
@@ -61,5 +61,5 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
   - js/custom.js
 
-repo_name: "deel-ai/<libname>"
-repo_url: "https://github.com/deel-ai/<libname>"
+repo_name: "thib-s/orthogonium"
+repo_url: "https://github.com/thib-s/orthogonium"

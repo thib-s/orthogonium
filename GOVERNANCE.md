@@ -1,6 +1,6 @@
 # GOVERNANCE
 
-`lipdp` is developped as part of the Artificial and Natural Intelligence Toulouse Institute (DEEL/ANITI) program.
+`orthogonium` is developped as part of the Artificial and Natural Intelligence Toulouse Institute (DEEL/ANITI) program.
 
 DEEL/ANITI is this repository owner and the write rights manager.
 
@@ -10,7 +10,7 @@ These management rules are intended to be collaborative and all those involved i
 
 ###	Governance committee
 
-The governance committee is initially composed of DEEL members who contributed to the first version of `lipdp` and are the only contributors to the master branch.
+The governance committee is initially composed of DEEL members who contributed to the first version of `orthogonium` and are the only contributors to the master branch.
 
 The governance committee is responsible for the master branch that contains the code of the version of the library that is officially recognised.
 
