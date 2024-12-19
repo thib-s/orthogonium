@@ -11,7 +11,7 @@ from orthogonium.layers.conv.adaptiveSOC.soc_x_rko_conv import (
     SOCRkoConv2d,
     SOCRkoConvTranspose2d,
 )
-from orthogonium.layers.linear.reparametrizers import OrthoParams
+from orthogonium.reparametrizers import OrthoParams
 
 
 def AdaptiveSOCConv2d(

@@ -2,19 +2,17 @@ import warnings
 from typing import Union
 
 import numpy as np
-import torch
 from torch import nn as nn
 from torch.nn.common_types import _size_2_t
 from torch.nn.utils import parametrize as parametrize
 
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import (
     attach_bcop_weight,
-    transpose_kernel,
 )
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import conv_singular_values_numpy
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import fast_matrix_conv
 from orthogonium.layers.conv.AOC.rko_conv import attach_rko_weight
-from orthogonium.layers.linear.reparametrizers import OrthoParams
+from orthogonium.reparametrizers import OrthoParams
 
 
 class BcopRkoConv2d(nn.Conv2d):

@@ -5,11 +5,11 @@ from torch.nn.common_types import _size_2_t
 
 from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConv2d
 from orthogonium.layers.conv.AOC.bcop_x_rko_conv import BcopRkoConvTranspose2d
-from orthogonium.layers.conv.AOC.fast_block_ortho_conv import BCOPTranspose
-from orthogonium.layers.conv.AOC.fast_block_ortho_conv import FlashBCOP
+from orthogonium.layers.conv.AOC.fast_block_ortho_conv import FastBlockConvTranspose2D
+from orthogonium.layers.conv.AOC.fast_block_ortho_conv import FastBlockConv2d
 from orthogonium.layers.conv.AOC.rko_conv import RKOConv2d
 from orthogonium.layers.conv.AOC.rko_conv import RkoConvTranspose2d
-from orthogonium.layers.linear.reparametrizers import OrthoParams
+from orthogonium.reparametrizers import OrthoParams
 
 
 def AdaptiveOrthoConv2d(
@@ -28,9 +28,10 @@ def AdaptiveOrthoConv2d(
     factory function to create an Orthogonal Convolutional layer
     choosing the appropriate class depending on the kernel size and stride.
 
-    When kernel_size == stride, the layer is a RKOConv2d.
-    When stride == 1, the layer is a FlashBCOP.
-    Otherwise, the layer is a BcopRkoConv2d.
+    - When kernel_size == stride, the layer is a RKOConv2d.
+    - When stride == 1, the layer is a FlashBCOP.
+    - Otherwise, the layer is a BcopRkoConv2d.
+
     """
     if kernel_size < stride:
         raise RuntimeError(
@@ -39,7 +40,7 @@ def AdaptiveOrthoConv2d(
     if kernel_size == stride:
         convclass = RKOConv2d
     elif (stride == 1) or (in_channels >= out_channels):
-        convclass = FlashBCOP
+        convclass = FastBlockConv2d
     else:
         convclass = BcopRkoConv2d
     return convclass(
@@ -88,7 +89,7 @@ def AdaptiveOrthoConvTranspose2d(
     if kernel_size == stride:
         convclass = RkoConvTranspose2d
     elif stride == 1:
-        convclass = BCOPTranspose
+        convclass = FastBlockConvTranspose2D
     else:
         convclass = BcopRkoConvTranspose2d
     return convclass(

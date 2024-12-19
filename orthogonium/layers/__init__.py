@@ -9,9 +9,3 @@ from .normalization import LayerCentering2D
 from .channel_shuffle import ChannelShuffle
 from orthogonium.layers.conv.AOC.ortho_conv import AdaptiveOrthoConv2d
 from orthogonium.layers.conv.AOC.ortho_conv import AdaptiveOrthoConvTranspose2d
-from orthogonium.layers.linear.reparametrizers import OrthoParams
-from orthogonium.layers.linear.reparametrizers import (
-    DEFAULT_ORTHO_PARAMS,
-    EXP_ORTHO_PARAMS,
-    CHOLESKY_ORTHO_PARAMS,
-)

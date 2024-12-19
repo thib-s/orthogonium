@@ -8,7 +8,7 @@ import torch.nn.utils.parametrize as parametrize
 from torch.nn.common_types import _size_2_t
 
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import conv_singular_values_numpy
-from orthogonium.layers.linear.reparametrizers import OrthoParams
+from orthogonium.reparametrizers import OrthoParams
 
 
 class RKOParametrizer(nn.Module):

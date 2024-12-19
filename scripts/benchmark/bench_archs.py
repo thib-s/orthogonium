@@ -17,12 +17,12 @@ from torchvision.transforms import RandomResizedCrop
 from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
-from orthogonium.classparam import ClassParam
+from orthogonium.model_factory.classparam import ClassParam
 from orthogonium.layers import AdaptiveOrthoConv2d as BCOP_new
 from orthogonium.layers.legacy.block_ortho_conv import BCOP as BCOP_old
 from orthogonium.layers.legacy.cayley_ortho_conv import Cayley
 from orthogonium.layers.legacy.skew_ortho_conv import SOC
-from orthogonium.models_factory import LipResNet
+from orthogonium.model_factory.models_factory import LipResNet
 
 # from orthogonium.layers.conv.reparametrizers import BjorckParams
 

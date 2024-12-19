@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from orthogonium.layers.conv.AOC.ortho_conv import AdaptiveOrthoConvTranspose2d
-from orthogonium.layers.linear.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
+from orthogonium.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
 from tests.test_orthogonality_conv import check_orthogonal_layer
 
 

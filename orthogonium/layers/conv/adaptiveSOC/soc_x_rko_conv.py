@@ -13,7 +13,7 @@ from orthogonium.layers.conv.adaptiveSOC.fast_skew_ortho_conv import (
     attach_soc_weight,
     ExpParams,
 )
-from orthogonium.layers.linear.reparametrizers import OrthoParams
+from orthogonium.reparametrizers import OrthoParams
 
 
 class SOCRkoConv2d(nn.Conv2d):

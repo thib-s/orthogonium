@@ -18,16 +18,16 @@ from torchvision.transforms import RandomResizedCrop
 from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
-from orthogonium.classparam import ClassParam
+from orthogonium.model_factory.classparam import ClassParam
 from orthogonium.layers import UnitNormLinear
 from orthogonium.layers.conv import AdaptiveOrthoConv2d
 from orthogonium.layers.custom_activations import MaxMin
-from orthogonium.layers.linear.reparametrizers import DEFAULT_ORTHO_PARAMS
+from orthogonium.reparametrizers import DEFAULT_ORTHO_PARAMS
 from orthogonium.losses import check_last_linear_layer_type
 from orthogonium.losses import LossXent
 from orthogonium.losses import VRA
-from orthogonium.models_factory import AOCNetV1
-from orthogonium.models_factory import Residual
+from orthogonium.model_factory.models_factory import AOCNetV1
+from orthogonium.model_factory.models_factory import Residual
 
 torch.backends.cudnn.benchmark = True
 torch.set_float32_matmul_precision("medium")

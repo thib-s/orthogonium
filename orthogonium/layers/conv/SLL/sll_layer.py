@@ -7,7 +7,7 @@ from torch.nn.common_types import _size_2_t
 from orthogonium.layers import AdaptiveOrthoConv2d
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import fast_matrix_conv
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import transpose_kernel
-from orthogonium.layers.linear.reparametrizers import OrthoParams
+from orthogonium.reparametrizers import OrthoParams
 
 
 def safe_inv(x):
