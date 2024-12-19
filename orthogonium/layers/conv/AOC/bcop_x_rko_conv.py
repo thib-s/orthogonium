@@ -54,24 +54,20 @@ class BcopRkoConv2d(nn.Conv2d):
         if (self.dilation[0] != 1 or self.dilation[1] != 1) and (
             self.stride[0] != 1 or self.stride[1] != 1
         ):
-            raise RuntimeError(
+            raise ValueError(
                 "dilation must be 1 when stride is not 1. The set of orthonal convolutions is empty in this setting."
             )
         # raise runtime error if kernel size >= stride
         if self.kernel_size[0] < self.stride[0] or self.kernel_size[1] < self.stride[1]:
-            raise RuntimeError(
+            raise ValueError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
-            )
-        if (in_channels % groups != 0) and (out_channels % groups != 0):
-            raise RuntimeError(
-                "in_channels and out_channels must be divisible by groups"
             )
         if (
             ((max(in_channels, out_channels) // groups) < 2)
             and (self.kernel_size[0] != self.stride[0])
             and (self.kernel_size[1] != self.stride[1])
         ):
-            raise RuntimeError("inner conv must have at least 2 channels")
+            raise ValueError("inner conv must have at least 2 channels")
         self.intermediate_channels = max(
             in_channels, out_channels // (self.stride[0] * self.stride[1])
         )
@@ -207,23 +203,19 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
         if (self.dilation[0] != 1 or self.dilation[1] != 1) and (
             self.stride[0] != 1 or self.stride[1] != 1
         ):
-            raise RuntimeError(
+            raise ValueError(
                 "dilation must be 1 when stride is not 1. The set of orthonal convolutions is empty in this setting."
             )
         if self.kernel_size[0] < self.stride[0] or self.kernel_size[1] < self.stride[1]:
-            raise RuntimeError(
+            raise ValueError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
-            )
-        if (in_channels % groups != 0) and (out_channels % groups != 0):
-            raise RuntimeError(
-                "in_channels and out_channels must be divisible by groups"
             )
         if (
             ((max(in_channels, out_channels) // groups) < 2)
             and (self.kernel_size[0] != self.stride[0])
             and (self.kernel_size[1] != self.stride[1])
         ):
-            raise RuntimeError("inner conv must have at least 2 channels")
+            raise ValueError("inner conv must have at least 2 channels")
         if out_channels * (self.stride[0] * self.stride[1]) >= in_channels:
             self.intermediate_channels = max(
                 in_channels // (self.stride[0] * self.stride[1]), out_channels

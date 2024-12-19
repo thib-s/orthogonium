@@ -35,7 +35,7 @@ def AdaptiveSOCConv2d(
     Otherwise, the layer is a BcopRkoConv2d.
     """
     if kernel_size < stride:
-        raise RuntimeError(
+        raise ValueError(
             "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
         )
     if kernel_size == stride:
@@ -84,7 +84,7 @@ def AdaptiveSOCConvTranspose2d(
         `out_channels * (stride**2) > in_channels`.
     """
     if kernel_size < stride:
-        raise RuntimeError(
+        raise ValueError(
             "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
         )
     if kernel_size == stride:

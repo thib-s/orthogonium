@@ -200,19 +200,20 @@ class AOCLipschitzResBlock(nn.Module):
     def forward(self, x):
         kernel = self.in_conv.weight
         # conv
+        res = x
         if self.padding_mode == "circular":
-            x = F.pad(
-                x,
-                (
-                    self.kernel_size // 2,
-                    self.kernel_size // 2,
-                    self.kernel_size // 2,
-                    self.kernel_size // 2,
-                ),
+            res = F.pad(
+                res,
+                (self.padding,) * 4,
                 mode="circular",
+                value=0,
             )
         res = F.conv2d(
-            x, kernel, bias=self.in_conv.bias, padding=self.padding, groups=self.groups
+            res,
+            kernel,
+            bias=self.in_conv.bias,
+            padding=0,
+            groups=self.groups,
         )
         # activation
         res = self.activation(res)
@@ -220,17 +221,11 @@ class AOCLipschitzResBlock(nn.Module):
         if self.padding_mode == "circular":
             res = F.pad(
                 res,
-                (
-                    self.kernel_size // 2,
-                    self.kernel_size // 2,
-                    self.kernel_size // 2,
-                    self.kernel_size // 2,
-                ),
+                (self.padding,) * 4,
                 mode="circular",
+                value=0,
             )
-        res = 2 * F.conv_transpose2d(
-            res, kernel, padding=self.padding, groups=self.groups
-        )
+        res = 2 * F.conv_transpose2d(res, kernel, padding=0, groups=self.groups)
         # residual
         out = x - res
         return out

@@ -64,15 +64,13 @@ class SOCRkoConv2d(nn.Conv2d):
 
         # raise runtime error if kernel size >= stride
         if kernel_size < stride:
-            raise RuntimeError(
+            raise ValueError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
             )
         if (in_channels % groups != 0) and (out_channels % groups != 0):
-            raise RuntimeError(
-                "in_channels and out_channels must be divisible by groups"
             )
         if ((self.max_channels // groups) < 2) and (kernel_size != stride):
-            raise RuntimeError("inner conv must have at least 2 channels")
+            raise ValueError("inner conv must have at least 2 channels")
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
@@ -194,8 +192,6 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
         But unit testing have shown that the convolution is still orthogonal when
          `out_channels * (stride**2) > in_channels`.
         """
-        if dilation != 1:
-            raise RuntimeError("dilation not supported")
         super(SOCRkoConvTranspose2d, self).__init__(
             in_channels,
             out_channels,
@@ -219,15 +215,13 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
 
         # raise runtime error if kernel size >= stride
         if kernel_size < stride:
-            raise RuntimeError(
+            raise ValueError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
             )
         if (in_channels % groups != 0) and (out_channels % groups != 0):
-            raise RuntimeError(
-                "in_channels and out_channels must be divisible by groups"
             )
         if ((self.max_channels // groups) < 2) and (kernel_size != stride):
-            raise RuntimeError("inner conv must have at least 2 channels")
+            raise ValueError("inner conv must have at least 2 channels")
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
