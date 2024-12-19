@@ -1,12 +1,15 @@
 import numpy as np
 import pytest
 import torch
-
-# from orthogonium.layers.conv.AOC.bcop_x_rko_conv import (
-#     BcopRkoConv2d as AdaptiveOrthoConv2d,
-# )
 from orthogonium.layers import AdaptiveOrthoConv2d
-from orthogonium.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
+from orthogonium.layers.conv.AOC import BcopRkoConv2d, FastBlockConv2d, RKOConv2d
+from orthogonium.reparametrizers import (
+    DEFAULT_TEST_ORTHO_PARAMS,
+    EXP_ORTHO_PARAMS,
+    CHOLESKY_ORTHO_PARAMS,
+    QR_ORTHO_PARAMS,
+    CHOLESKY_STABLE_ORTHO_PARAMS,
+)
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -36,6 +39,7 @@ def check_orthogonal_layer(
     kernel_size,
     output_channels,
     expected_kernel_shape,
+    tol=1e-4,
 ):
     imsize = 8
     # Test backpropagation and weight update
@@ -61,10 +65,10 @@ def check_orthogonal_layer(
     # check that the layer is norm preserving
     inp_norm = torch.sqrt(torch.square(inp).sum(dim=(-3, -2, -1))).float().item()
     out_norm = torch.sqrt(torch.square(output).sum(dim=(-3, -2, -1))).float().item()
-    # if inp_norm <= out_norm - 1e-3:
-    #     pytest.fail(
-    #         f"BCOP is not norm preserving: {inp_norm} vs {out_norm} with rel error {abs(inp_norm - out_norm) / inp_norm}"
-    #     )
+    if inp_norm <= out_norm - 1e-3:
+        pytest.fail(
+            f"BCOP is not norm preserving: {inp_norm} vs {out_norm} with rel error {abs(inp_norm - out_norm) / inp_norm}"
+        )
     # Test singular_values function
     sigma_min, sigma_max, stable_rank = orthoconv.singular_values()  # try:
     sigma_min_ir, sigma_max_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
@@ -78,7 +82,6 @@ def check_orthogonal_layer(
         f" {sigma_min:.3f}/{sigma_min_ir:.3f}, "
         f"stable_rank: {stable_rank:.3f}/{stable_rank_ir:.3f}"
     )
-    tol = 1e-4
     # check that the singular values are close to 1
     assert sigma_max_ir < (1 + tol), "sigma_max is not less than 1"
     assert (sigma_min_ir < (1 + tol)) and (
@@ -415,4 +418,159 @@ def test_depthwise(kernel_size, input_channels, output_channels, stride, groups)
             kernel_size,
             kernel_size,
         ),
+    )
+
+
+def test_invalid_kernel_smaller_than_stride():
+    """
+    A test to ensure that kernel_size < stride raises an expected ValueError
+    """
+    with pytest.raises(ValueError, match=r"kernel size must be smaller than stride"):
+        AdaptiveOrthoConv2d(
+            in_channels=8,
+            out_channels=4,
+            kernel_size=2,
+            stride=3,  # Invalid: kernel_size < stride
+            groups=1,
+            padding=0,
+        )
+    with pytest.raises(ValueError, match=r"kernel size must be smaller than stride"):
+        BcopRkoConv2d(
+            in_channels=8,
+            out_channels=4,
+            kernel_size=2,
+            stride=3,  # Invalid: kernel_size < stride
+            groups=1,
+            padding=0,
+        )
+    with pytest.raises(ValueError, match=r"kernel size must be smaller than stride"):
+        FastBlockConv2d(
+            in_channels=8,
+            out_channels=4,
+            kernel_size=2,
+            stride=3,  # Invalid: kernel_size < stride
+            groups=1,
+            padding=0,
+        )
+
+
+def test_invalid_dilation_with_stride():
+    """
+    A test to ensure dilation > 1 while stride > 1 raises an expected ValueError
+    """
+    with pytest.raises(
+        ValueError,
+        match=r"dilation must be 1 when stride is not 1",
+    ):
+        AdaptiveOrthoConv2d(
+            in_channels=8,
+            out_channels=4,
+            kernel_size=3,
+            stride=2,
+            dilation=2,  # Invalid: dilation > 1 while stride > 1
+            groups=1,
+            padding=0,
+        )
+    with pytest.raises(
+        ValueError,
+        match=r"dilation must be 1 when stride is not 1",
+    ):
+        FastBlockConv2d(
+            in_channels=8,
+            out_channels=4,
+            kernel_size=3,
+            stride=2,
+            dilation=2,  # Invalid: dilation > 1 while stride > 1
+            groups=1,
+            padding=0,
+        )
+    with pytest.raises(
+        ValueError,
+        match=r"dilation must be 1 when stride is not 1",
+    ):
+        BcopRkoConv2d(
+            in_channels=8,
+            out_channels=4,
+            kernel_size=3,
+            stride=2,
+            dilation=2,  # Invalid: dilation > 1 while stride > 1
+            groups=1,
+            padding=0,
+        )
+    with pytest.raises(
+        ValueError,
+        match=r"dilation must be 1 when stride is not 1",
+    ):
+        RKOConv2d(
+            in_channels=8,
+            out_channels=4,
+            kernel_size=3,
+            stride=2,
+            dilation=2,  # Invalid: dilation > 1 while stride > 1
+            groups=1,
+            padding=0,
+        )
+
+
+@pytest.mark.parametrize("kernel_size", [1, 3])
+@pytest.mark.parametrize("input_channels", [8, 16])
+@pytest.mark.parametrize("output_channels", [8, 16])
+@pytest.mark.parametrize("stride", [1, 2])
+@pytest.mark.parametrize("groups", [1, 2])
+@pytest.mark.parametrize(
+    "ortho_params",
+    [
+        "default_bb",
+        "exp",
+        "qr",
+        "cholesky",
+        "cholesky_stable",
+    ],
+)
+def test_parametrizers_standard_configs(
+    kernel_size, input_channels, output_channels, stride, groups, ortho_params
+):
+    """
+    test combinations of kernel size, input channels, output channels, stride and groups
+    """
+    ortho_params_dict = {
+        "default_bb": DEFAULT_TEST_ORTHO_PARAMS,
+        "exp": EXP_ORTHO_PARAMS,
+        "qr": QR_ORTHO_PARAMS,
+        "cholesky": CHOLESKY_ORTHO_PARAMS,
+        "cholesky_stable": CHOLESKY_STABLE_ORTHO_PARAMS,
+    }  # trick to have the actual method name displayed properly if test fails
+    # Test instantiation
+    try:
+        orthoconv = AdaptiveOrthoConv2d(
+            kernel_size=kernel_size,
+            in_channels=input_channels,
+            out_channels=output_channels,
+            stride=stride,
+            groups=groups,
+            bias=False,
+            padding=(kernel_size // 2, kernel_size // 2),
+            padding_mode="circular",
+            ortho_params=ortho_params_dict[ortho_params],
+        )
+    except Exception as e:
+        if kernel_size < stride:
+            # we expect this configuration to raise a RuntimeError
+            # pytest.skip(f"BCOP instantiation failed with: {e}")
+            return
+        else:
+            pytest.fail(f"BCOP instantiation failed with: {e}")
+    check_orthogonal_layer(
+        orthoconv,
+        groups,
+        input_channels,
+        kernel_size,
+        output_channels,
+        (
+            output_channels,
+            input_channels // groups,
+            kernel_size,
+            kernel_size,
+        ),
+        tol=3e-2 if ortho_params.startswith("cholesky") else 1e-4,
     )

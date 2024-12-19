@@ -201,23 +201,33 @@ class BatchedCholeskyOrthogonalization(nn.Module):
         else:
             self.orth = BatchedCholeskyOrthogonalization.CholeskyOrthfn.apply
 
-    @staticmethod
-    def orth(X):
-        S = X @ X.mT
-        eps = S.diagonal(dim1=1, dim2=2).mean(1).mul(1e-3).detach()
-        eye = torch.eye(S.size(-1), dtype=S.dtype, device=S.device)
-        S = S + eps.view(-1, 1, 1) * eye.unsqueeze(0)
-        L = torch.linalg.cholesky(S)
-        W = torch.linalg.solve_triangular(L, X, upper=False)
-        return W
+    # @staticmethod
+    # def orth(X):
+    #     S = X @ X.mT
+    #     eps = S.diagonal(dim1=1, dim2=2).mean(1).mul(1e-3).detach()
+    #     eye = torch.eye(S.size(-1), dtype=S.dtype, device=S.device)
+    #     S = S + eps.view(-1, 1, 1) * eye.unsqueeze(0)
+    #     L = torch.linalg.cholesky(S)
+    #     W = torch.linalg.solve_triangular(L, X, upper=False)
+    #     return W
 
     class CholeskyOrthfn(torch.autograd.Function):
         @staticmethod
+        # def forward(ctx, X):
+        #     S = X @ X.mT
+        #     eps = S.diagonal(dim1=1, dim2=2).mean(1).mul(1e-3)
+        #     eye = torch.eye(S.size(-1), dtype=S.dtype, device=S.device)
+        #     S = S + eps.view(-1, 1, 1) * eye.unsqueeze(0)
+        #     L = torch.linalg.cholesky(S)
+        #     W = torch.linalg.solve_triangular(L, X, upper=False)
+        #     ctx.save_for_backward(W, L)
+        #     return W
         def forward(ctx, X):
             S = X @ X.mT
-            eps = S.diagonal(dim1=1, dim2=2).mean(1).mul(1e-3)
-            eye = torch.eye(S.size(-1), dtype=S.dtype, device=S.device)
-            S = S + eps.view(-1, 1, 1) * eye.unsqueeze(0)
+            eps = 1e-5  # A common stable choice
+            S = S + eps * torch.eye(
+                S.size(-1), dtype=S.dtype, device=S.device
+            ).unsqueeze(0)
             L = torch.linalg.cholesky(S)
             W = torch.linalg.solve_triangular(L, X, upper=False)
             ctx.save_for_backward(W, L)
@@ -239,9 +249,10 @@ class BatchedCholeskyOrthogonalization(nn.Module):
         @staticmethod
         def forward(ctx, X):
             S = X @ X.mT
-            eps = S.diagonal(dim1=1, dim2=2).mean(1).mul(1e-3)
-            eye = torch.eye(S.size(-1), dtype=S.dtype, device=S.device)
-            S = S + eps.view(-1, 1, 1) * eye.unsqueeze(0)
+            eps = 1e-5  # A common stable choice
+            S = S + eps * torch.eye(
+                S.size(-1), dtype=S.dtype, device=S.device
+            ).unsqueeze(0)
             L = torch.linalg.cholesky(S)
             W = torch.linalg.solve_triangular(L, X, upper=False)
             ctx.save_for_backward(X, W, L)
@@ -346,7 +357,7 @@ class BatchedQROrthogonalization(nn.Module):
         q = q * diag_sign
         if transpose:
             q = q.transpose(-1, -2)
-        return q
+        return q.contiguous()
 
     def right_inverse(self, w):
         return w
@@ -418,5 +429,11 @@ QR_ORTHO_PARAMS = OrthoParams(
 CHOLESKY_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=BatchedIdentity,  # type: ignore
     orthogonalizer=ClassParam(BatchedCholeskyOrthogonalization),  # type: ignore
+    contiguous_optimization=False,
+)
+
+CHOLESKY_STABLE_ORTHO_PARAMS = OrthoParams(
+    spectral_normalizer=BatchedIdentity,
+    orthogonalizer=ClassParam(BatchedCholeskyOrthogonalization, stable=True),
     contiguous_optimization=False,
 )

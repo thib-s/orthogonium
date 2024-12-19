@@ -24,20 +24,3 @@ class ChannelShuffle(nn.Module):
 
     def extra_repr(self):
         return f"group_in={self.group_in}, group_out={self.group_out}"
-
-
-if __name__ == "__main__":
-    x = torch.randn(2, 6)
-    # takes two groups of size 3, and return 3 groups of size 2
-    gm = ChannelShuffle(2, 3)
-    print(f"in: {x}")
-    y = gm(x)
-    print(f"out: {y}")
-    x2 = torch.randn(2, 6, 32, 32)
-    gm = ChannelShuffle(2, 3)
-    y2 = gm(x2)
-    print(f"in shape: {x2.shape}, out shape: {y2.shape}")
-    gp = ChannelShuffle(3, 2)
-    x2b = gp(y2)
-    assert torch.allclose(x2, x2b), "ChannelShuffle is not invertible"
-    print("ChannelShuffle is invertible")

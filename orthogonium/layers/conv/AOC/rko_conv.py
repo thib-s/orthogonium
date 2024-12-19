@@ -54,7 +54,9 @@ class RKOParametrizer(nn.Module):
         )
         X = self.pi(X)
         X = self.bjorck(X)
-        X = X.view(self.out_channels, self.in_channels // self.groups, self.k1, self.k2)
+        X = X.reshape(
+            self.out_channels, self.in_channels // self.groups, self.k1, self.k2
+        )
         return X * self.scale
 
     def right_inverse(self, X):
@@ -120,11 +122,10 @@ class RKOConv2d(nn.Conv2d):
             bias,
             padding_mode,
         )
-        if self.dilation[0] > 1 or self.dilation[1] > 1:
-            raise RuntimeWarning(
-                "Dilation must be 1 in the RKO convolution."
-                "Use RkoConvTranspose2d instead."
-            )
+        if (self.dilation[0] > 1 or self.dilation[1] > 1) and (
+            self.stride[0] != 1 or self.stride[1] != 1
+        ):
+            raise ValueError("dilation must be 1 when stride is not 1")
         # torch.nn.init.orthogonal_(self.weight)
         self.scale = 1 / math.sqrt(
             math.ceil(self.dilation[0] * self.kernel_size[0] / self.stride[0])
@@ -172,7 +173,7 @@ class RKOConv2d(nn.Conv2d):
             return sv_min, sv_max, stable_rank
         elif self.stride[0] > 1 or self.stride[1] > 1:
             raise RuntimeError(
-                "Not able to compute singular values for this " "configuration"
+                "Not able to compute singular values for this configuration"
             )
         # Implements interface required by LipschitzModuleL2
         sv_min, sv_max, stable_rank = conv_singular_values_numpy(
@@ -220,15 +221,14 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
         )
 
         # raise runtime error if kernel size >= stride
-        if self.kernel_size[0] > self.stride[0] or self.kernel_size[1] > self.stride[1]:
-            raise RuntimeError(
-                "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
+        if self.kernel_size[0] < self.stride[0] or self.kernel_size[1] < self.stride[1]:
+            raise ValueError(
+                "kernel size must be smaller than stride. The set of orthogonal convolutions is empty in this setting."
             )
-        if (in_channels % groups != 0) and (out_channels % groups != 0):
-            raise RuntimeError(
-                "in_channels and out_channels must be divisible by groups"
-            )
-
+        if (self.dilation[0] > 1 or self.dilation[1] > 1) and (
+            self.stride[0] != 1 or self.stride[1] != 1
+        ):
+            raise ValueError("dilation must be 1 when stride is not 1")
         if (
             self.stride[0] != self.kernel_size[0]
             or self.stride[1] != self.kernel_size[1]
@@ -271,7 +271,7 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
             return sv_min, sv_max, stable_rank
         elif self.stride[0] > 1 or self.stride[1] > 1:
             raise RuntimeError(
-                "Not able to compute singular values for this " "configuration"
+                "Not able to compute singular values for this configuration"
             )
         # Implements interface required by LipschitzModuleL2
         sv_min, sv_max, stable_rank = conv_singular_values_numpy(
