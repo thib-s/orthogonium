@@ -19,28 +19,28 @@ help:
 
 prepare-dev:
 	python3 -m pip install virtualenv
-	python3 -m venv env_flashlipschitz
-	. env_flashlipschitz/bin/activate && pip install --upgrade pip
-	. env_flashlipschitz/bin/activate && pip install -e .[dev]
-	. env_flashlipschitz/bin/activate && pre-commit install
-	. env_flashlipschitz/bin/activate && pre-commit install-hooks
-	. env_flashlipschitz/bin/activate && pre-commit install --hook-type commit-msg
+	python3 -m venv env_orthogonium
+	. env_orthogonium/bin/activate && pip install --upgrade pip
+	. env_orthogonium/bin/activate && pip install -e .[dev]
+	. env_orthogonium/bin/activate && pre-commit install
+	. env_orthogonium/bin/activate && pre-commit install-hooks
+	. env_orthogonium/bin/activate && pre-commit install --hook-type commit-msg
 
 test:
-	. env_flashlipschitz/bin/activate && tox
+	. env_orthogonium/bin/activate && tox
 
 check_all:
-	. env_flashlipschitz/bin/activate && pre-commit run --all-files
+	. env_orthogonium/bin/activate && pre-commit run --all-files
 
 updatetools:
-	. env_flashlipschitz/bin/activate && pre-commit autoupdate
+	. env_orthogonium/bin/activate && pre-commit autoupdate
 
 test-disable-gpu:
-	. env_flashlipschitz/bin/activate && CUDA_VISIBLE_DEVICES=-1 tox
+	. env_orthogonium/bin/activate && CUDA_VISIBLE_DEVICES=-1 tox
 
 doc:
-	. env_flashlipschitz/bin/activate && mkdocs build
-	. env_flashlipschitz/bin/activate && mkdocs gh-deploy
+	. env_orthogonium/bin/activate && mkdocs build
+	. env_orthogonium/bin/activate && mkdocs gh-deploy
 
 serve-doc:
-	. env_flashlipschitz/bin/activate && CUDA_VISIBLE_DEVICES=-1 mkdocs serve
+	. env_orthogonium/bin/activate && CUDA_VISIBLE_DEVICES=-1 mkdocs serve
