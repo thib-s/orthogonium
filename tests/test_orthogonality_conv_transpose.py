@@ -44,35 +44,18 @@ def test_convtranspose(kernel_size, input_channels, output_channels, stride, gro
     padding = (0, 0)
     padding_mode = "zeros"
     try:
-        if (
-            kernel_size > 1
-            and kernel_size != stride
-            and output_channels * (stride**2) < input_channels
-        ):
-            with pytest.warns(RuntimeWarning):
-                orthoconvtranspose = AdaptiveOrthoConvTranspose2d(
-                    kernel_size=kernel_size,
-                    in_channels=input_channels,
-                    out_channels=output_channels,
-                    stride=stride,
-                    groups=groups,
-                    bias=False,
-                    padding=padding,
-                    padding_mode=padding_mode,
-                    ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
-                )
-        else:
-            orthoconvtranspose = AdaptiveOrthoConvTranspose2d(
-                kernel_size=kernel_size,
-                in_channels=input_channels,
-                out_channels=output_channels,
-                stride=stride,
-                groups=groups,
-                bias=False,
-                padding=padding,
-                padding_mode=padding_mode,
-                ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
-            )
+
+        orthoconvtranspose = AdaptiveOrthoConvTranspose2d(
+            kernel_size=kernel_size,
+            in_channels=input_channels,
+            out_channels=output_channels,
+            stride=stride,
+            groups=groups,
+            bias=False,
+            padding=padding,
+            padding_mode=padding_mode,
+            ortho_params=DEFAULT_TEST_ORTHO_PARAMS,
+        )
     except Exception as e:
         if kernel_size < stride:
             # we expect this configuration to raise a RuntimeError
@@ -131,60 +114,6 @@ def test_invalid_kernel_smaller_than_stride():
         )
 
 
-def test_invalid_dilation_with_stride():
-    """
-    A test to ensure dilation > 1 while stride > 1 raises an expected ValueError
-    """
-    with pytest.raises(
-        ValueError,
-        match=r"dilation must be 1 when stride is not 1",
-    ):
-        AdaptiveOrthoConvTranspose2d(
-            in_channels=8,
-            out_channels=16,
-            kernel_size=3,
-            stride=2,
-            dilation=2,  # Invalid: dilation > 1 while stride > 1
-            groups=1,
-        )
-    with pytest.raises(
-        ValueError,
-        match=r"dilation must be 1 when stride is not 1",
-    ):
-        FastBlockConvTranspose2D(
-            in_channels=8,
-            out_channels=16,
-            kernel_size=3,
-            stride=2,
-            dilation=2,  # Invalid: dilation > 1 while stride > 1
-            groups=1,
-        )
-    with pytest.raises(
-        ValueError,
-        match=r"dilation must be 1 when stride is not 1",
-    ):
-        BcopRkoConvTranspose2d(
-            in_channels=8,
-            out_channels=16,
-            kernel_size=3,
-            stride=2,
-            dilation=2,  # Invalid: dilation > 1 while stride > 1
-            groups=1,
-        )
-    with pytest.raises(
-        ValueError,
-        match=r"dilation must be 1 when stride is not 1",
-    ):
-        RkoConvTranspose2d(
-            in_channels=8,
-            out_channels=16,
-            kernel_size=3,
-            stride=2,
-            dilation=2,  # Invalid: dilation > 1 while stride > 1
-            groups=1,
-        )
-
-
 @pytest.mark.parametrize("kernel_size", [1, 3])
 @pytest.mark.parametrize("input_channels", [8, 16])
 @pytest.mark.parametrize("output_channels", [8, 16])
@@ -217,35 +146,17 @@ def test_parametrizers_standard_configs(
     padding = (0, 0)
     padding_mode = "zeros"
     try:
-        if (
-            kernel_size > 1
-            and kernel_size != stride
-            and output_channels * (stride**2) < input_channels
-        ):
-            with pytest.warns(RuntimeWarning):
-                orthoconvtranspose = AdaptiveOrthoConvTranspose2d(
-                    kernel_size=kernel_size,
-                    in_channels=input_channels,
-                    out_channels=output_channels,
-                    stride=stride,
-                    groups=groups,
-                    bias=False,
-                    padding=padding,
-                    padding_mode=padding_mode,
-                    ortho_params=ortho_params_dict[ortho_params],
-                )
-        else:
-            orthoconvtranspose = AdaptiveOrthoConvTranspose2d(
-                kernel_size=kernel_size,
-                in_channels=input_channels,
-                out_channels=output_channels,
-                stride=stride,
-                groups=groups,
-                bias=False,
-                padding=padding,
-                padding_mode=padding_mode,
-                ortho_params=ortho_params_dict[ortho_params],
-            )
+        orthoconvtranspose = AdaptiveOrthoConvTranspose2d(
+            kernel_size=kernel_size,
+            in_channels=input_channels,
+            out_channels=output_channels,
+            stride=stride,
+            groups=groups,
+            bias=False,
+            padding=padding,
+            padding_mode=padding_mode,
+            ortho_params=ortho_params_dict[ortho_params],
+        )
     except Exception as e:
         if kernel_size < stride:
             # we expect this configuration to raise a RuntimeError

@@ -51,12 +51,6 @@ class BcopRkoConv2d(nn.Conv2d):
             bias,
             padding_mode,
         )
-        if (self.dilation[0] != 1 or self.dilation[1] != 1) and (
-            self.stride[0] != 1 or self.stride[1] != 1
-        ):
-            raise ValueError(
-                "dilation must be 1 when stride is not 1. The set of orthonal convolutions is empty in this setting."
-            )
         # raise runtime error if kernel size >= stride
         if self.kernel_size[0] < self.stride[0] or self.kernel_size[1] < self.stride[1]:
             raise ValueError(
@@ -68,6 +62,14 @@ class BcopRkoConv2d(nn.Conv2d):
             and (self.kernel_size[1] != self.stride[1])
         ):
             raise ValueError("inner conv must have at least 2 channels")
+        if (
+            (self.out_channels >= self.in_channels)
+            and (((self.dilation[0] % self.stride[0]) == 0) and (self.stride[0] > 1))
+            and (((self.dilation[1] % self.stride[1]) == 0) and (self.stride[1] > 1))
+        ):
+            raise ValueError(
+                "dilation must be 1 when stride is not 1. The set of orthonal convolutions is empty in this setting."
+            )
         self.intermediate_channels = max(
             in_channels, out_channels // (self.stride[0] * self.stride[1])
         )
@@ -155,7 +157,9 @@ class BcopRkoConv2d(nn.Conv2d):
         )
         sv_min = sv_min * svs_2.min()
         sv_max = sv_max * svs_2.max()
-        stable_rank = 0.5 * stable_rank + 0.5 * (np.mean(svs_2) / (svs_2.max() ** 2))
+        stable_rank = 0.5 * stable_rank + 0.5 * (
+            np.mean(svs_2) ** 2 / (svs_2.max() ** 2)
+        )
         return sv_min, sv_max, stable_rank
 
     def forward(self, X):
@@ -191,17 +195,22 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
             out_channels,
             kernel_size,
             stride,
-            padding,
+            padding if padding_mode == "zeros" else 0,
             output_padding,
             groups,
             bias,
             dilation,
-            padding_mode,
+            "zeros",
         )
+        self.real_padding_mode = padding_mode
+        if padding == "same":
+            padding = self._calculate_same_padding()
+        self.real_padding = self._standardize_padding(padding)
 
-        # raise runtime error if kernel size >= stride
-        if (self.dilation[0] != 1 or self.dilation[1] != 1) and (
-            self.stride[0] != 1 or self.stride[1] != 1
+        if (
+            (self.out_channels <= self.in_channels)
+            and (((self.dilation[0] % self.stride[0]) == 0) and (self.stride[0] > 1))
+            and (((self.dilation[1] % self.stride[1]) == 0) and (self.stride[1] > 1))
         ):
             raise ValueError(
                 "dilation must be 1 when stride is not 1. The set of orthonal convolutions is empty in this setting."
@@ -224,12 +233,12 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
             self.intermediate_channels = out_channels
             # raise warning because this configuration don't yield orthogonal
             # convolutions
-            warnings.warn(
-                "This configuration does not yield orthogonal convolutions due to "
-                "padding issues: pytorch does not implement circular padding for "
-                "transposed convolutions",
-                RuntimeWarning,
-            )
+            # warnings.warn(
+            #     "This configuration does not yield orthogonal convolutions due to "
+            #     "padding issues: pytorch does not implement circular padding for "
+            #     "transposed convolutions",
+            #     RuntimeWarning,
+            # )
         del self.weight
         attach_bcop_weight(
             self,
@@ -257,8 +266,47 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
             ortho_params=ortho_params,
         )
 
+    def _calculate_same_padding(self) -> tuple:
+        """Calculate padding for 'same' mode."""
+        return (
+            int(
+                np.ceil(
+                    (self.dilation[0] * (self.kernel_size[0] - 1) + 1 - self.stride[0])
+                    / 2
+                )
+            ),
+            int(
+                np.floor(
+                    (self.dilation[0] * (self.kernel_size[0] - 1) + 1 - self.stride[0])
+                    / 2
+                )
+            ),
+            int(
+                np.ceil(
+                    (self.dilation[1] * (self.kernel_size[1] - 1) + 1 - self.stride[1])
+                    / 2
+                )
+            ),
+            int(
+                np.floor(
+                    (self.dilation[1] * (self.kernel_size[1] - 1) + 1 - self.stride[1])
+                    / 2
+                )
+            ),
+        )
+
+    def _standardize_padding(self, padding: _size_2_t) -> tuple:
+        """Ensure padding is always a tuple."""
+        if isinstance(padding, int):
+            padding = (padding, padding)
+        if isinstance(padding, tuple):
+            if len(padding) == 2:
+                padding = (padding[0], padding[0], padding[1], padding[1])
+            return padding
+        raise ValueError(f"padding must be int or tuple, got {type(padding)} instead")
+
     def singular_values(self):
-        if self.padding_mode != "circular":
+        if self.real_padding_mode != "circular":
             print(
                 f"padding {self.padding} not supported, return min and max"
                 f"singular values as if it was 'circular' padding "
@@ -291,7 +339,9 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
         )
         sv_min = sv_min * svs_2.min()
         sv_max = sv_max * svs_2.max()
-        stable_rank = 0.5 * stable_rank + 0.5 * (np.mean(svs_2) / (svs_2.max() ** 2))
+        stable_rank = 0.5 * stable_rank + 0.5 * (
+            np.mean(svs_2) ** 2 / (svs_2.max() ** 2)
+        )
         return sv_min, sv_max, stable_rank
 
     @property
@@ -305,4 +355,29 @@ class BcopRkoConvTranspose2d(nn.ConvTranspose2d):
 
     def forward(self, X):
         self._input_shape = X.shape[2:]
-        return super(BcopRkoConvTranspose2d, self).forward(X)
+        if self.real_padding_mode != "zeros":
+            X = nn.functional.pad(X, self.real_padding, self.real_padding_mode)
+            y = nn.functional.conv_transpose2d(
+                X,
+                self.weight,
+                self.bias,
+                self.stride,
+                (
+                    (
+                        -self.stride[0]
+                        + self.dilation[0] * (self.kernel_size[0] - 1)
+                        + 1
+                    ),
+                    (
+                        -self.stride[1]
+                        + self.dilation[1] * (self.kernel_size[1] - 1)
+                        + 1
+                    ),
+                ),
+                self.output_padding,
+                self.groups,
+                dilation=self.dilation,
+            )
+            return y
+        else:
+            return super(BcopRkoConvTranspose2d, self).forward(X)

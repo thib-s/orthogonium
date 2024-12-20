@@ -22,7 +22,7 @@ def conv_singular_values_numpy(kernel, input_shape):
         svs = np.linalg.svd(
             transforms, compute_uv=False, full_matrices=False
         )  # g, k1, k2, min(ci, co)
-        stable_rank = np.mean(svs) / svs.max()
+        stable_rank = (np.mean(svs) ** 2) / svs.max()
         return svs.min(), svs.max(), stable_rank
     except np.linalg.LinAlgError:
         print("numerical error in svd, returning only largest singular value")
@@ -403,8 +403,10 @@ class FastBlockConv2d(nn.Conv2d):
                 "stride > 1 is not supported when out_channels > in_channels, "
                 "use TODO layer instead"
             )
-        if (self.dilation[0] != 1 or self.dilation[1] != 1) and (
-            self.stride[0] != 1 or self.stride[1] != 1
+        if (
+            (self.out_channels >= self.in_channels)
+            and (((self.dilation[0] % self.stride[0]) == 0) and (self.stride[0] > 1))
+            and (((self.dilation[1] % self.stride[1]) == 0) and (self.stride[1] > 1))
         ):
             raise ValueError(
                 "dilation must be 1 when stride is not 1. The set of orthonal convolutions is empty in this setting."
@@ -485,14 +487,26 @@ class FastBlockConvTranspose2D(nn.ConvTranspose2d):
             out_channels,
             kernel_size,
             stride,
-            padding,
+            padding if padding_mode == "zeros" else 0,
             output_padding,
             groups,
             bias,
             dilation,
-            padding_mode,
+            "zeros",
         )
-        # raise runtime error if kernel size >= stride
+        self.real_padding_mode = padding_mode
+        if padding == "same":
+            padding = self._calculate_same_padding()
+        self.real_padding = self._standardize_padding(padding)
+
+        if (
+            (self.out_channels <= self.in_channels)
+            and (((self.dilation[0] % self.stride[0]) == 0) and (self.stride[0] > 1))
+            and (((self.dilation[1] % self.stride[1]) == 0) and (self.stride[1] > 1))
+        ):
+            raise ValueError(
+                "dilation must be 1 when stride is not 1. The set of orthonal convolutions is empty in this setting."
+            )
         if self.kernel_size[0] < self.stride[0] or self.kernel_size[1] < self.stride[1]:
             raise ValueError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
@@ -503,19 +517,6 @@ class FastBlockConvTranspose2D(nn.ConvTranspose2d):
             and (self.kernel_size[1] != self.stride[1])
         ):
             raise ValueError("inner conv must have at least 2 channels")
-        if out_channels * (self.stride[0] * self.stride[1]) < in_channels:
-            # raise warning because this configuration don't yield orthogonal
-            # convolutions
-            warnings.warn(
-                "This configuration does not yield orthogonal convolutions due to "
-                "padding issues: pytorch does not implement circular padding for "
-                "transposed convolutions",
-                RuntimeWarning,
-            )
-        if (self.dilation[0] > 1 or self.dilation[1] > 1) and (
-            self.stride[0] != 1 or self.stride[1] != 1
-        ):
-            raise ValueError("dilation must be 1 when stride is not 1")
         del self.weight
         attach_bcop_weight(
             self,
@@ -529,6 +530,45 @@ class FastBlockConvTranspose2D(nn.ConvTranspose2d):
             groups,
             ortho_params=ortho_params,
         )
+
+    def _calculate_same_padding(self) -> tuple:
+        """Calculate padding for 'same' mode."""
+        return (
+            int(
+                np.ceil(
+                    (self.dilation[0] * (self.kernel_size[0] - 1) + 1 - self.stride[0])
+                    / 2
+                )
+            ),
+            int(
+                np.floor(
+                    (self.dilation[0] * (self.kernel_size[0] - 1) + 1 - self.stride[0])
+                    / 2
+                )
+            ),
+            int(
+                np.ceil(
+                    (self.dilation[1] * (self.kernel_size[1] - 1) + 1 - self.stride[1])
+                    / 2
+                )
+            ),
+            int(
+                np.floor(
+                    (self.dilation[1] * (self.kernel_size[1] - 1) + 1 - self.stride[1])
+                    / 2
+                )
+            ),
+        )
+
+    def _standardize_padding(self, padding: _size_2_t) -> tuple:
+        """Ensure padding is always a tuple."""
+        if isinstance(padding, int):
+            padding = (padding, padding)
+        if isinstance(padding, tuple):
+            if len(padding) == 2:
+                padding = (padding[0], padding[0], padding[1], padding[1])
+            return padding
+        raise ValueError(f"padding must be int or tuple, got {type(padding)} instead")
 
     def singular_values(self):
         if self.padding_mode != "circular":
@@ -554,4 +594,29 @@ class FastBlockConvTranspose2D(nn.ConvTranspose2d):
 
     def forward(self, X):
         self._input_shape = X.shape[2:]
-        return super(FastBlockConvTranspose2D, self).forward(X)
+        if self.real_padding_mode != "zeros":
+            X = nn.functional.pad(X, self.real_padding, self.real_padding_mode)
+            y = nn.functional.conv_transpose2d(
+                X,
+                self.weight,
+                self.bias,
+                self.stride,
+                (
+                    (
+                        -self.stride[0]
+                        + self.dilation[0] * (self.kernel_size[0] - 1)
+                        + 1
+                    ),
+                    (
+                        -self.stride[1]
+                        + self.dilation[1] * (self.kernel_size[1] - 1)
+                        + 1
+                    ),
+                ),
+                self.output_padding,
+                self.groups,
+                dilation=self.dilation,
+            )
+            return y
+        else:
+            return super(FastBlockConvTranspose2D, self).forward(X)
