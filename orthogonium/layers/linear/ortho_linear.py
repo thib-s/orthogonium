@@ -32,7 +32,7 @@ class OrthoLinear(nn.Linear):
         svs = np.linalg.svd(
             self.weight.detach().cpu().numpy(), full_matrices=False, compute_uv=False
         )
-        stable_rank = np.sum(np.mean(svs)) / (svs.max() ** 2)
+        stable_rank = np.sum((np.mean(svs) ** 2)) / (svs.max() ** 2)
         return svs.min(), svs.max(), stable_rank
 
 
@@ -55,5 +55,5 @@ class UnitNormLinear(nn.Linear):
         svs = np.linalg.svd(
             self.weight.detach().cpu().numpy(), full_matrices=False, compute_uv=False
         )
-        stable_rank = np.sum(np.mean(svs)) / (svs.max() ** 2)
+        stable_rank = np.sum(np.mean(svs) ** 2) / (svs.max() ** 2)
         return svs.min(), svs.max(), stable_rank

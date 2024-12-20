@@ -271,7 +271,7 @@ class BatchedCholeskyOrthogonalization(nn.Module):
             return gX
 
     def forward(self, w):
-        return self.orth(w)
+        return self.orth(w).view(*self.weight_shape)
 
     def right_inverse(self, w):
         return w

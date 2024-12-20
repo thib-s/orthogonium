@@ -122,14 +122,18 @@ class RKOConv2d(nn.Conv2d):
             bias,
             padding_mode,
         )
-        if (self.dilation[0] > 1 or self.dilation[1] > 1) and (
-            self.stride[0] != 1 or self.stride[1] != 1
+        if (
+            True  # (self.out_channels >= self.in_channels) # investigate why it don't work
+            and (((self.dilation[0] % self.stride[0]) == 0) and (self.stride[0] > 1))
+            and (((self.dilation[1] % self.stride[1]) == 0) and (self.stride[1] > 1))
         ):
-            raise ValueError("dilation must be 1 when stride is not 1")
-        # torch.nn.init.orthogonal_(self.weight)
+            raise ValueError(
+                "dilation must be 1 when stride is not 1. The set of orthogonal convolutions is empty in this setting."
+            )
+        torch.nn.init.orthogonal_(self.weight)
         self.scale = 1 / math.sqrt(
-            math.ceil(self.dilation[0] * self.kernel_size[0] / self.stride[0])
-            * math.ceil(self.dilation[1] * self.kernel_size[1] / self.stride[1])
+            math.ceil(self.kernel_size[0] / self.stride[0])
+            * math.ceil(self.kernel_size[1] / self.stride[1])
         )
         parametrize.register_parametrization(
             self,
@@ -169,7 +173,7 @@ class RKOConv2d(nn.Conv2d):
             )
             sv_min = svs.min()
             sv_max = svs.max()
-            stable_rank = np.mean(svs) / (svs.max() ** 2)
+            stable_rank = (np.mean(svs) ** 2) / (svs.max() ** 2)
             return sv_min, sv_max, stable_rank
         elif self.stride[0] > 1 or self.stride[1] > 1:
             raise RuntimeError(
@@ -212,23 +216,29 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
             out_channels,
             kernel_size,
             stride,
-            padding,
+            padding if padding_mode == "zeros" else 0,
             output_padding,
             groups,
             bias,
             dilation,
-            padding_mode,
+            "zeros",
         )
-
-        # raise runtime error if kernel size >= stride
+        self.real_padding_mode = padding_mode
+        if padding == "same":
+            padding = self._calculate_same_padding()
+        self.real_padding = self._standardize_padding(padding)
         if self.kernel_size[0] < self.stride[0] or self.kernel_size[1] < self.stride[1]:
             raise ValueError(
                 "kernel size must be smaller than stride. The set of orthogonal convolutions is empty in this setting."
             )
-        if (self.dilation[0] > 1 or self.dilation[1] > 1) and (
-            self.stride[0] != 1 or self.stride[1] != 1
+        if (
+            (self.out_channels <= self.in_channels)
+            and (((self.dilation[0] % self.stride[0]) == 0) and (self.stride[0] > 1))
+            and (((self.dilation[1] % self.stride[1]) == 0) and (self.stride[1] > 1))
         ):
-            raise ValueError("dilation must be 1 when stride is not 1")
+            raise ValueError(
+                "dilation must be 1 when stride is not 1. The set of orthonal convolutions is empty in this setting."
+            )
         if (
             self.stride[0] != self.kernel_size[0]
             or self.stride[1] != self.kernel_size[1]
@@ -249,6 +259,45 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
             ortho_params=ortho_params,
         )
 
+    def _calculate_same_padding(self) -> tuple:
+        """Calculate padding for 'same' mode."""
+        return (
+            int(
+                np.ceil(
+                    (self.dilation[0] * (self.kernel_size[0] - 1) + 1 - self.stride[0])
+                    / 2
+                )
+            ),
+            int(
+                np.floor(
+                    (self.dilation[0] * (self.kernel_size[0] - 1) + 1 - self.stride[0])
+                    / 2
+                )
+            ),
+            int(
+                np.ceil(
+                    (self.dilation[1] * (self.kernel_size[1] - 1) + 1 - self.stride[1])
+                    / 2
+                )
+            ),
+            int(
+                np.floor(
+                    (self.dilation[1] * (self.kernel_size[1] - 1) + 1 - self.stride[1])
+                    / 2
+                )
+            ),
+        )
+
+    def _standardize_padding(self, padding: _size_2_t) -> tuple:
+        """Ensure padding is always a tuple."""
+        if isinstance(padding, int):
+            padding = (padding, padding)
+        if isinstance(padding, tuple):
+            if len(padding) == 2:
+                padding = (padding[0], padding[0], padding[1], padding[1])
+            return padding
+        raise ValueError(f"padding must be int or tuple, got {type(padding)} instead")
+
     def singular_values(self):
         if (self.stride[0] == self.kernel_size[0]) and (
             self.stride[1] == self.kernel_size[1]
@@ -267,7 +316,7 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
             )
             sv_min = svs.min()
             sv_max = svs.max()
-            stable_rank = np.mean(svs) / (svs.max() ** 2)
+            stable_rank = (np.mean(svs) ** 2) / (svs.max() ** 2)
             return sv_min, sv_max, stable_rank
         elif self.stride[0] > 1 or self.stride[1] > 1:
             raise RuntimeError(
@@ -291,4 +340,29 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
 
     def forward(self, X):
         self._input_shape = X.shape[2:]
-        return super(RkoConvTranspose2d, self).forward(X)
+        if self.real_padding_mode != "zeros":
+            X = nn.functional.pad(X, self.real_padding, self.real_padding_mode)
+            y = nn.functional.conv_transpose2d(
+                X,
+                self.weight,
+                self.bias,
+                self.stride,
+                (
+                    (
+                        -self.stride[0]
+                        + self.dilation[0] * (self.kernel_size[0] - 1)
+                        + 1
+                    ),
+                    (
+                        -self.stride[1]
+                        + self.dilation[1] * (self.kernel_size[1] - 1)
+                        + 1
+                    ),
+                ),
+                self.output_padding,
+                self.groups,
+                dilation=self.dilation,
+            )
+            return y
+        else:
+            return super(RkoConvTranspose2d, self).forward(X)

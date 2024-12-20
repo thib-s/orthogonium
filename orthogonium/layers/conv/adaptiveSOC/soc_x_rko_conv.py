@@ -160,7 +160,7 @@ class SOCRkoConv2d(nn.Conv2d):
         )
         sv_min = sv_min * svs_2.min()
         sv_max = sv_max * svs_2.max()
-        stable_rank = 0.5 * stable_rank + 0.5 * (np.mean(svs_2) / (svs_2.max() ** 2))
+        stable_rank = 0.5 * stable_rank + 0.5 * ((np.mean(svs_2) ** 2) / (svs_2.max() ** 2))
         return sv_min, sv_max, stable_rank
 
     def forward(self, X):
@@ -232,12 +232,12 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
             self.intermediate_channels = out_channels
             # raise warning because this configuration don't yield orthogonal
             # convolutions
-            warnings.warn(
-                "This configuration does not yield orthogonal convolutions due to "
-                "padding issues: pytorch does not implement circular padding for "
-                "transposed convolutions",
-                RuntimeWarning,
-            )
+            # warnings.warn(
+            #     "This configuration does not yield orthogonal convolutions due to "
+            #     "padding issues: pytorch does not implement circular padding for "
+            #     "transposed convolutions",
+            #     RuntimeWarning,
+            # )
         del self.weight
         attach_soc_weight(
             self,
@@ -299,7 +299,7 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
         )
         sv_min = sv_min * svs_2.min()
         sv_max = sv_max * svs_2.max()
-        stable_rank = 0.5 * stable_rank + 0.5 * (np.mean(svs_2) / (svs_2.max() ** 2))
+        stable_rank = 0.5 * stable_rank + 0.5 * ((np.mean(svs_2) ** 2) / (svs_2.max() ** 2))
         return sv_min, sv_max, stable_rank
 
     @property

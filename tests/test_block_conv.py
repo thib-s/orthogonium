@@ -13,9 +13,9 @@ THRESHOLD = 1e-4
 # implementation withing this test
 @pytest.mark.parametrize("kernel_size_1", [3, 5])
 @pytest.mark.parametrize("kernel_size_2", [3, 5])
-@pytest.mark.parametrize("channels_1", [8, 16])
-@pytest.mark.parametrize("channels_2", [8, 16])
-@pytest.mark.parametrize("channels_3", [8, 16])
+@pytest.mark.parametrize("channels_1", [4, 8])
+@pytest.mark.parametrize("channels_2", [4, 8])
+@pytest.mark.parametrize("channels_3", [4, 8])
 @pytest.mark.parametrize("stride", [1, 2])
 @pytest.mark.parametrize("padding", ["valid-circular", "same-circular"])
 @pytest.mark.parametrize("groups", [1, 4])
