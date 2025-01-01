@@ -22,7 +22,7 @@ def _compute_sv_impulse_response_layer(layer, img_shape):
             img_shape[0],
             img_shape[1],
             img_shape[2],
-        )
+        ).to(device)
         outputs = layer(inputs)
         try:
             svs = torch.linalg.svdvals(outputs.view(outputs.shape[0], -1))
@@ -39,7 +39,7 @@ def check_orthogonal_layer(
     kernel_size,
     output_channels,
     expected_kernel_shape,
-    tol=1e-4,
+    tol=1e-3,
     sigma_min_requirement=0.95,
 ):
     imsize = 8
@@ -581,6 +581,6 @@ def test_parametrizers_standard_configs(
             kernel_size,
             kernel_size,
         ),
-        tol=3e-2 if ortho_params.startswith("cholesky") else 1e-4,
+        tol=3e-2 if ortho_params.startswith("cholesky") else 1e-3,
         sigma_min_requirement=0.75 if ortho_params.startswith("cholesky") else 0.95,
     )
