@@ -1,9 +1,11 @@
 import math
 import os
 
-import pytorch_lightning
+from lightning.pytorch import callbacks as pl_callbacks
+from lightning.pytorch import Trainer
+from lightning.pytorch import LightningModule
+from lightning.pytorch import LightningDataModule
 import schedulefree
-import torch.nn as nn
 import torch.utils.data
 import torchmetrics
 from lightning.pytorch.loggers import WandbLogger
@@ -20,9 +22,9 @@ from torchvision.transforms import ToTensor
 
 from orthogonium.model_factory.classparam import ClassParam
 from orthogonium.layers import UnitNormLinear
-from orthogonium.layers.conv import AdaptiveOrthoConv2d
+from orthogonium.layers.conv.AOC import AdaptiveOrthoConv2d
 from orthogonium.layers.custom_activations import MaxMin
-from orthogonium.reparametrizers import DEFAULT_ORTHO_PARAMS
+from orthogonium.reparametrizers import DEFAULT_ORTHO_PARAMS, QR_ORTHO_PARAMS
 from orthogonium.losses import check_last_linear_layer_type
 from orthogonium.losses import LossXent
 from orthogonium.losses import VRA
@@ -39,7 +41,7 @@ parent_directory = os.path.abspath(os.path.join(this_directory, os.pardir))
 MAX_EPOCHS = 300  # as done in resnet strikes back
 
 
-class ImagenetDataModule(pytorch_lightning.LightningDataModule):
+class ImagenetDataModule(LightningDataModule):
     # Dataset configuration
     _DATA_PATH = f"/local_data/imagenet_cache/ILSVRC/Data/CLS-LOC/"
     _BATCH_SIZE = 256
@@ -121,8 +123,8 @@ class ImagenetDataModule(pytorch_lightning.LightningDataModule):
         )
 
 
-class ClassificationLightningModule(pytorch_lightning.LightningModule):
-    def __init__(self, num_classes=10):
+class ClassificationLightningModule(LightningModule):
+    def __init__(self, num_classes=1000):
         super().__init__()
         self.num_classes = num_classes
         self.model = AOCNetV1(
@@ -140,15 +142,15 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
             ),
             conv=ClassParam(
                 AdaptiveOrthoConv2d,
-                bias=True,
+                bias=False,
                 padding="same",
                 padding_mode="zeros",
-                ortho_params=DEFAULT_ORTHO_PARAMS,
+                ortho_params=QR_ORTHO_PARAMS,
             ),
             act=ClassParam(MaxMin),
-            lin=ClassParam(UnitNormLinear, bias=True),
+            lin=ClassParam(UnitNormLinear, bias=False),
             norm=None,
-            pool=ClassParam(nn.LPPool2d, norm_type=2),
+            pool=None,#ClassParam(nn.LPPool2d, norm_type=2),
         )
         # self.criteria = CosineLoss()
         # self.criteria = LossXent(num_classes, offset=0, temperature=0.5 * 0.125)
@@ -167,7 +169,10 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
 
     def training_step(self, batch, batch_idx):
         self.model.train()
-        self.opt.train()
+        opt = self.optimizers()
+        # opt.zero_grad()
+        if hasattr(opt, "train"):
+            opt.train()
         img, label = batch
         y_hat = self.model(img)
         loss = self.criteria(y_hat, label)
@@ -176,11 +181,11 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
             VRA(
                 y_hat,
                 label,
-                L=1 / max(ImagenetDataModule._PREPROCESSING_PARAMS["img_std"]),
+                L=1 / min(ImagenetDataModule._PREPROCESSING_PARAMS["img_std"]),
                 eps=36 / 255,
                 last_layer_type=check_last_linear_layer_type(self.model),
             )
-        )  # L is 1 / max std of imagenet
+        )  # L is 1 / min std of imagenet
         self.log(
             "loss",
             loss,
@@ -209,7 +214,9 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         self.model.eval()
-        self.opt.eval()
+        opt = self.optimizers()
+        if hasattr(opt, "eval"):
+            opt.eval()
         img, label = batch
         y_hat = self.model(img)
         loss = self.criteria(y_hat, label)
@@ -218,11 +225,11 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
             VRA(
                 y_hat,
                 label,
-                L=1 / max(ImagenetDataModule._PREPROCESSING_PARAMS["img_std"]),
+                L=1 / min(ImagenetDataModule._PREPROCESSING_PARAMS["img_std"]),
                 eps=36 / 255,
                 last_layer_type=check_last_linear_layer_type(self.model),
             )
-        )  # L is 1 / max std of imagenet
+        )  # L is 1 / min std of imagenet
         self.log(
             "val_loss",
             loss,
@@ -249,6 +256,33 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
         )
         return loss
 
+    def on_fit_start(self) -> None:
+        self.optimizers().train()
+
+    def on_predict_start(self) -> None:
+        self.optimizers().eval()
+
+    def on_validation_model_eval(self) -> None:
+        self.model.eval()
+        self.optimizers().eval()
+
+    def on_validation_model_train(self) -> None:
+        self.model.train()
+        self.optimizers().train()
+
+    def on_test_model_eval(self) -> None:
+        self.model.eval()
+        self.optimizers().eval()
+
+    def on_test_model_train(self) -> None:
+        self.model.train()
+        self.optimizers().train()
+
+    def on_predict_model_eval(self) -> None:  # redundant with on_predict_start()
+        self.model.eval()
+        self.optimizers().eval()
+
+
     def configure_optimizers(self):
         """
         Setup the Adam optimizer. Note, that this function also can return a lr scheduler, which is
@@ -256,9 +290,10 @@ class ClassificationLightningModule(pytorch_lightning.LightningModule):
         """
         # return torch.optim.AdamW(self.parameters(), lr=0.0001, weight_decay=1e-5)
         optimizer = schedulefree.AdamWScheduleFree(
-            self.parameters(), lr=1e-3, weight_decay=0
+            self.parameters(), lr=5e-3, weight_decay=0
         )
-        self.opt = optimizer
+        optimizer.train()
+        self.hparams["lr"] = optimizer.param_groups[0]["lr"]
         return optimizer
 
 
@@ -266,7 +301,16 @@ def train():
     classification_module = ClassificationLightningModule(num_classes=1000)
     data_module = ImagenetDataModule()
     wandb_logger = WandbLogger(project="lipschitz-robust-imagenet", log_model=True)
-    trainer = pytorch_lightning.Trainer(
+    # wandb_logger.experiment.config["ortho_method"] = method
+    # wandb_logger.experiment.config["criteria"] = criteria
+    checkpoint_callback = pl_callbacks.ModelCheckpoint(
+        monitor="loss",
+        mode="min",
+        save_top_k=1,
+        save_last=True,
+        dirpath=f"./checkpoints/{wandb_logger.experiment.dir}",
+    )
+    trainer = Trainer(
         accelerator="gpu",
         devices=-1,  # GPUs per node
         num_nodes=1,  # Number of nodes
@@ -276,6 +320,11 @@ def train():
         max_epochs=MAX_EPOCHS,
         enable_model_summary=True,
         logger=[wandb_logger],
+        # logger=False,
+        callbacks=[
+            # pl_callbacks.LearningRateFinder(max_lr=0.05),
+            checkpoint_callback,
+        ]
     )
     summary(classification_module, input_size=(1, 3, 224, 224))
 
