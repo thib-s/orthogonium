@@ -4,8 +4,6 @@ import os
 import pandas as pd
 import pytorch_lightning
 import torch
-from batch_times import evaluate_all_model_time_statistics
-from memory_usage import get_model_memory
 from torch.nn import Conv2d
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
@@ -17,19 +15,27 @@ from torchvision.transforms import RandomResizedCrop
 from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
-from orthogonium.model_factory.classparam import ClassParam
+from batch_times import evaluate_all_model_time_statistics
+from memory_usage import get_model_memory
 from orthogonium.layers import AdaptiveOrthoConv2d as BCOP_new
 from orthogonium.layers.legacy.block_ortho_conv import BCOP as BCOP_old
 from orthogonium.layers.legacy.cayley_ortho_conv import Cayley
 from orthogonium.layers.legacy.skew_ortho_conv import SOC
+from orthogonium.model_factory.classparam import ClassParam
 from orthogonium.model_factory.models_factory import LipResNet
+from orthogonium.reparametrizers import DEFAULT_ORTHO_PARAMS, QR_ORTHO_PARAMS, EXP_ORTHO_PARAMS, CHOLESKY_ORTHO_PARAMS, \
+    CHOLESKY_STABLE_ORTHO_PARAMS
 
 # from orthogonium.layers.conv.reparametrizers import BjorckParams
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 layers = [
-    ("BCOP_new", BCOP_new),
+    ("BCOP_qr", ClassParam(BCOP_new, ortho_params=QR_ORTHO_PARAMS)),
+    ("BCOP_bb", ClassParam(BCOP_new, ortho_params=DEFAULT_ORTHO_PARAMS)),
+    ("BCOP_cho", ClassParam(BCOP_new, ortho_params=CHOLESKY_ORTHO_PARAMS)),
+    ("BCOP_cho_stab", ClassParam(BCOP_new, ortho_params=CHOLESKY_STABLE_ORTHO_PARAMS)),
+    ("BCOP_exp", ClassParam(BCOP_new, ortho_params=EXP_ORTHO_PARAMS)),
     ("BCOP_old", BCOP_old),
     (
         "SOC",
