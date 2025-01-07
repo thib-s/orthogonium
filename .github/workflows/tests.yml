@@ -44,7 +44,7 @@ jobs:
           set -xe
           python -VV
           python -c "import torch; print(torch.__version__)"
-          pytest --cov=orthogonium.layers --cov-report lcov tests --cov-exclude="orthogonium.legacy.*" --cov-exclude="orthogonium.conv.adaptiveSOC"
+          pytest --cov=orthogonium.layers --cov-report lcov tests
         shell: bash
 
       - name: Upload Coverage to Coveralls
