@@ -32,11 +32,11 @@ req_path = os.path.join(this_directory, "requirements.txt")
 req_dev_path = os.path.join(this_directory, "requirements_dev.txt")
 
 install_requires = []
-
 if os.path.exists(req_path):
     with open(req_path) as fp:
         install_requires = [line.strip() for line in fp]
 
+install_dev_requires = []
 if os.path.exists(req_dev_path):
     with open(req_dev_path) as fp:
         install_dev_requires = [line.strip() for line in fp]
@@ -57,7 +57,9 @@ setup(
     version=version,
     # Find the package automatically (include everything):
     packages=find_packages(include=["orthogonium"]),
-    package_data={},
+    package_data={
+        "orthogonium": ["VERSION"],  # Add the VERSION file
+    },
     # Author information:
     author="Thibaut Boissin",
     author_email="thibaut.boissin@gmail.com",
