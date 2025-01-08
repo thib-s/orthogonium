@@ -1,3 +1,52 @@
+"""
+# SSL derived 1-Lipschitz Layers
+
+This module implements several 1-Lipschitz residual blocks, inspired by and extending
+the SDP-based Lipschitz Layers (SLL) from [1]. Specifically:
+
+- **`SDPBasedLipschitzResBlock`**  
+  The original version of the 1-Lipschitz convolutional residual block. It enforces Lipschitz
+  constraints by rescaling activation outputs according to an estimate of the operator norm.
+
+- **`SLLxAOCLipschitzResBlock`**  
+  An extended version of the SLL approach described in [1], combined with additional orthogonal
+  convolutions to handle stride, kernel-size, or channel-dimension changes. It fuses multiple
+  convolutions via the block convolution, thereby preserving the 1-Lipschitz property while enabling
+  strided downsampling or modifying input/output channels.
+
+- **`AOCLipschitzResBlock`**  
+  A variant of the original Lipschitz block where the core convolution is replaced by an
+  `AdaptiveOrthoConv2d`. It maintains the 1-Lipschitz property with orthogonal weight
+  parameterization while providing efficient convolution implementations.
+
+## References
+
+[1] Alexandre Araujo, Aaron J Havens, Blaise Delattre, Alexandre Allauzen, and Bin Hu. A unified alge-
+braic perspective on lipschitz neural networks. In The Eleventh International Conference on Learning
+Representations, 2023
+[2] Thibaut Boissin, Franck Mamalet, Thomas Fel, Agustin Martin Picard, Thomas Massena, Mathieu Serrurier,
+An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures
+
+## Notes on the SLL approach
+
+In [1], the SLL layer for convolutions is a 1-Lipschitz residual operation defined approximately as:
+
+$$
+y = x - \mathbf{K}^T \\star (\sigma(\\mathbf{K} \\star x + b)),
+$$
+
+where $\mathbf{K}$ represents a toeplitz (convolution) matrix with suitable norm constraints.
+
+By default, the SLL formulation does **not** allow strides or changes in the number of channels.  
+To address these issues, `SLLxAOCLipschitzResBlock` adds extra orthogonal convolutions before and/or
+after the main SLL operation. These additional convolutions can be merged via block convolution
+(Proposition 1 in [2]) to maintain 1-Lipschitz behavior while enabling stride and/or channel changes.
+
+When $\mathbf{K}$, $\mathbf{K}_{pre}$, and $\mathbf{K}_{post}$ each correspond to 2×2 convolutions,
+the resulting block effectively contains two 3×3 convolutions in one branch and a single 4×4 stride-2
+convolution in the skip branch—quite similar to typical ResNet blocks.
+"""
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -17,8 +66,32 @@ def safe_inv(x):
     return x_inv
 
 
-class SDPBasedLipschitzResBlock(nn.Module):
+class SLLxAOCLipschitzResBlock(nn.Module):
     def __init__(self, cin, cout, inner_dim_factor, kernel_size=3, stride=2, **kwargs):
+        """
+        Extended SLL-based convolutional residual block. Supports arbitrary kernel sizes,
+        strides, and changes in the number of channels by integrating additional
+        orthogonal convolutions *and* fusing them via `\mathbconv` [1].
+
+        The forward pass follows:
+
+        $$
+        \displaystyle
+        \text{out} \;=\; x \;-\; 2 \,\convtrcode{K}{}{1}\Bigl(
+          \; t \,\sigma\bigl(\convcode{K}{}{1}(x) \;+\; b \bigr)
+        \Bigr),
+        $$
+
+        where the kernel `\kernel{K}` may effectively be expanded by pre/post AOC layers to
+        handle stride and channel changes. This approach is described in "Improving
+        SDP-based Lipschitz Layers" of [1].
+
+        **Args**:
+          - `cin` (int): Number of input channels.
+          - `inner_dim_factor` (float): Multiplier for the internal channel dimension.
+          - `kernel_size` (int, optional): Base kernel size for the SLL portion. Default is 3.
+          - `**kwargs`: Additional options (unused).
+        """
         super().__init__()
         inner_kernel_size = kernel_size - (stride - 1)
         self.skip_kernel_size = stride + (stride // 2)
@@ -80,8 +153,29 @@ class SDPBasedLipschitzResBlock(nn.Module):
         return out
 
 
-class SLLxAOCLipschitzResBlock(nn.Module):
+class SDPBasedLipschitzResBlock(nn.Module):
     def __init__(self, cin, inner_dim_factor, kernel_size=3, **kwargs):
+        """
+         Original 1-Lipschitz convolutional residual block, based on the SDP-based Lipschitz
+        layer (SLL) approach [1]. It has a structure akin to:
+
+        out = x - 2 * ConvTranspose( t * ReLU(Conv(x) + bias) )
+
+        where `t` is a channel-wise scaling factor ensuring a Lipschitz constant ≤ 1.
+
+        !!! note
+            By default, `SDPBasedLipschitzResBlock` assumes `cin == cout` and does **not** handle
+            stride changes outside the skip connection (i.e., typically used when stride=1 or 2
+            for downsampling in a standard residual architecture).
+
+        **Args**:
+          - `cin` (int): Number of input channels.
+          - `cout` (int): Number of output channels.
+          - `inner_dim_factor` (float): Multiplier for the intermediate dimensionality.
+          - `kernel_size` (int, optional): Size of the convolution kernel. Default is 3.
+          - `stride` (int, optional): Stride for the skip connection. Default is 2.
+          - `**kwargs`: Additional keyword arguments (unused).
+        """
         super().__init__()
 
         inner_dim = int(cin * inner_dim_factor)
@@ -122,6 +216,22 @@ class SLLxAOCLipschitzResBlock(nn.Module):
 
 class SDPBasedLipschitzDense(nn.Module):
     def __init__(self, in_features, out_features, inner_dim, **kwargs):
+        """
+        A 1-Lipschitz fully-connected layer (dense version). Similar to the convolutional
+        SLL approach, but operates on vectors:
+
+        $$
+        \displaystyle
+        \text{out} \;=\; x - 2\, W^\top \Bigl(
+          t \,\sigma\bigl(W\,x + b\bigr)
+        \Bigr).
+        $$
+
+        **Args**:
+          - `in_features` (int): Input size.
+          - `out_features` (int): Output size (must match `in_features` to remain 1-Lipschitz).
+          - `inner_dim` (int): The internal dimension used for the transform.
+        """
         super().__init__()
 
         inner_dim = inner_dim if inner_dim != -1 else in_features
@@ -167,6 +277,28 @@ class AOCLipschitzResBlock(nn.Module):
         padding_mode: str = "circular",
         ortho_params: OrthoParams = OrthoParams(),
     ):
+        """
+        A Lipschitz residual block in which the main convolution is replaced by
+        `AdaptiveOrthoConv2d` (AOC). This preserves 1-Lipschitz (or lower) behavior through
+        an orthogonal parameterization, without explicitly computing a scaling factor `t`.
+
+        $$
+        \displaystyle
+        \text{out} = x \;-\; 2\,\convtrcode{K}{}{1}\Bigl(
+          \;\sigma\bigl(\convcode{K}{}{1}(x)\bigr)
+        \Bigr).
+        $$
+
+        **Args**:
+          - `in_channels` (int): Number of input channels.
+          - `inner_dim_factor` (int): Multiplier for internal representation size.
+          - `kernel_size` (_size_2_t): Convolution kernel size.
+          - `dilation` (_size_2_t, optional): Default is 1.
+          - `groups` (int, optional): Default is 1.
+          - `bias` (bool, optional): If True, adds a learnable bias. Default is True.
+          - `padding_mode` (str, optional): `'circular'` or `'zeros'`. Default is `'circular'`.
+          - `ortho_params` (OrthoParams, optional): Orthogonal parameterization settings. Default is `OrthoParams()`.
+        """
         super().__init__()
 
         inner_dim = int(in_channels * inner_dim_factor)

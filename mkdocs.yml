@@ -4,7 +4,12 @@ site_name: orthogonium
 nav:
   - Home: index.md
   - API Reference:
-      - orthogonium.layers module: api/layers.md
+      - convolutions: api/conv.md
+      - linear layers: api/linear.md
+      - reparametrizers: api/reparametrizers.md
+#      - layers.conv.AOC module: api/aoc.md
+#      - layers.conv.adaptiveSOC module: api/adaptiveSOC.md
+#      - layers.conv.SLL module: api/sll.md
 #  - Tutorials:
 #    - "Demo 0: How to use notebook in documentation": notebooks/demo_fake.ipynb
   - Contributing: CONTRIBUTING.md
