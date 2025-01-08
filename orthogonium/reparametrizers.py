@@ -123,33 +123,20 @@ class BatchedIdentity(nn.Module):
 class BatchedBjorckOrthogonalization(nn.Module):
     def __init__(self, weight_shape, beta=0.5, niters=12, pass_through=False):
         """
-        Initializes an instance of the BatchedBjorckOrthogonalization class.
+        Initialize the BatchedBjorckOrthogonalization module.
 
-        This constructor sets up the necessary attributes to perform batched
-        Björck orthogonalization. It determines the suitable operation
-        (w_wtw_op or wwt_w_op) based on the shape of the weight matrix.
+        This module implements the Björck orthogonalization method, which iteratively refines
+        a weight matrix towards orthogonality. The method is especially effective when the
+        weight matrix columns are nearly orthonormal. It balances computational efficiency
+        with convergence speed through a user-defined `beta` parameter and iteration count.
 
-        Attributes:
-            weight_shape: Tuple
-                The shape of the weight matrix to be orthogonalized.
-            beta: float
-                Coefficient to control the convergence of the orthogonalization
-                process. Defaults to 0.5.
-            niters: int
-                Number of iterations for the orthogonalization procedure.
-                Defaults to 7.
-            wwtw_op: Callable
-                The chosen method for calculating the orthogonalized weights.
-                This is set based on the dimensions of the weight matrix.
-
-        Parameters:
-            weight_shape: Tuple
-                Specifies the shape of the weight matrix.
-            beta:
-                Sets the convergence coefficient value. Defaults to 0.5.
-            niters:
-                Specifies the iteration count for the orthogonalization algorithm.
-                Defaults to 12.
+        Args:
+            weight_shape (tuple): The shape of the weight matrix to be orthogonalized.
+            beta (float): Coefficient controlling the convergence of the orthogonalization process.
+                Default is 0.5.
+            niters (int): Number of iterations for the orthogonalization algorithm. Default is 12.
+            pass_through (bool): If True, most iterations are performed without gradient computation,
+                which can improve efficiency.
         """
         self.weight_shape = weight_shape
         self.beta = beta
@@ -170,6 +157,18 @@ class BatchedBjorckOrthogonalization(nn.Module):
         return (w @ w.transpose(-1, -2)) @ w
 
     def forward(self, w):
+        """
+        Apply the Björck orthogonalization process to the weight matrix.
+
+        The algorithm adjusts the input matrix to approximate the closest orthogonal matrix
+        by iteratively applying transformations based on the Björck algorithm.
+
+        Args:
+            w (torch.Tensor): The weight matrix to be orthogonalized.
+
+        Returns:
+            torch.Tensor: The orthogonalized weight matrix.
+        """
         if self.pass_through:
             with torch.no_grad():
                 for _ in range(self.niters):
@@ -188,19 +187,19 @@ class BatchedBjorckOrthogonalization(nn.Module):
 class BatchedCholeskyOrthogonalization(nn.Module):
     def __init__(self, weight_shape, stable=False):
         """
-        Initializes a BatchedCholeskyOrthogonalization instance. Depending on the stable
-        flag, it selects the orthogonalization function to be used.
+        Initialize the BatchedCholeskyOrthogonalization module.
 
-        Attributes:
-        weight_shape: The shape of the weight matrix that this instance will work with.
-        orth: Function used for performing batched Cholesky-based orthogonalization,
-              chosen based on the stable parameter.
+        This module orthogonalizes a weight matrix using the Cholesky decomposition method.
+        It first computes the positive definite matrix \( V V^T \), then performs a Cholesky
+        decomposition to obtain a lower triangular matrix. Solving the resulting triangular
+        system yields an orthogonal matrix. This method is efficient and numerically stable,
+        making it suitable for a wide range of applications.
 
-        Parameters:
-        weight_shape: The shape of the weight matrix, typically a tuple of integers.
-        stable: A boolean indicating whether to use the stable version of the
-                orthogonalization function. Default is False.
-
+        Args:
+            weight_shape (tuple): The shape of the weight matrix.
+            stable (bool): Whether to use the stable version of the Cholesky-based orthogonalization
+                function, which adds a small positive diagonal element to ensure numerical stability.
+                Default is False.
         """
         self.weight_shape = weight_shape
         super(BatchedCholeskyOrthogonalization, self).__init__()
@@ -279,6 +278,20 @@ class BatchedCholeskyOrthogonalization(nn.Module):
             return gX
 
     def forward(self, w):
+        """
+        Apply Cholesky-based orthogonalization to the weight matrix.
+
+        This method constructs a symmetric positive definite matrix from the input weight
+        matrix, performs Cholesky decomposition, and solves the triangular system to produce
+        an orthogonal matrix. It mimics the results of the Gram-Schmidt process but with
+        improved numerical stability.
+
+        Args:
+            w (torch.Tensor): The weight matrix to be orthogonalized.
+
+        Returns:
+            torch.Tensor: The orthogonalized weight matrix.
+        """
         return self.orth(w).view(*self.weight_shape)
 
     def right_inverse(self, w):
@@ -288,26 +301,19 @@ class BatchedCholeskyOrthogonalization(nn.Module):
 class BatchedExponentialOrthogonalization(nn.Module):
     def __init__(self, weight_shape, niters=7):
         """
-        Initialize a BatchedExponentialOrthogonalization instance. This class is used to
-        perform stabilization and normalization of weights in neural network through
-        exponential map-based orthogonalization. Suitable for batched operations.
+        Initialize the BatchedExponentialOrthogonalization module.
 
-        Attributes:
-        weight_shape: Tuple[int, int]
-            The shape of the weight matrix, usually two-dimensional.
-        max_dim: int
-            Maximum dimension from the last two dimensions of weight_shape. Used
-            internally for computations.
-        niters: int
-            The number of iterations used for convergence in the orthogonalization
-            process.
+        This module orthogonalizes a weight matrix using the exponential map of a skew-symmetric
+        matrix. By converting the matrix into a skew-symmetric form and applying the matrix
+        exponential, it produces an orthogonal matrix. This approach is particularly useful
+        in contexts where smooth transitions between matrices are required.
 
-        Parameters:
-        weight_shape: tuple
-            A tuple representing the shape of the weight matrix.
-        niters: int, optional
-            The number of iterations for stabilization and orthogonalization. Default
-            is 7.
+        Non-square matrices
+
+        Args:
+            weight_shape (tuple): The shape of the weight matrix.
+            niters (int): Number of iterations for the series expansion approximation of the
+                matrix exponential. Default is 7.
         """
         self.weight_shape = weight_shape
         self.max_dim = max(weight_shape[-2:])
@@ -339,22 +345,30 @@ class BatchedExponentialOrthogonalization(nn.Module):
 class BatchedQROrthogonalization(nn.Module):
     def __init__(self, weight_shape):
         """
-        A class for performing batched QR orthogonalization.
+        Initialize the BatchedQROrthogonalization module.
 
-        This class is used to initialize an instance of BatchedQROrthogonalization with the
-        specified weight shape. It is designed to handle batched QR decomposition operations
-        in applications where orthogonalization of batches of matrices is required.
-
-        Attributes:
-            weight_shape: The shape of the weights, which is expected to define the shape
-            of the matrices to be orthogonalized.
+        This module uses QR decomposition to orthogonalize a weight matrix in a batched manner.
+        It computes the orthogonal component (`Q`) from the decomposition, ensuring that the
+        output satisfies orthogonality constraints.
 
         Args:
-            weight_shape (tuple): Shape of the weights used for batched QR orthogonalization.
+            weight_shape (tuple): The shape of the weight matrix to be orthogonalized.
         """
         super(BatchedQROrthogonalization, self).__init__()
 
     def forward(self, w):
+        """
+        Perform QR decomposition to compute the orthogonalized weight matrix.
+
+        The QR decomposition splits the input matrix into an orthogonal matrix (`Q`) and
+        an upper triangular matrix (`R`). This module returns the orthogonal component.
+
+        Args:
+            w (torch.Tensor): The weight matrix to be orthogonalized.
+
+        Returns:
+            torch.Tensor: The orthogonalized weight matrix (`Q` from the QR decomposition).
+        """
         transpose = w.shape[-2] < w.shape[-1]
         if transpose:
             w = w.transpose(-1, -2)

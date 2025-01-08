@@ -65,9 +65,6 @@ def check_orthogonal_layer(
         pytest.fail(
             f"BCOP weight has incorrect shape: {orthoconv.weight.shape} vs {(output_channels, input_channels // groups, kernel_size, kernel_size)}"
         )
-    # check that the layer is norm preserving
-    inp_norm = torch.sqrt(torch.square(inp).sum(dim=(-3, -2, -1))).float().item()
-    out_norm = torch.sqrt(torch.square(output).sum(dim=(-3, -2, -1))).float().item()
     # Test singular_values function
     sigma_min, sigma_max, stable_rank = orthoconv.singular_values()  # try:
     sigma_min_ir, sigma_max_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
