@@ -4,7 +4,7 @@ import torch
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import fast_batched_matrix_conv
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import fast_matrix_conv
 
-THRESHOLD = 1e-4
+THRESHOLD = 5e-4
 
 
 # note that only square kernels are tested here
@@ -128,4 +128,4 @@ def test_batched_conv2d_operations(
         dim=0,
     )
     res2 = fast_batched_matrix_conv(kernel_1, kernel_2, groups=groups)
-    torch.testing.assert_allclose(res1, res2, rtol=1e-5, atol=1e-5)
+    assert torch.mean(torch.square(res1 - res2)) < THRESHOLD

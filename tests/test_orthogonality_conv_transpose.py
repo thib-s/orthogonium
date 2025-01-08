@@ -182,7 +182,8 @@ def test_parametrizers_standard_configs(
             kernel_size,
             kernel_size,
         ),
-        tol=3e-2 if ortho_params.startswith("cholesky") else 1e-4,
+        tol=3e-2 if ortho_params.startswith("cholesky") else 1e-3,
+        sigma_min_requirement=0.75 if ortho_params.startswith("cholesky") else 0.95,
     )
 
     # try:

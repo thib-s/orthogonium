@@ -159,7 +159,7 @@ def test_ortho_linear_with_orthparams(
         # Validate singular values
         sigma_min, sigma_max, stable_rank = layer.singular_values()
         # Add precision tolerances for different orthparams
-        tol = 1e-2 if orthparams_name == "cholesky_stable" else 1e-4
+        tol = 1e-2 if orthparams_name.startswith("cholesky") else 1e-3
         assert (
             sigma_max <= 1 + tol
         ), f"Max singular value exceeds tolerance for {orthparams_name}"

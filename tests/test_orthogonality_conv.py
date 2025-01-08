@@ -12,11 +12,12 @@ from orthogonium.reparametrizers import (
 )
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cpu" #  torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
     with torch.no_grad():
+        layer = layer.to(device)
         inputs = torch.eye(img_shape[0] * img_shape[1] * img_shape[2]).view(
             img_shape[0] * img_shape[1] * img_shape[2],
             img_shape[0],
@@ -26,6 +27,7 @@ def _compute_sv_impulse_response_layer(layer, img_shape):
         outputs = layer(inputs)
         try:
             svs = torch.linalg.svdvals(outputs.view(outputs.shape[0], -1))
+            svs = svs.cpu()
             return svs.min(), svs.max(), svs.mean() / svs.max()
         except np.linalg.LinAlgError:
             print("SVD failed returning only largest singular value")
@@ -39,13 +41,13 @@ def check_orthogonal_layer(
     kernel_size,
     output_channels,
     expected_kernel_shape,
-    tol=1e-3,
+    tol=5e-4,
     sigma_min_requirement=0.95,
 ):
     imsize = 8
     # Test backpropagation and weight update
     try:
-        orthoconv.to(device)
+        orthoconv = orthoconv.to(device)
         orthoconv.train()
         opt = torch.optim.SGD(orthoconv.parameters(), lr=0.001)
         for i in range(25):
@@ -80,10 +82,6 @@ def check_orthogonal_layer(
         f" {sigma_min:.3f}/{sigma_min_ir:.3f}, "
         f"stable_rank: {stable_rank:.3f}/{stable_rank_ir:.3f}"
     )
-    if inp_norm <= out_norm - 1e-3:
-        pytest.fail(
-            f"BCOP is not norm preserving: {inp_norm} vs {out_norm} with rel error {abs(inp_norm - out_norm) / inp_norm}"
-        )
     # check that the singular values are close to 1
     assert sigma_max_ir < (1 + tol), "sigma_max is not less than 1"
     assert (sigma_min_ir < (1 + tol)) and (

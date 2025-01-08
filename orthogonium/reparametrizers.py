@@ -232,7 +232,7 @@ class BatchedCholeskyOrthogonalization(nn.Module):
         #     return W
         def forward(ctx, X):
             S = X @ X.mT
-            eps = 1e-3  # A common stable choice
+            eps = 1e-5  # A common stable choice
             S = S + eps * torch.eye(
                 S.size(-1), dtype=S.dtype, device=S.device
             ).unsqueeze(0)
@@ -257,7 +257,7 @@ class BatchedCholeskyOrthogonalization(nn.Module):
         @staticmethod
         def forward(ctx, X):
             S = X @ X.mT
-            eps = 1e-3  # A common stable choice
+            eps = 1e-5  # A common stable choice
             S = S + eps * torch.eye(
                 S.size(-1), dtype=S.dtype, device=S.device
             ).unsqueeze(0)
@@ -419,14 +419,14 @@ class OrthoParams:
 
 DEFAULT_ORTHO_PARAMS = OrthoParams()
 BJORCK_PASS_THROUGH_ORTHO_PARAMS = OrthoParams(
-    spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=3, eps=1e-6),  # type: ignore
+    spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=3, eps=1e-4),  # type: ignore
     orthogonalizer=ClassParam(
         BatchedBjorckOrthogonalization, beta=0.5, niters=12, pass_through=True
     ),
     contiguous_optimization=False,
 )
 DEFAULT_TEST_ORTHO_PARAMS = OrthoParams(
-    spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=3, eps=1e-6),  # type: ignore
+    spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=4, eps=1e-4),  # type: ignore
     orthogonalizer=ClassParam(BatchedBjorckOrthogonalization, beta=0.5, niters=25),
     # orthogonalizer=ClassParam(BatchedQROrthogonalization),
     # orthogonalizer=ClassParam(BatchedExponentialOrthogonalization, niters=12),  # type: ignore
