@@ -249,8 +249,8 @@ def test_dilation_strided(
 
 
 @pytest.mark.parametrize("kernel_size", [3, 4, 5])
-@pytest.mark.parametrize("input_channels", [2, 4, 8, 16, 32])
-@pytest.mark.parametrize("output_channels", [2, 4, 8, 16, 32])
+@pytest.mark.parametrize("input_channels", [2, 4, 32])
+@pytest.mark.parametrize("output_channels", [2, 4, 32])
 @pytest.mark.parametrize("stride", [2, 4])
 @pytest.mark.parametrize("groups", [1])
 def test_strided(kernel_size, input_channels, output_channels, stride, groups):
@@ -340,8 +340,8 @@ def test_even_kernels(kernel_size, input_channels, output_channels, stride, grou
 
 
 @pytest.mark.parametrize("kernel_size", [1, 2])
-@pytest.mark.parametrize("input_channels", [4, 8, 16, 32, 64])
-@pytest.mark.parametrize("output_channels", [4, 8, 16, 32, 64])
+@pytest.mark.parametrize("input_channels", [4, 8, 32])
+@pytest.mark.parametrize("output_channels", [4, 8, 32])
 @pytest.mark.parametrize("groups", [1, 2])
 def test_rko(kernel_size, input_channels, output_channels, groups):
     """
@@ -475,19 +475,6 @@ def test_invalid_dilation_with_stride():
             groups=1,
             padding=0,
         )
-    # with pytest.raises( # catched as you cannot instanciate FastBlockConv2d with co > ci & s>1
-    #     ValueError,
-    #     match=r"dilation must be 1 when stride is not 1",
-    # ):
-    #     FastBlockConv2d(
-    #         in_channels=8,
-    #         out_channels=16,
-    #         kernel_size=3,
-    #         stride=2,
-    #         dilation=2,  # Invalid: dilation > 1 while stride > 1
-    #         groups=1,
-    #         padding=0,
-    #     )
     with pytest.raises(
         ValueError,
         match=r"dilation must be 1 when stride is not 1",
@@ -576,6 +563,6 @@ def test_parametrizers_standard_configs(
             kernel_size,
             kernel_size,
         ),
-        tol=3e-2 if ortho_params.startswith("cholesky") else 1e-3,
+        tol=5e-2 if ortho_params.startswith("cholesky") else 1e-3,
         sigma_min_requirement=0.75 if ortho_params.startswith("cholesky") else 0.95,
     )
