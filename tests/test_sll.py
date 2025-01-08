@@ -12,12 +12,12 @@ from orthogonium.layers.conv.SLL import (
     "layer_class, init_params, batch_shape",
     [
         (
-            SLLxAOCLipschitzResBlock,
+            SDPBasedLipschitzResBlock,
             {"cin": 4, "inner_dim_factor": 2, "kernel_size": 3},
             (8, 4, 8, 8),
         ),
         (
-            SDPBasedLipschitzResBlock,
+            SLLxAOCLipschitzResBlock,
             {"cin": 4, "cout": 4, "inner_dim_factor": 2, "kernel_size": 3},
             (8, 4, 8, 8),
         ),
