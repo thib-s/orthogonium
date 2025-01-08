@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 
 from orthogonium.layers import AdaptiveOrthoConv2d as BCOP_new
-from orthogonium.layers.legacy.block_ortho_conv import BCOP as BCOP_old
+from orthogonium.legacy import BCOP as BCOP_old
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 

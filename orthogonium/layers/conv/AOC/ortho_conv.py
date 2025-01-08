@@ -44,15 +44,15 @@ def AdaptiveOrthoConv2d(
     else:
         convclass = BcopRkoConv2d
     return convclass(
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride,
-        padding,
-        dilation,
-        groups,
-        bias,
-        padding_mode,
+        in_channels=in_channels,
+        out_channels=out_channels,
+        kernel_size=kernel_size,
+        stride=stride,
+        padding=padding,
+        dilation=dilation,
+        groups=groups,
+        bias=bias,
+        padding_mode=padding_mode,
         ortho_params=ortho_params,
     )
 
@@ -93,15 +93,15 @@ def AdaptiveOrthoConvTranspose2d(
     else:
         convclass = BcopRkoConvTranspose2d
     return convclass(
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride,
-        padding,
-        output_padding,
-        groups,
-        bias,
-        dilation,
-        padding_mode,
+        in_channels=in_channels,
+        out_channels=out_channels,
+        kernel_size=kernel_size,
+        stride=stride,
+        padding=padding,
+        output_padding=output_padding,
+        groups=groups,
+        bias=bias,
+        dilation=dilation,
+        padding_mode=padding_mode,
         ortho_params=ortho_params,
     )

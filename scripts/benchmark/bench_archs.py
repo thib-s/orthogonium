@@ -18,9 +18,9 @@ from torchvision.transforms import ToTensor
 from batch_times import evaluate_all_model_time_statistics
 from memory_usage import get_model_memory
 from orthogonium.layers import AdaptiveOrthoConv2d as BCOP_new
-from orthogonium.layers.legacy.block_ortho_conv import BCOP as BCOP_old
-from orthogonium.layers.legacy.cayley_ortho_conv import Cayley
-from orthogonium.layers.legacy.skew_ortho_conv import SOC
+from orthogonium.legacy import BCOP as BCOP_old
+from orthogonium.legacy.cayley_ortho_conv import Cayley
+from orthogonium.legacy.skew_ortho_conv import SOC
 from orthogonium.model_factory.classparam import ClassParam
 from orthogonium.model_factory.models_factory import LipResNet
 from orthogonium.reparametrizers import DEFAULT_ORTHO_PARAMS, QR_ORTHO_PARAMS, EXP_ORTHO_PARAMS, CHOLESKY_ORTHO_PARAMS, \
