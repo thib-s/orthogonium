@@ -1,0 +1,2629 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../..">
+      
+      
+        <link rel="next" href="../linear/">
+      
+      
+      <link rel="icon" href="../../assets/banner.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.49">
+    
+    
+      
+        <title>convolutions - orthogonium</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6f8fc17f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/custom.css">
+    
+      <link rel="stylesheet" href="../../css/ansi-colours.css">
+    
+      <link rel="stylesheet" href="../../css/jupyter-cells.css">
+    
+      <link rel="stylesheet" href="../../css/pandas-dataframe.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="dark" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#orthogonium.layers.conv.AOC.ortho_conv" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="orthogonium" class="md-header__button md-logo" aria-label="orthogonium" data-md-component="logo">
+      
+  <img src="../../assets/banner.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            orthogonium
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              convolutions
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="dark" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/thib-s/orthogonium" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    thib-s/orthogonium
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="orthogonium" class="md-nav__button md-logo" aria-label="orthogonium" data-md-component="logo">
+      
+  <img src="../../assets/banner.png" alt="logo">
+
+    </a>
+    orthogonium
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/thib-s/orthogonium" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    thib-s/orthogonium
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    convolutions
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    convolutions
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv" class="md-nav__link">
+    <span class="md-ellipsis">
+      ortho_conv
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d" class="md-nav__link">
+    <span class="md-ellipsis">
+      AdaptiveOrthoConv2d
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d" class="md-nav__link">
+    <span class="md-ellipsis">
+      AdaptiveOrthoConvTranspose2d
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      sll_layer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer--ssl-derived-1-lipschitz-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      SSL derived 1-Lipschitz Layers
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SSL derived 1-Lipschitz Layers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer--references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer--notes-on-the-sll-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      Notes on the SLL approach
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.AOCLipschitzResBlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      AOCLipschitzResBlock
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AOCLipschitzResBlock">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.AOCLipschitzResBlock.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzDense" class="md-nav__link">
+    <span class="md-ellipsis">
+      SDPBasedLipschitzDense
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SDPBasedLipschitzDense">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzDense.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzResBlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      SDPBasedLipschitzResBlock
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SDPBasedLipschitzResBlock">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzResBlock.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SLLxAOCLipschitzResBlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      SLLxAOCLipschitzResBlock
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SLLxAOCLipschitzResBlock">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SLLxAOCLipschitzResBlock.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../linear/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    linear layers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reparametrizers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    reparametrizers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../activations/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    activations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../losses/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    losses
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../CONTRIBUTING/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv" class="md-nav__link">
+    <span class="md-ellipsis">
+      ortho_conv
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d" class="md-nav__link">
+    <span class="md-ellipsis">
+      AdaptiveOrthoConv2d
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d" class="md-nav__link">
+    <span class="md-ellipsis">
+      AdaptiveOrthoConvTranspose2d
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      sll_layer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer--ssl-derived-1-lipschitz-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      SSL derived 1-Lipschitz Layers
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SSL derived 1-Lipschitz Layers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer--references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer--notes-on-the-sll-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      Notes on the SLL approach
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.AOCLipschitzResBlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      AOCLipschitzResBlock
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AOCLipschitzResBlock">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.AOCLipschitzResBlock.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzDense" class="md-nav__link">
+    <span class="md-ellipsis">
+      SDPBasedLipschitzDense
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SDPBasedLipschitzDense">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzDense.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzResBlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      SDPBasedLipschitzResBlock
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SDPBasedLipschitzResBlock">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzResBlock.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SLLxAOCLipschitzResBlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      SLLxAOCLipschitzResBlock
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SLLxAOCLipschitzResBlock">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.SLL.sll_layer.SLLxAOCLipschitzResBlock.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+  <h1>convolutions</h1>
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="orthogonium.layers.conv.AOC.ortho_conv"></a>
+    <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">AdaptiveOrthoConv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s1">&#39;same&#39;</span><span class="p">,</span> <span class="n">dilation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">padding_mode</span><span class="o">=</span><span class="s1">&#39;circular&#39;</span><span class="p">,</span> <span class="n">ortho_params</span><span class="o">=</span><span class="n">OrthoParams</span><span class="p">())</span></code>
+
+<a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Factory function to create an orthogonal convolutional layer, selecting the appropriate class based on kernel size and stride.</p>
+<p><strong>Key Features:</strong>
+- Enforces orthogonality, preserving gradient norms.
+- Supports native striding, dilation, grouped convolutions, and flexible padding.</p>
+<p><strong>Behavior:</strong>
+- When kernel_size == stride, the layer is an <code>RKOConv2d</code>.
+- When stride == 1, the layer is a <code>FastBlockConv2d</code>.
+- Otherwise, the layer is a <code>BcopRkoConv2d</code>.</p>
+<p><strong>Arguments:</strong>
+- <code>in_channels</code> (int): Number of input channels.
+- <code>out_channels</code> (int): Number of output channels.
+- <code>kernel_size</code> (_size_2_t): Size of the convolution kernel.
+- <code>stride</code> (_size_2_t, optional): Stride of the convolution. Default is 1.
+- <code>padding</code> (str or _size_2_t, optional): Padding mode or size. Default is "same".
+- <code>dilation</code> (_size_2_t, optional): Dilation rate. Default is 1.
+- <code>groups</code> (int, optional): Number of blocked connections from input to output channels. Default is 1.
+- <code>bias</code> (bool, optional): Whether to include a learnable bias. Default is True.
+- <code>padding_mode</code> (str, optional): Padding mode. Default is "circular".
+- <code>ortho_params</code> (OrthoParams, optional): Parameters to control orthogonality. Default is <code>OrthoParams()</code>.</p>
+<p><strong>Returns:</strong>
+- A configured instance of <code>nn.Conv2d</code> (one of <code>RKOConv2d</code>, <code>FastBlockConv2d</code>, or <code>BcopRkoConv2d</code>).</p>
+<p><strong>Raises:</strong>
+- <code>ValueError</code>: If kernel_size &lt; stride, as orthogonality cannot be enforced.</p>
+
+            <details class="quote">
+              <summary>Source code in <code>orthogonium\layers\conv\AOC\ortho_conv.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">AdaptiveOrthoConv2d</span><span class="p">(</span>
+    <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">out_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">kernel_size</span><span class="p">:</span> <span class="n">_size_2_t</span><span class="p">,</span>
+    <span class="n">stride</span><span class="p">:</span> <span class="n">_size_2_t</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">padding</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">_size_2_t</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;same&quot;</span><span class="p">,</span>
+    <span class="n">dilation</span><span class="p">:</span> <span class="n">_size_2_t</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">groups</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">padding_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;circular&quot;</span><span class="p">,</span>
+    <span class="n">ortho_params</span><span class="p">:</span> <span class="n">OrthoParams</span> <span class="o">=</span> <span class="n">OrthoParams</span><span class="p">(),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Factory function to create an orthogonal convolutional layer, selecting the appropriate class based on kernel size and stride.</span>
+
+<span class="sd">    **Key Features:**</span>
+<span class="sd">    - Enforces orthogonality, preserving gradient norms.</span>
+<span class="sd">    - Supports native striding, dilation, grouped convolutions, and flexible padding.</span>
+
+<span class="sd">    **Behavior:**</span>
+<span class="sd">    - When kernel_size == stride, the layer is an `RKOConv2d`.</span>
+<span class="sd">    - When stride == 1, the layer is a `FastBlockConv2d`.</span>
+<span class="sd">    - Otherwise, the layer is a `BcopRkoConv2d`.</span>
+
+<span class="sd">    **Arguments:**</span>
+<span class="sd">    - `in_channels` (int): Number of input channels.</span>
+<span class="sd">    - `out_channels` (int): Number of output channels.</span>
+<span class="sd">    - `kernel_size` (_size_2_t): Size of the convolution kernel.</span>
+<span class="sd">    - `stride` (_size_2_t, optional): Stride of the convolution. Default is 1.</span>
+<span class="sd">    - `padding` (str or _size_2_t, optional): Padding mode or size. Default is &quot;same&quot;.</span>
+<span class="sd">    - `dilation` (_size_2_t, optional): Dilation rate. Default is 1.</span>
+<span class="sd">    - `groups` (int, optional): Number of blocked connections from input to output channels. Default is 1.</span>
+<span class="sd">    - `bias` (bool, optional): Whether to include a learnable bias. Default is True.</span>
+<span class="sd">    - `padding_mode` (str, optional): Padding mode. Default is &quot;circular&quot;.</span>
+<span class="sd">    - `ortho_params` (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.</span>
+
+<span class="sd">    **Returns:**</span>
+<span class="sd">    - A configured instance of `nn.Conv2d` (one of `RKOConv2d`, `FastBlockConv2d`, or `BcopRkoConv2d`).</span>
+
+<span class="sd">    **Raises:**</span>
+<span class="sd">    - `ValueError`: If kernel_size &lt; stride, as orthogonality cannot be enforced.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">kernel_size</span> <span class="o">&lt;</span> <span class="n">stride</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">kernel_size</span> <span class="o">==</span> <span class="n">stride</span><span class="p">:</span>
+        <span class="n">convclass</span> <span class="o">=</span> <span class="n">RKOConv2d</span>
+    <span class="k">elif</span> <span class="p">(</span><span class="n">stride</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">in_channels</span> <span class="o">&gt;=</span> <span class="n">out_channels</span><span class="p">):</span>
+        <span class="n">convclass</span> <span class="o">=</span> <span class="n">FastBlockConv2d</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">convclass</span> <span class="o">=</span> <span class="n">BcopRkoConv2d</span>
+    <span class="k">return</span> <span class="n">convclass</span><span class="p">(</span>
+        <span class="n">in_channels</span><span class="o">=</span><span class="n">in_channels</span><span class="p">,</span>
+        <span class="n">out_channels</span><span class="o">=</span><span class="n">out_channels</span><span class="p">,</span>
+        <span class="n">kernel_size</span><span class="o">=</span><span class="n">kernel_size</span><span class="p">,</span>
+        <span class="n">stride</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span>
+        <span class="n">padding</span><span class="o">=</span><span class="n">padding</span><span class="p">,</span>
+        <span class="n">dilation</span><span class="o">=</span><span class="n">dilation</span><span class="p">,</span>
+        <span class="n">groups</span><span class="o">=</span><span class="n">groups</span><span class="p">,</span>
+        <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">,</span>
+        <span class="n">padding_mode</span><span class="o">=</span><span class="n">padding_mode</span><span class="p">,</span>
+        <span class="n">ortho_params</span><span class="o">=</span><span class="n">ortho_params</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">AdaptiveOrthoConvTranspose2d</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">output_padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dilation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">padding_mode</span><span class="o">=</span><span class="s1">&#39;zeros&#39;</span><span class="p">,</span> <span class="n">ortho_params</span><span class="o">=</span><span class="n">OrthoParams</span><span class="p">())</span></code>
+
+<a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Factory function to create an orthogonal convolutional transpose layer, adapting based on kernel size and stride.</p>
+<p><strong>Key Features:</strong>
+- Ensures orthogonality in transpose convolutions for stable gradient propagation.
+- Supports dilation, grouped operations, and efficient kernel construction.</p>
+<p><strong>Behavior:</strong>
+- When kernel_size == stride, the layer is an <code>RkoConvTranspose2d</code>.
+- When stride == 1, the layer is a <code>FastBlockConvTranspose2D</code>.
+- Otherwise, the layer is a <code>BcopRkoConvTranspose2d</code>.</p>
+<p><strong>Arguments:</strong>
+- <code>in_channels</code> (int): Number of input channels.
+- <code>out_channels</code> (int): Number of output channels.
+- <code>kernel_size</code> (_size_2_t): Size of the convolution kernel.
+- <code>stride</code> (_size_2_t, optional): Stride of the transpose convolution. Default is 1.
+- <code>padding</code> (_size_2_t, optional): Padding size. Default is 0.
+- <code>output_padding</code> (_size_2_t, optional): Additional size for output. Default is 0.
+- <code>groups</code> (int, optional): Number of groups. Default is 1.
+- <code>bias</code> (bool, optional): Whether to include a learnable bias. Default is True.
+- <code>dilation</code> (_size_2_t, optional): Dilation rate. Default is 1.
+- <code>padding_mode</code> (str, optional): Padding mode. Default is "zeros".
+- <code>ortho_params</code> (OrthoParams, optional): Parameters to control orthogonality. Default is <code>OrthoParams()</code>.</p>
+<p><strong>Returns:</strong>
+- A configured instance of <code>nn.ConvTranspose2d</code> (one of <code>RkoConvTranspose2d</code>, <code>FastBlockConvTranspose2D</code>, or <code>BcopRkoConvTranspose2d</code>).</p>
+<p><strong>Raises:</strong>
+- <code>ValueError</code>: If kernel_size &lt; stride, as orthogonality cannot be enforced.</p>
+
+            <details class="quote">
+              <summary>Source code in <code>orthogonium\layers\conv\AOC\ortho_conv.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">AdaptiveOrthoConvTranspose2d</span><span class="p">(</span>
+    <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">out_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">kernel_size</span><span class="p">:</span> <span class="n">_size_2_t</span><span class="p">,</span>
+    <span class="n">stride</span><span class="p">:</span> <span class="n">_size_2_t</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">padding</span><span class="p">:</span> <span class="n">_size_2_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">output_padding</span><span class="p">:</span> <span class="n">_size_2_t</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">groups</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">dilation</span><span class="p">:</span> <span class="n">_size_2_t</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">padding_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;zeros&quot;</span><span class="p">,</span>
+    <span class="n">ortho_params</span><span class="p">:</span> <span class="n">OrthoParams</span> <span class="o">=</span> <span class="n">OrthoParams</span><span class="p">(),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">ConvTranspose2d</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Factory function to create an orthogonal convolutional transpose layer, adapting based on kernel size and stride.</span>
+
+<span class="sd">    **Key Features:**</span>
+<span class="sd">    - Ensures orthogonality in transpose convolutions for stable gradient propagation.</span>
+<span class="sd">    - Supports dilation, grouped operations, and efficient kernel construction.</span>
+
+<span class="sd">    **Behavior:**</span>
+<span class="sd">    - When kernel_size == stride, the layer is an `RkoConvTranspose2d`.</span>
+<span class="sd">    - When stride == 1, the layer is a `FastBlockConvTranspose2D`.</span>
+<span class="sd">    - Otherwise, the layer is a `BcopRkoConvTranspose2d`.</span>
+
+<span class="sd">    **Arguments:**</span>
+<span class="sd">    - `in_channels` (int): Number of input channels.</span>
+<span class="sd">    - `out_channels` (int): Number of output channels.</span>
+<span class="sd">    - `kernel_size` (_size_2_t): Size of the convolution kernel.</span>
+<span class="sd">    - `stride` (_size_2_t, optional): Stride of the transpose convolution. Default is 1.</span>
+<span class="sd">    - `padding` (_size_2_t, optional): Padding size. Default is 0.</span>
+<span class="sd">    - `output_padding` (_size_2_t, optional): Additional size for output. Default is 0.</span>
+<span class="sd">    - `groups` (int, optional): Number of groups. Default is 1.</span>
+<span class="sd">    - `bias` (bool, optional): Whether to include a learnable bias. Default is True.</span>
+<span class="sd">    - `dilation` (_size_2_t, optional): Dilation rate. Default is 1.</span>
+<span class="sd">    - `padding_mode` (str, optional): Padding mode. Default is &quot;zeros&quot;.</span>
+<span class="sd">    - `ortho_params` (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.</span>
+
+<span class="sd">    **Returns:**</span>
+<span class="sd">    - A configured instance of `nn.ConvTranspose2d` (one of `RkoConvTranspose2d`, `FastBlockConvTranspose2D`, or `BcopRkoConvTranspose2d`).</span>
+
+<span class="sd">    **Raises:**</span>
+<span class="sd">    - `ValueError`: If kernel_size &lt; stride, as orthogonality cannot be enforced.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">kernel_size</span> <span class="o">&lt;</span> <span class="n">stride</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">kernel_size</span> <span class="o">==</span> <span class="n">stride</span><span class="p">:</span>
+        <span class="n">convclass</span> <span class="o">=</span> <span class="n">RkoConvTranspose2d</span>
+    <span class="k">elif</span> <span class="n">stride</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">convclass</span> <span class="o">=</span> <span class="n">FastBlockConvTranspose2D</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">convclass</span> <span class="o">=</span> <span class="n">BcopRkoConvTranspose2d</span>
+    <span class="k">return</span> <span class="n">convclass</span><span class="p">(</span>
+        <span class="n">in_channels</span><span class="o">=</span><span class="n">in_channels</span><span class="p">,</span>
+        <span class="n">out_channels</span><span class="o">=</span><span class="n">out_channels</span><span class="p">,</span>
+        <span class="n">kernel_size</span><span class="o">=</span><span class="n">kernel_size</span><span class="p">,</span>
+        <span class="n">stride</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span>
+        <span class="n">padding</span><span class="o">=</span><span class="n">padding</span><span class="p">,</span>
+        <span class="n">output_padding</span><span class="o">=</span><span class="n">output_padding</span><span class="p">,</span>
+        <span class="n">groups</span><span class="o">=</span><span class="n">groups</span><span class="p">,</span>
+        <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">,</span>
+        <span class="n">dilation</span><span class="o">=</span><span class="n">dilation</span><span class="p">,</span>
+        <span class="n">padding_mode</span><span class="o">=</span><span class="n">padding_mode</span><span class="p">,</span>
+        <span class="n">ortho_params</span><span class="o">=</span><span class="n">ortho_params</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="orthogonium.layers.conv.SLL.sll_layer"></a>
+    <div class="doc doc-contents first">
+
+        <h2 id="orthogonium.layers.conv.SLL.sll_layer--ssl-derived-1-lipschitz-layers">SSL derived 1-Lipschitz Layers<a class="headerlink" href="#orthogonium.layers.conv.SLL.sll_layer--ssl-derived-1-lipschitz-layers" title="Permanent link">&para;</a></h2>
+<p>This module implements several 1-Lipschitz residual blocks, inspired by and extending
+the SDP-based Lipschitz Layers (SLL) from [1]. Specifically:</p>
+<ul>
+<li>
+<p><strong><code>SDPBasedLipschitzResBlock</code></strong><br />
+  The original version of the 1-Lipschitz convolutional residual block. It enforces Lipschitz
+  constraints by rescaling activation outputs according to an estimate of the operator norm.</p>
+</li>
+<li>
+<p><strong><code>SLLxAOCLipschitzResBlock</code></strong><br />
+  An extended version of the SLL approach described in [1], combined with additional orthogonal
+  convolutions to handle stride, kernel-size, or channel-dimension changes. It fuses multiple
+  convolutions via the block convolution, thereby preserving the 1-Lipschitz property while enabling
+  strided downsampling or modifying input/output channels.</p>
+</li>
+<li>
+<p><strong><code>AOCLipschitzResBlock</code></strong><br />
+  A variant of the original Lipschitz block where the core convolution is replaced by an
+  <code>AdaptiveOrthoConv2d</code>. It maintains the 1-Lipschitz property with orthogonal weight
+  parameterization while providing efficient convolution implementations.</p>
+</li>
+</ul>
+<h3 id="orthogonium.layers.conv.SLL.sll_layer--references">References<a class="headerlink" href="#orthogonium.layers.conv.SLL.sll_layer--references" title="Permanent link">&para;</a></h3>
+<p>[1] Alexandre Araujo, Aaron J Havens, Blaise Delattre, Alexandre Allauzen, and Bin Hu. A unified alge-
+braic perspective on lipschitz neural networks. In The Eleventh International Conference on Learning
+Representations, 2023
+[2] Thibaut Boissin, Franck Mamalet, Thomas Fel, Agustin Martin Picard, Thomas Massena, Mathieu Serrurier,
+An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures</p>
+<h3 id="orthogonium.layers.conv.SLL.sll_layer--notes-on-the-sll-approach">Notes on the SLL approach<a class="headerlink" href="#orthogonium.layers.conv.SLL.sll_layer--notes-on-the-sll-approach" title="Permanent link">&para;</a></h3>
+<p>In [1], the SLL layer for convolutions is a 1-Lipschitz residual operation defined approximately as:</p>
+<div class="arithmatex">\[
+y = x - \mathbf{K}^T \star (\sigma(\mathbf{K} \star x + b)),
+\]</div>
+<p>where <span class="arithmatex">\(\mathbf{K}\)</span> represents a toeplitz (convolution) matrix with suitable norm constraints.</p>
+<p>By default, the SLL formulation does <strong>not</strong> allow strides or changes in the number of channels.<br />
+To address these issues, <code>SLLxAOCLipschitzResBlock</code> adds extra orthogonal convolutions before and/or
+after the main SLL operation. These additional convolutions can be merged via block convolution
+(Proposition 1 in [2]) to maintain 1-Lipschitz behavior while enabling stride and/or channel changes.</p>
+<p>When <span class="arithmatex">\(\mathbf{K}\)</span>, <span class="arithmatex">\(\mathbf{K}_{pre}\)</span>, and <span class="arithmatex">\(\mathbf{K}_{post}\)</span> each correspond to 2×2 convolutions,
+the resulting block effectively contains two 3×3 convolutions in one branch and a single 4×4 stride-2
+convolution in the skip branch—quite similar to typical ResNet blocks.</p>
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="orthogonium.layers.conv.SLL.sll_layer.AOCLipschitzResBlock" class="doc doc-heading">
+            <code>AOCLipschitzResBlock</code>
+
+
+<a href="#orthogonium.layers.conv.SLL.sll_layer.AOCLipschitzResBlock" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
+
+
+
+
+
+
+
+              <details class="quote">
+                <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">AOCLipschitzResBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">inner_dim_factor</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">kernel_size</span><span class="p">:</span> <span class="n">_size_2_t</span><span class="p">,</span>
+        <span class="n">dilation</span><span class="p">:</span> <span class="n">_size_2_t</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">groups</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">bias</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">padding_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;circular&quot;</span><span class="p">,</span>
+        <span class="n">ortho_params</span><span class="p">:</span> <span class="n">OrthoParams</span> <span class="o">=</span> <span class="n">OrthoParams</span><span class="p">(),</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A Lipschitz residual block in which the main convolution is replaced by</span>
+<span class="sd">        `AdaptiveOrthoConv2d` (AOC). This preserves 1-Lipschitz (or lower) behavior through</span>
+<span class="sd">        an orthogonal parameterization, without explicitly computing a scaling factor `t`.</span>
+
+<span class="sd">        $$</span>
+<span class="sd">        \displaystyle</span>
+<span class="sd">        \text{out} = x \;-\; 2\,\convtrcode{K}{}{1}\Bigl(</span>
+<span class="sd">          \;\sigma\bigl(\convcode{K}{}{1}(x)\bigr)</span>
+<span class="sd">        \Bigr).</span>
+<span class="sd">        $$</span>
+
+<span class="sd">        **Args**:</span>
+<span class="sd">          - `in_channels` (int): Number of input channels.</span>
+<span class="sd">          - `inner_dim_factor` (int): Multiplier for internal representation size.</span>
+<span class="sd">          - `kernel_size` (_size_2_t): Convolution kernel size.</span>
+<span class="sd">          - `dilation` (_size_2_t, optional): Default is 1.</span>
+<span class="sd">          - `groups` (int, optional): Default is 1.</span>
+<span class="sd">          - `bias` (bool, optional): If True, adds a learnable bias. Default is True.</span>
+<span class="sd">          - `padding_mode` (str, optional): `&#39;circular&#39;` or `&#39;zeros&#39;`. Default is `&#39;circular&#39;`.</span>
+<span class="sd">          - `ortho_params` (OrthoParams, optional): Orthogonal parameterization settings. Default is `OrthoParams()`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="n">inner_dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">in_channels</span> <span class="o">*</span> <span class="n">inner_dim_factor</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">padding_mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;circular&quot;</span><span class="p">,</span> <span class="s2">&quot;zeros&quot;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;padding_mode must be either &#39;circular&#39; or &#39;zeros&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">padding_mode</span> <span class="o">==</span> <span class="s2">&quot;circular&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">padding</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># will be handled by the padding function</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">padding</span> <span class="o">=</span> <span class="n">kernel_size</span> <span class="o">//</span> <span class="mi">2</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_conv</span> <span class="o">=</span> <span class="n">AdaptiveOrthoConv2d</span><span class="p">(</span>
+            <span class="n">in_channels</span><span class="p">,</span>
+            <span class="n">inner_dim</span><span class="p">,</span>
+            <span class="n">kernel_size</span><span class="o">=</span><span class="n">kernel_size</span><span class="p">,</span>
+            <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;same&quot;</span><span class="p">,</span>
+            <span class="n">dilation</span><span class="o">=</span><span class="n">dilation</span><span class="p">,</span>
+            <span class="n">groups</span><span class="o">=</span><span class="n">groups</span><span class="p">,</span>
+            <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">,</span>
+            <span class="n">padding_mode</span><span class="o">=</span><span class="n">padding_mode</span><span class="p">,</span>
+            <span class="n">ortho_params</span><span class="o">=</span><span class="n">ortho_params</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span> <span class="o">=</span> <span class="n">kernel_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dilation</span> <span class="o">=</span> <span class="n">dilation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">groups</span> <span class="o">=</span> <span class="n">groups</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">bias</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">padding_mode</span> <span class="o">=</span> <span class="n">padding_mode</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_conv</span><span class="o">.</span><span class="n">weight</span>
+        <span class="c1"># conv</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">x</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding_mode</span> <span class="o">==</span> <span class="s2">&quot;circular&quot;</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
+                <span class="n">res</span><span class="p">,</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">,)</span> <span class="o">*</span> <span class="mi">4</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;circular&quot;</span><span class="p">,</span>
+                <span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span>
+            <span class="n">res</span><span class="p">,</span>
+            <span class="n">kernel</span><span class="p">,</span>
+            <span class="n">bias</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">in_conv</span><span class="o">.</span><span class="n">bias</span><span class="p">,</span>
+            <span class="n">padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">groups</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">groups</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># activation</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activation</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="c1"># conv transpose</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding_mode</span> <span class="o">==</span> <span class="s2">&quot;circular&quot;</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
+                <span class="n">res</span><span class="p">,</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">,)</span> <span class="o">*</span> <span class="mi">4</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;circular&quot;</span><span class="p">,</span>
+                <span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">F</span><span class="o">.</span><span class="n">conv_transpose2d</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">groups</span><span class="p">)</span>
+        <span class="c1"># residual</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">res</span>
+        <span class="k">return</span> <span class="n">out</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="orthogonium.layers.conv.SLL.sll_layer.AOCLipschitzResBlock.__init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">dilation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">padding_mode</span><span class="o">=</span><span class="s1">&#39;circular&#39;</span><span class="p">,</span> <span class="n">ortho_params</span><span class="o">=</span><span class="n">OrthoParams</span><span class="p">())</span></code>
+
+<a href="#orthogonium.layers.conv.SLL.sll_layer.AOCLipschitzResBlock.__init__" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>A Lipschitz residual block in which the main convolution is replaced by
+<code>AdaptiveOrthoConv2d</code> (AOC). This preserves 1-Lipschitz (or lower) behavior through
+an orthogonal parameterization, without explicitly computing a scaling factor <code>t</code>.</p>
+<div class="arithmatex">\[
+\displaystyle
+        ext{out} = x \;-\; 2\,\convtrcode{K}{}{1}\Bigl(
+  \;\sigmaigl(\convcode{K}{}{1}(x)igr)
+\Bigr).
+\]</div>
+<p><strong>Args</strong>:
+  - <code>in_channels</code> (int): Number of input channels.
+  - <code>inner_dim_factor</code> (int): Multiplier for internal representation size.
+  - <code>kernel_size</code> (_size_2_t): Convolution kernel size.
+  - <code>dilation</code> (_size_2_t, optional): Default is 1.
+  - <code>groups</code> (int, optional): Default is 1.
+  - <code>bias</code> (bool, optional): If True, adds a learnable bias. Default is True.
+  - <code>padding_mode</code> (str, optional): <code>'circular'</code> or <code>'zeros'</code>. Default is <code>'circular'</code>.
+  - <code>ortho_params</code> (OrthoParams, optional): Orthogonal parameterization settings. Default is <code>OrthoParams()</code>.</p>
+
+            <details class="quote">
+              <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">inner_dim_factor</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">kernel_size</span><span class="p">:</span> <span class="n">_size_2_t</span><span class="p">,</span>
+    <span class="n">dilation</span><span class="p">:</span> <span class="n">_size_2_t</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">groups</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">padding_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;circular&quot;</span><span class="p">,</span>
+    <span class="n">ortho_params</span><span class="p">:</span> <span class="n">OrthoParams</span> <span class="o">=</span> <span class="n">OrthoParams</span><span class="p">(),</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A Lipschitz residual block in which the main convolution is replaced by</span>
+<span class="sd">    `AdaptiveOrthoConv2d` (AOC). This preserves 1-Lipschitz (or lower) behavior through</span>
+<span class="sd">    an orthogonal parameterization, without explicitly computing a scaling factor `t`.</span>
+
+<span class="sd">    $$</span>
+<span class="sd">    \displaystyle</span>
+<span class="sd">    \text{out} = x \;-\; 2\,\convtrcode{K}{}{1}\Bigl(</span>
+<span class="sd">      \;\sigma\bigl(\convcode{K}{}{1}(x)\bigr)</span>
+<span class="sd">    \Bigr).</span>
+<span class="sd">    $$</span>
+
+<span class="sd">    **Args**:</span>
+<span class="sd">      - `in_channels` (int): Number of input channels.</span>
+<span class="sd">      - `inner_dim_factor` (int): Multiplier for internal representation size.</span>
+<span class="sd">      - `kernel_size` (_size_2_t): Convolution kernel size.</span>
+<span class="sd">      - `dilation` (_size_2_t, optional): Default is 1.</span>
+<span class="sd">      - `groups` (int, optional): Default is 1.</span>
+<span class="sd">      - `bias` (bool, optional): If True, adds a learnable bias. Default is True.</span>
+<span class="sd">      - `padding_mode` (str, optional): `&#39;circular&#39;` or `&#39;zeros&#39;`. Default is `&#39;circular&#39;`.</span>
+<span class="sd">      - `ortho_params` (OrthoParams, optional): Orthogonal parameterization settings. Default is `OrthoParams()`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="n">inner_dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">in_channels</span> <span class="o">*</span> <span class="n">inner_dim_factor</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">padding_mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;circular&quot;</span><span class="p">,</span> <span class="s2">&quot;zeros&quot;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;padding_mode must be either &#39;circular&#39; or &#39;zeros&#39;&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">padding_mode</span> <span class="o">==</span> <span class="s2">&quot;circular&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">padding</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># will be handled by the padding function</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">padding</span> <span class="o">=</span> <span class="n">kernel_size</span> <span class="o">//</span> <span class="mi">2</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">in_conv</span> <span class="o">=</span> <span class="n">AdaptiveOrthoConv2d</span><span class="p">(</span>
+        <span class="n">in_channels</span><span class="p">,</span>
+        <span class="n">inner_dim</span><span class="p">,</span>
+        <span class="n">kernel_size</span><span class="o">=</span><span class="n">kernel_size</span><span class="p">,</span>
+        <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;same&quot;</span><span class="p">,</span>
+        <span class="n">dilation</span><span class="o">=</span><span class="n">dilation</span><span class="p">,</span>
+        <span class="n">groups</span><span class="o">=</span><span class="n">groups</span><span class="p">,</span>
+        <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">,</span>
+        <span class="n">padding_mode</span><span class="o">=</span><span class="n">padding_mode</span><span class="p">,</span>
+        <span class="n">ortho_params</span><span class="o">=</span><span class="n">ortho_params</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span> <span class="o">=</span> <span class="n">kernel_size</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dilation</span> <span class="o">=</span> <span class="n">dilation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">groups</span> <span class="o">=</span> <span class="n">groups</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">bias</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">padding_mode</span> <span class="o">=</span> <span class="n">padding_mode</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzDense" class="doc doc-heading">
+            <code>SDPBasedLipschitzDense</code>
+
+
+<a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzDense" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
+
+
+
+
+
+
+
+              <details class="quote">
+                <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SDPBasedLipschitzDense</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_features</span><span class="p">,</span> <span class="n">out_features</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A 1-Lipschitz fully-connected layer (dense version). Similar to the convolutional</span>
+<span class="sd">        SLL approach, but operates on vectors:</span>
+
+<span class="sd">        $$</span>
+<span class="sd">        \displaystyle</span>
+<span class="sd">        \text{out} \;=\; x - 2\, W^\top \Bigl(</span>
+<span class="sd">          t \,\sigma\bigl(W\,x + b\bigr)</span>
+<span class="sd">        \Bigr).</span>
+<span class="sd">        $$</span>
+
+<span class="sd">        **Args**:</span>
+<span class="sd">          - `in_features` (int): Input size.</span>
+<span class="sd">          - `out_features` (int): Output size (must match `in_features` to remain 1-Lipschitz).</span>
+<span class="sd">          - `inner_dim` (int): The internal dimension used for the transform.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="n">inner_dim</span> <span class="o">=</span> <span class="n">inner_dim</span> <span class="k">if</span> <span class="n">inner_dim</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span> <span class="k">else</span> <span class="n">in_features</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">in_features</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">))</span>
+
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">xavier_normal_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">fan_in</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">_calculate_fan_in_and_fan_out</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">bound</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">fan_in</span><span class="p">)</span>
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">uniform_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">,</span> <span class="o">-</span><span class="n">bound</span><span class="p">,</span> <span class="n">bound</span><span class="p">)</span>  <span class="c1"># bias init</span>
+
+    <span class="k">def</span> <span class="nf">compute_t</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="p">)</span>
+        <span class="n">q_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">&quot;i,ik,kj,j -&gt; ij&quot;</span><span class="p">,</span> <span class="n">q_inv</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">safe_inv</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">t</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_t</span><span class="p">()</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">linear</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">res</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">t</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">activation</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">F</span><span class="o">.</span><span class="n">linear</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">res</span>
+        <span class="k">return</span> <span class="n">out</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzDense.__init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">in_features</span><span class="p">,</span> <span class="n">out_features</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+<a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzDense.__init__" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>A 1-Lipschitz fully-connected layer (dense version). Similar to the convolutional
+SLL approach, but operates on vectors:</p>
+<div class="arithmatex">\[
+\displaystyle
+        ext{out} \;=\; x - 2\, W^       op \Bigl(
+  t \,\sigmaigl(W\,x + bigr)
+\Bigr).
+\]</div>
+<p><strong>Args</strong>:
+  - <code>in_features</code> (int): Input size.
+  - <code>out_features</code> (int): Output size (must match <code>in_features</code> to remain 1-Lipschitz).
+  - <code>inner_dim</code> (int): The internal dimension used for the transform.</p>
+
+            <details class="quote">
+              <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_features</span><span class="p">,</span> <span class="n">out_features</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A 1-Lipschitz fully-connected layer (dense version). Similar to the convolutional</span>
+<span class="sd">    SLL approach, but operates on vectors:</span>
+
+<span class="sd">    $$</span>
+<span class="sd">    \displaystyle</span>
+<span class="sd">    \text{out} \;=\; x - 2\, W^\top \Bigl(</span>
+<span class="sd">      t \,\sigma\bigl(W\,x + b\bigr)</span>
+<span class="sd">    \Bigr).</span>
+<span class="sd">    $$</span>
+
+<span class="sd">    **Args**:</span>
+<span class="sd">      - `in_features` (int): Input size.</span>
+<span class="sd">      - `out_features` (int): Output size (must match `in_features` to remain 1-Lipschitz).</span>
+<span class="sd">      - `inner_dim` (int): The internal dimension used for the transform.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="n">inner_dim</span> <span class="o">=</span> <span class="n">inner_dim</span> <span class="k">if</span> <span class="n">inner_dim</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span> <span class="k">else</span> <span class="n">in_features</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">in_features</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">))</span>
+
+    <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">xavier_normal_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+    <span class="n">fan_in</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">_calculate_fan_in_and_fan_out</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+    <span class="n">bound</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">fan_in</span><span class="p">)</span>
+    <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">uniform_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">,</span> <span class="o">-</span><span class="n">bound</span><span class="p">,</span> <span class="n">bound</span><span class="p">)</span>  <span class="c1"># bias init</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzResBlock" class="doc doc-heading">
+            <code>SDPBasedLipschitzResBlock</code>
+
+
+<a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzResBlock" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
+
+
+
+
+
+
+
+              <details class="quote">
+                <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SDPBasedLipschitzResBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">         Original 1-Lipschitz convolutional residual block, based on the SDP-based Lipschitz</span>
+<span class="sd">        layer (SLL) approach [1]. It has a structure akin to:</span>
+
+<span class="sd">        out = x - 2 * ConvTranspose( t * ReLU(Conv(x) + bias) )</span>
+
+<span class="sd">        where `t` is a channel-wise scaling factor ensuring a Lipschitz constant ≤ 1.</span>
+
+<span class="sd">        !!! note</span>
+<span class="sd">            By default, `SDPBasedLipschitzResBlock` assumes `cin == cout` and does **not** handle</span>
+<span class="sd">            stride changes outside the skip connection (i.e., typically used when stride=1 or 2</span>
+<span class="sd">            for downsampling in a standard residual architecture).</span>
+
+<span class="sd">        **Args**:</span>
+<span class="sd">          - `cin` (int): Number of input channels.</span>
+<span class="sd">          - `cout` (int): Number of output channels.</span>
+<span class="sd">          - `inner_dim_factor` (float): Multiplier for the intermediate dimensionality.</span>
+<span class="sd">          - `kernel_size` (int, optional): Size of the convolution kernel. Default is 3.</span>
+<span class="sd">          - `stride` (int, optional): Stride for the skip connection. Default is 2.</span>
+<span class="sd">          - `**kwargs`: Additional keyword arguments (unused).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="n">inner_dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cin</span> <span class="o">*</span> <span class="n">inner_dim_factor</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">padding</span> <span class="o">=</span> <span class="n">kernel_size</span> <span class="o">//</span> <span class="mi">2</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">))</span>
+
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">xavier_normal_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+        <span class="n">fan_in</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">_calculate_fan_in_and_fan_out</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+        <span class="n">bound</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">fan_in</span><span class="p">)</span>
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">uniform_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">,</span> <span class="o">-</span><span class="n">bound</span><span class="p">,</span> <span class="n">bound</span><span class="p">)</span>  <span class="c1"># bias init</span>
+
+    <span class="k">def</span> <span class="nf">compute_t</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ktk</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">ktk</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ktk</span><span class="p">)</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">q_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="p">(</span><span class="n">q_inv</span> <span class="o">*</span> <span class="n">ktk</span> <span class="o">*</span> <span class="n">q</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">safe_inv</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">t</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_t</span><span class="p">()</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">res</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">t</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">activation</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">F</span><span class="o">.</span><span class="n">conv_transpose2d</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">res</span>
+        <span class="k">return</span> <span class="n">out</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzResBlock.__init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">cin</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+<a href="#orthogonium.layers.conv.SLL.sll_layer.SDPBasedLipschitzResBlock.__init__" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Original 1-Lipschitz convolutional residual block, based on the SDP-based Lipschitz
+layer (SLL) approach [1]. It has a structure akin to:</p>
+<p>out = x - 2 * ConvTranspose( t * ReLU(Conv(x) + bias) )</p>
+<p>where <code>t</code> is a channel-wise scaling factor ensuring a Lipschitz constant ≤ 1.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>By default, <code>SDPBasedLipschitzResBlock</code> assumes <code>cin == cout</code> and does <strong>not</strong> handle
+stride changes outside the skip connection (i.e., typically used when stride=1 or 2
+for downsampling in a standard residual architecture).</p>
+</div>
+<p><strong>Args</strong>:
+  - <code>cin</code> (int): Number of input channels.
+  - <code>cout</code> (int): Number of output channels.
+  - <code>inner_dim_factor</code> (float): Multiplier for the intermediate dimensionality.
+  - <code>kernel_size</code> (int, optional): Size of the convolution kernel. Default is 3.
+  - <code>stride</code> (int, optional): Stride for the skip connection. Default is 2.
+  - <code>**kwargs</code>: Additional keyword arguments (unused).</p>
+
+            <details class="quote">
+              <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">     Original 1-Lipschitz convolutional residual block, based on the SDP-based Lipschitz</span>
+<span class="sd">    layer (SLL) approach [1]. It has a structure akin to:</span>
+
+<span class="sd">    out = x - 2 * ConvTranspose( t * ReLU(Conv(x) + bias) )</span>
+
+<span class="sd">    where `t` is a channel-wise scaling factor ensuring a Lipschitz constant ≤ 1.</span>
+
+<span class="sd">    !!! note</span>
+<span class="sd">        By default, `SDPBasedLipschitzResBlock` assumes `cin == cout` and does **not** handle</span>
+<span class="sd">        stride changes outside the skip connection (i.e., typically used when stride=1 or 2</span>
+<span class="sd">        for downsampling in a standard residual architecture).</span>
+
+<span class="sd">    **Args**:</span>
+<span class="sd">      - `cin` (int): Number of input channels.</span>
+<span class="sd">      - `cout` (int): Number of output channels.</span>
+<span class="sd">      - `inner_dim_factor` (float): Multiplier for the intermediate dimensionality.</span>
+<span class="sd">      - `kernel_size` (int, optional): Size of the convolution kernel. Default is 3.</span>
+<span class="sd">      - `stride` (int, optional): Stride for the skip connection. Default is 2.</span>
+<span class="sd">      - `**kwargs`: Additional keyword arguments (unused).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="n">inner_dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cin</span> <span class="o">*</span> <span class="n">inner_dim_factor</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">padding</span> <span class="o">=</span> <span class="n">kernel_size</span> <span class="o">//</span> <span class="mi">2</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">))</span>
+
+    <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">xavier_normal_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+    <span class="n">fan_in</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">_calculate_fan_in_and_fan_out</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+    <span class="n">bound</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">fan_in</span><span class="p">)</span>
+    <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">uniform_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">,</span> <span class="o">-</span><span class="n">bound</span><span class="p">,</span> <span class="n">bound</span><span class="p">)</span>  <span class="c1"># bias init</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="orthogonium.layers.conv.SLL.sll_layer.SLLxAOCLipschitzResBlock" class="doc doc-heading">
+            <code>SLLxAOCLipschitzResBlock</code>
+
+
+<a href="#orthogonium.layers.conv.SLL.sll_layer.SLLxAOCLipschitzResBlock" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
+
+
+
+
+
+
+
+              <details class="quote">
+                <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 69</span>
+<span class="normal"> 70</span>
+<span class="normal"> 71</span>
+<span class="normal"> 72</span>
+<span class="normal"> 73</span>
+<span class="normal"> 74</span>
+<span class="normal"> 75</span>
+<span class="normal"> 76</span>
+<span class="normal"> 77</span>
+<span class="normal"> 78</span>
+<span class="normal"> 79</span>
+<span class="normal"> 80</span>
+<span class="normal"> 81</span>
+<span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SLLxAOCLipschitzResBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">cout</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extended SLL-based convolutional residual block. Supports arbitrary kernel sizes,</span>
+<span class="sd">        strides, and changes in the number of channels by integrating additional</span>
+<span class="sd">        orthogonal convolutions *and* fusing them via `\mathbconv` [1].</span>
+
+<span class="sd">        The forward pass follows:</span>
+
+<span class="sd">        $$</span>
+<span class="sd">        \displaystyle</span>
+<span class="sd">        \text{out} \;=\; x \;-\; 2 \,\convtrcode{K}{}{1}\Bigl(</span>
+<span class="sd">          \; t \,\sigma\bigl(\convcode{K}{}{1}(x) \;+\; b \bigr)</span>
+<span class="sd">        \Bigr),</span>
+<span class="sd">        $$</span>
+
+<span class="sd">        where the kernel `\kernel{K}` may effectively be expanded by pre/post AOC layers to</span>
+<span class="sd">        handle stride and channel changes. This approach is described in &quot;Improving</span>
+<span class="sd">        SDP-based Lipschitz Layers&quot; of [1].</span>
+
+<span class="sd">        **Args**:</span>
+<span class="sd">          - `cin` (int): Number of input channels.</span>
+<span class="sd">          - `inner_dim_factor` (float): Multiplier for the internal channel dimension.</span>
+<span class="sd">          - `kernel_size` (int, optional): Base kernel size for the SLL portion. Default is 3.</span>
+<span class="sd">          - `**kwargs`: Additional options (unused).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">inner_kernel_size</span> <span class="o">=</span> <span class="n">kernel_size</span> <span class="o">-</span> <span class="p">(</span><span class="n">stride</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skip_kernel_size</span> <span class="o">=</span> <span class="n">stride</span> <span class="o">+</span> <span class="p">(</span><span class="n">stride</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">inner_dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cout</span> <span class="o">*</span> <span class="n">inner_dim_factor</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stride</span> <span class="o">=</span> <span class="n">stride</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">padding</span> <span class="o">=</span> <span class="n">kernel_size</span> <span class="o">//</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">inner_kernel_size</span><span class="p">,</span> <span class="n">inner_kernel_size</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">))</span>
+
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">xavier_normal_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+        <span class="n">fan_in</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">_calculate_fan_in_and_fan_out</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+        <span class="n">bound</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">fan_in</span><span class="p">)</span>
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">uniform_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">,</span> <span class="o">-</span><span class="n">bound</span><span class="p">,</span> <span class="n">bound</span><span class="p">)</span>  <span class="c1"># bias init</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pre_conv</span> <span class="o">=</span> <span class="n">AdaptiveOrthoConv2d</span><span class="p">(</span>
+            <span class="n">cin</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">post_conv</span> <span class="o">=</span> <span class="n">AdaptiveOrthoConv2d</span><span class="p">(</span>
+            <span class="n">cin</span><span class="p">,</span> <span class="n">cout</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">0</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">compute_t</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ktk</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">ktk</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ktk</span><span class="p">)</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">q_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="p">(</span><span class="n">q_inv</span> <span class="o">*</span> <span class="n">ktk</span> <span class="o">*</span> <span class="n">q</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">safe_inv</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">t</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="c1"># compute t</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_t</span><span class="p">()</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># print(self.pre_conv.weight.shape, self.kernel.shape, self.post_conv.weight.shape)</span>
+        <span class="n">kernel_1a</span> <span class="o">=</span> <span class="n">fast_matrix_conv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pre_conv</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">kernel_1b</span> <span class="o">=</span> <span class="n">fast_matrix_conv</span><span class="p">(</span>
+            <span class="n">transpose_kernel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_conv</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="mi">1</span>
+        <span class="p">)</span>
+        <span class="n">kernel_2</span> <span class="o">=</span> <span class="n">fast_matrix_conv</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pre_conv</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_conv</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="mi">1</span>
+        <span class="p">)</span>
+        <span class="c1"># first branch</span>
+        <span class="c1"># fuse pre conv with kernel</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">kernel_1a</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">res</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">t</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">activation</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">F</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">kernel_1b</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stride</span><span class="p">)</span>
+        <span class="c1"># residual branch</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">kernel_2</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">skip_kernel_size</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+        <span class="p">)</span>
+        <span class="c1"># skip connection</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">res</span>
+        <span class="k">return</span> <span class="n">out</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="orthogonium.layers.conv.SLL.sll_layer.SLLxAOCLipschitzResBlock.__init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">cin</span><span class="p">,</span> <span class="n">cout</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+<a href="#orthogonium.layers.conv.SLL.sll_layer.SLLxAOCLipschitzResBlock.__init__" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Extended SLL-based convolutional residual block. Supports arbitrary kernel sizes,
+strides, and changes in the number of channels by integrating additional
+orthogonal convolutions <em>and</em> fusing them via <code>\mathbconv</code> [1].</p>
+<p>The forward pass follows:</p>
+<div class="arithmatex">\[
+\displaystyle
+        ext{out} \;=\; x \;-\; 2 \,\convtrcode{K}{}{1}\Bigl(
+  \; t \,\sigmaigl(\convcode{K}{}{1}(x) \;+\; b igr)
+\Bigr),
+\]</div>
+<p>where the kernel <code>\kernel{K}</code> may effectively be expanded by pre/post AOC layers to
+handle stride and channel changes. This approach is described in "Improving
+SDP-based Lipschitz Layers" of [1].</p>
+<p><strong>Args</strong>:
+  - <code>cin</code> (int): Number of input channels.
+  - <code>inner_dim_factor</code> (float): Multiplier for the internal channel dimension.
+  - <code>kernel_size</code> (int, optional): Base kernel size for the SLL portion. Default is 3.
+  - <code>**kwargs</code>: Additional options (unused).</p>
+
+            <details class="quote">
+              <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 70</span>
+<span class="normal"> 71</span>
+<span class="normal"> 72</span>
+<span class="normal"> 73</span>
+<span class="normal"> 74</span>
+<span class="normal"> 75</span>
+<span class="normal"> 76</span>
+<span class="normal"> 77</span>
+<span class="normal"> 78</span>
+<span class="normal"> 79</span>
+<span class="normal"> 80</span>
+<span class="normal"> 81</span>
+<span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">cout</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extended SLL-based convolutional residual block. Supports arbitrary kernel sizes,</span>
+<span class="sd">    strides, and changes in the number of channels by integrating additional</span>
+<span class="sd">    orthogonal convolutions *and* fusing them via `\mathbconv` [1].</span>
+
+<span class="sd">    The forward pass follows:</span>
+
+<span class="sd">    $$</span>
+<span class="sd">    \displaystyle</span>
+<span class="sd">    \text{out} \;=\; x \;-\; 2 \,\convtrcode{K}{}{1}\Bigl(</span>
+<span class="sd">      \; t \,\sigma\bigl(\convcode{K}{}{1}(x) \;+\; b \bigr)</span>
+<span class="sd">    \Bigr),</span>
+<span class="sd">    $$</span>
+
+<span class="sd">    where the kernel `\kernel{K}` may effectively be expanded by pre/post AOC layers to</span>
+<span class="sd">    handle stride and channel changes. This approach is described in &quot;Improving</span>
+<span class="sd">    SDP-based Lipschitz Layers&quot; of [1].</span>
+
+<span class="sd">    **Args**:</span>
+<span class="sd">      - `cin` (int): Number of input channels.</span>
+<span class="sd">      - `inner_dim_factor` (float): Multiplier for the internal channel dimension.</span>
+<span class="sd">      - `kernel_size` (int, optional): Base kernel size for the SLL portion. Default is 3.</span>
+<span class="sd">      - `**kwargs`: Additional options (unused).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="n">inner_kernel_size</span> <span class="o">=</span> <span class="n">kernel_size</span> <span class="o">-</span> <span class="p">(</span><span class="n">stride</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">skip_kernel_size</span> <span class="o">=</span> <span class="n">stride</span> <span class="o">+</span> <span class="p">(</span><span class="n">stride</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">inner_dim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cout</span> <span class="o">*</span> <span class="n">inner_dim_factor</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stride</span> <span class="o">=</span> <span class="n">stride</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">padding</span> <span class="o">=</span> <span class="n">kernel_size</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">inner_kernel_size</span><span class="p">,</span> <span class="n">inner_kernel_size</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">))</span>
+
+    <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">xavier_normal_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+    <span class="n">fan_in</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">_calculate_fan_in_and_fan_out</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+    <span class="n">bound</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">fan_in</span><span class="p">)</span>
+    <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">uniform_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">,</span> <span class="o">-</span><span class="n">bound</span><span class="p">,</span> <span class="n">bound</span><span class="p">)</span>  <span class="c1"># bias init</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">pre_conv</span> <span class="o">=</span> <span class="n">AdaptiveOrthoConv2d</span><span class="p">(</span>
+        <span class="n">cin</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">0</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">post_conv</span> <span class="o">=</span> <span class="n">AdaptiveOrthoConv2d</span><span class="p">(</span>
+        <span class="n">cin</span><span class="p">,</span> <span class="n">cout</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">0</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.88dd0f4e.min.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="../../js/custom.js"></script>
+      
+    
+  </body>
+</html>
