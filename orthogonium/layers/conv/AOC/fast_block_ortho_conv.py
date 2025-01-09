@@ -156,7 +156,6 @@ class BCOPTrivializer(nn.Module):
         out_channels,
         kernel_size,
         groups,
-        contiguous_optimization=False,
     ):
         """This module is used to generate orthogonal kernels for the BCOP layer. It takes
         as input a matrix PQ of shape (groups, 2*kernel_size, c, c//2) and returns a kernel
@@ -167,9 +166,6 @@ class BCOPTrivializer(nn.Module):
             out_channels (int): number of output channels
             kernel_size (int): size of the kernel
             groups (int): number of groups
-            contiguous_optimization (bool, optional): if True, the kernel will have twice the
-                number of channels. This is used to increase expressiveness, but at the price
-                of orthogonality (not Lipschitzness). Defaults to False.
         """
         super(BCOPTrivializer, self).__init__()
         self.kernel_size = kernel_size
@@ -178,9 +174,6 @@ class BCOPTrivializer(nn.Module):
         self.in_channels = in_channels
         self.min_channels = min(in_channels, out_channels)
         self.max_channels = max(in_channels, out_channels)
-        if contiguous_optimization:
-            self.max_channels *= 2
-        self.contiguous_optimization = contiguous_optimization
         self.transpose = out_channels < in_channels
         self.num_kernels = 2 * kernel_size
 
@@ -249,12 +242,6 @@ class BCOPTrivializer(nn.Module):
         res = c11
         for i in range(c22.shape[0]):  # c22.shape[0] == 1 if k-1 is a power of two
             res = fast_matrix_conv(res, c22[i], self.groups)
-        # if contiguous optimization is enabled, we constructed a conv with twice the number
-        # of channels, we need to remove the extra channels
-        if self.contiguous_optimization:
-            res = res[
-                : self.max_channels // 2, : self.min_channels // self.groups, :, :
-            ]
         # since it is less expensive to compute the transposed kernel when co < ci
         # we transpose the kernel if needed
         if self.transpose:
@@ -288,7 +275,6 @@ def attach_bcop_weight(
     num_kernels = (
         2 * kernel_size
     )  # the number of projectors needed to create the kernel
-    contiguous_optimization = ortho_params.contiguous_optimization
     # register projectors matrices
     layer.register_parameter(
         weight_name,
@@ -296,16 +282,8 @@ def attach_bcop_weight(
             torch.Tensor(
                 groups,
                 num_kernels,
-                (
-                    2 * max_channels // groups
-                    if contiguous_optimization
-                    else max_channels // groups
-                ),
-                (
-                    max_channels // groups
-                    if contiguous_optimization
-                    else max_channels // (groups * 2)
-                ),
+                (max_channels // groups),
+                (max_channels // (groups * 2)),
             ),
             requires_grad=True,
         ),
@@ -343,7 +321,6 @@ def attach_bcop_weight(
             out_channels,
             kernel_size,
             groups,
-            contiguous_optimization=contiguous_optimization,
         ),
         unsafe=True,
     )
