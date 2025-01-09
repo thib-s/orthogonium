@@ -308,7 +308,9 @@ class BatchedExponentialOrthogonalization(nn.Module):
         exponential, it produces an orthogonal matrix. This approach is particularly useful
         in contexts where smooth transitions between matrices are required.
 
-        Non-square matrices
+        Non-square matrices are padded to the largest dimension to ensure that the matrix can
+        be converted to a skew-symmetric matrix. The resulting matrix is cropped to the original
+        dimension.
 
         Args:
             weight_shape (tuple): The shape of the weight matrix.

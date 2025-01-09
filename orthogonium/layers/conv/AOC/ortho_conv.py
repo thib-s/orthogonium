@@ -27,32 +27,34 @@ def AdaptiveOrthoConv2d(
     """
     Factory function to create an orthogonal convolutional layer, selecting the appropriate class based on kernel size and stride.
 
-    **Key Features:**
-    - Enforces orthogonality, preserving gradient norms.
-    - Supports native striding, dilation, grouped convolutions, and flexible padding.
+    Key Features:
+    -------------
+        - Enforces orthogonality, preserving gradient norms.
+        - Supports native striding, dilation, grouped convolutions, and flexible padding.
 
-    **Behavior:**
-    - When kernel_size == stride, the layer is an `RKOConv2d`.
-    - When stride == 1, the layer is a `FastBlockConv2d`.
-    - Otherwise, the layer is a `BcopRkoConv2d`.
+    Behavior:
+    -------------
+        - When kernel_size == stride, the layer is an `RKOConv2d`.
+        - When stride == 1, the layer is a `FastBlockConv2d`.
+        - Otherwise, the layer is a `BcopRkoConv2d`.
 
-    **Arguments:**
-    - `in_channels` (int): Number of input channels.
-    - `out_channels` (int): Number of output channels.
-    - `kernel_size` (_size_2_t): Size of the convolution kernel.
-    - `stride` (_size_2_t, optional): Stride of the convolution. Default is 1.
-    - `padding` (str or _size_2_t, optional): Padding mode or size. Default is "same".
-    - `dilation` (_size_2_t, optional): Dilation rate. Default is 1.
-    - `groups` (int, optional): Number of blocked connections from input to output channels. Default is 1.
-    - `bias` (bool, optional): Whether to include a learnable bias. Default is True.
-    - `padding_mode` (str, optional): Padding mode. Default is "circular".
-    - `ortho_params` (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.
+    Arguments:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+        kernel_size (_size_2_t): Size of the convolution kernel.
+        stride (_size_2_t, optional): Stride of the convolution. Default is 1.
+        padding (str or _size_2_t, optional): Padding mode or size. Default is "same".
+        dilation (_size_2_t, optional): Dilation rate. Default is 1.
+        groups (int, optional): Number of blocked connections from input to output channels. Default is 1.
+        bias (bool, optional): Whether to include a learnable bias. Default is True.
+        padding_mode (str, optional): Padding mode. Default is "circular".
+        ortho_params (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.
 
-    **Returns:**
-    - A configured instance of `nn.Conv2d` (one of `RKOConv2d`, `FastBlockConv2d`, or `BcopRkoConv2d`).
+    Returns:
+        A configured instance of `nn.Conv2d` (one of `RKOConv2d`, `FastBlockConv2d`, or `BcopRkoConv2d`).
 
-    **Raises:**
-    - `ValueError`: If kernel_size < stride, as orthogonality cannot be enforced.
+    Raises:
+        `ValueError`: If kernel_size < stride, as orthogonality cannot be enforced.
     """
 
     if kernel_size < stride:
@@ -95,30 +97,32 @@ def AdaptiveOrthoConvTranspose2d(
     """
     Factory function to create an orthogonal convolutional transpose layer, adapting based on kernel size and stride.
 
-    **Key Features:**
-    - Ensures orthogonality in transpose convolutions for stable gradient propagation.
-    - Supports dilation, grouped operations, and efficient kernel construction.
+    Key Features:
+    -------------
+        - Ensures orthogonality in transpose convolutions for stable gradient propagation.
+        - Supports dilation, grouped operations, and efficient kernel construction.
 
-    **Behavior:**
-    - When kernel_size == stride, the layer is an `RkoConvTranspose2d`.
-    - When stride == 1, the layer is a `FastBlockConvTranspose2D`.
-    - Otherwise, the layer is a `BcopRkoConvTranspose2d`.
+    Behavior:
+    ---------
+        - When kernel_size == stride, the layer is an `RkoConvTranspose2d`.
+        - When stride == 1, the layer is a `FastBlockConvTranspose2D`.
+        - Otherwise, the layer is a `BcopRkoConvTranspose2d`.
 
-    **Arguments:**
-    - `in_channels` (int): Number of input channels.
-    - `out_channels` (int): Number of output channels.
-    - `kernel_size` (_size_2_t): Size of the convolution kernel.
-    - `stride` (_size_2_t, optional): Stride of the transpose convolution. Default is 1.
-    - `padding` (_size_2_t, optional): Padding size. Default is 0.
-    - `output_padding` (_size_2_t, optional): Additional size for output. Default is 0.
-    - `groups` (int, optional): Number of groups. Default is 1.
-    - `bias` (bool, optional): Whether to include a learnable bias. Default is True.
-    - `dilation` (_size_2_t, optional): Dilation rate. Default is 1.
-    - `padding_mode` (str, optional): Padding mode. Default is "zeros".
-    - `ortho_params` (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.
+    Arguments:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+        kernel_size (_size_2_t): Size of the convolution kernel.
+        stride (_size_2_t, optional): Stride of the transpose convolution. Default is 1.
+        padding (_size_2_t, optional): Padding size. Default is 0.
+        output_padding (_size_2_t, optional): Additional size for output. Default is 0.
+        groups (int, optional): Number of groups. Default is 1.
+        bias (bool, optional): Whether to include a learnable bias. Default is True.
+        dilation (_size_2_t, optional): Dilation rate. Default is 1.
+        padding_mode (str, optional): Padding mode. Default is "zeros".
+        ortho_params (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.
 
-    **Returns:**
-    - A configured instance of `nn.ConvTranspose2d` (one of `RkoConvTranspose2d`, `FastBlockConvTranspose2D`, or `BcopRkoConvTranspose2d`).
+    Returns:
+        A configured instance of `nn.ConvTranspose2d` (one of `RkoConvTranspose2d`, `FastBlockConvTranspose2D`, or `BcopRkoConvTranspose2d`).
 
     **Raises:**
     - `ValueError`: If kernel_size < stride, as orthogonality cannot be enforced.
