@@ -40,7 +40,7 @@ def AdaptiveSOCConv2d(
         )
     if kernel_size == stride:
         convclass = RKOConv2d
-    elif (stride == 1) or (in_channels >= out_channels):
+    elif stride == 1:
         convclass = FastSOC
     else:
         convclass = SOCRkoConv2d
