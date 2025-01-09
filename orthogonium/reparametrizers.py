@@ -411,8 +411,6 @@ class OrthoParams:
             configured to use BatchedBjorckOrthogonalization with specific
             parameters. This callable can be provided either as a `functool.partial` or as a
             `orthogonium.ClassParam`. It will recieve the shape of the weight tensor as its argument.
-        contiguous_optimization (bool): Determines whether to perform
-            optimization ensuring contiguous operations. Default is False.
     """
 
     # spectral_normalizer: Callable[Tuple[int, ...], nn.Module] = BatchedIdentity
@@ -428,7 +426,6 @@ class OrthoParams:
         # BatchedCholeskyOrthogonalization,
         # BatchedQROrthogonalization,
     )
-    contiguous_optimization: bool = False
 
 
 DEFAULT_ORTHO_PARAMS = OrthoParams()
@@ -437,33 +434,27 @@ BJORCK_PASS_THROUGH_ORTHO_PARAMS = OrthoParams(
     orthogonalizer=ClassParam(
         BatchedBjorckOrthogonalization, beta=0.5, niters=12, pass_through=True
     ),
-    contiguous_optimization=False,
 )
 DEFAULT_TEST_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=4, eps=1e-4),  # type: ignore
     orthogonalizer=ClassParam(BatchedBjorckOrthogonalization, beta=0.5, niters=25),
     # orthogonalizer=ClassParam(BatchedQROrthogonalization),
     # orthogonalizer=ClassParam(BatchedExponentialOrthogonalization, niters=12),  # type: ignore
-    contiguous_optimization=False,
 )
 EXP_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=3, eps=1e-6),  # type: ignore
     orthogonalizer=ClassParam(BatchedExponentialOrthogonalization, niters=12),  # type: ignore
-    contiguous_optimization=False,
 )
 QR_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=3, eps=1e-3),  # type: ignore
     orthogonalizer=ClassParam(BatchedQROrthogonalization),  # type: ignore
-    contiguous_optimization=False,
 )
 CHOLESKY_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=BatchedIdentity,  # type: ignore
     orthogonalizer=ClassParam(BatchedCholeskyOrthogonalization),  # type: ignore
-    contiguous_optimization=False,
 )
 
 CHOLESKY_STABLE_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=BatchedIdentity,
     orthogonalizer=ClassParam(BatchedCholeskyOrthogonalization, stable=True),
-    contiguous_optimization=False,
 )

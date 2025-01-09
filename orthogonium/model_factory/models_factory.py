@@ -188,7 +188,6 @@ class Residual(nn.Module):
 #             eps=1e-6,
 #             bjorck_iters=6,
 #             beta=0.5,
-#             contiguous_optimization=False,
 #         ),
 #     ),
 #     act=ClassParam(MaxMin),
