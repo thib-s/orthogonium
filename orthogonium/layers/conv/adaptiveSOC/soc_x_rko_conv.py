@@ -67,8 +67,6 @@ class SOCRkoConv2d(nn.Conv2d):
             raise ValueError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
             )
-        if (in_channels % groups != 0) and (out_channels % groups != 0):
-            )
         if ((self.max_channels // groups) < 2) and (kernel_size != stride):
             raise ValueError("inner conv must have at least 2 channels")
         self.padding = padding
@@ -160,7 +158,9 @@ class SOCRkoConv2d(nn.Conv2d):
         )
         sv_min = sv_min * svs_2.min()
         sv_max = sv_max * svs_2.max()
-        stable_rank = 0.5 * stable_rank + 0.5 * ((np.mean(svs_2) ** 2) / (svs_2.max() ** 2))
+        stable_rank = 0.5 * stable_rank + 0.5 * (
+            (np.mean(svs_2) ** 2) / (svs_2.max() ** 2)
+        )
         return sv_min, sv_max, stable_rank
 
     def forward(self, X):
@@ -217,8 +217,6 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
         if kernel_size < stride:
             raise ValueError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
-            )
-        if (in_channels % groups != 0) and (out_channels % groups != 0):
             )
         if ((self.max_channels // groups) < 2) and (kernel_size != stride):
             raise ValueError("inner conv must have at least 2 channels")
@@ -299,7 +297,9 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
         )
         sv_min = sv_min * svs_2.min()
         sv_max = sv_max * svs_2.max()
-        stable_rank = 0.5 * stable_rank + 0.5 * ((np.mean(svs_2) ** 2) / (svs_2.max() ** 2))
+        stable_rank = 0.5 * stable_rank + 0.5 * (
+            (np.mean(svs_2) ** 2) / (svs_2.max() ** 2)
+        )
         return sv_min, sv_max, stable_rank
 
     @property

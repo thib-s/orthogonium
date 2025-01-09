@@ -238,8 +238,6 @@ class FastSOC(nn.Conv2d):
             raise ValueError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
             )
-        if (in_channels % groups != 0) and (out_channels % groups != 0):
-            )
         self.padding = padding
         self.stride = stride
         self.kernel_size = kernel_size
@@ -340,8 +338,6 @@ class SOCTranspose(nn.ConvTranspose2d):
         if kernel_size < stride:
             raise ValueError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
-            )
-        if (in_channels % groups != 0) and (out_channels % groups != 0):
             )
         if ((self.max_channels // groups) < 2) and (kernel_size != stride):
             raise ValueError("inner conv must have at least 2 channels")
