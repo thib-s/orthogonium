@@ -388,6 +388,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#orthogonium.layers.linear.ortho_linear.OrthoLinear" class="md-nav__link">
+    <span class="md-ellipsis">
+      OrthoLinear
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OrthoLinear">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.linear.ortho_linear.OrthoLinear.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#orthogonium.layers.linear.ortho_linear.UnitNormLinear" class="md-nav__link">
     <span class="md-ellipsis">
       UnitNormLinear
@@ -544,6 +568,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#orthogonium.layers.linear.ortho_linear.OrthoLinear" class="md-nav__link">
+    <span class="md-ellipsis">
+      OrthoLinear
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OrthoLinear">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.linear.ortho_linear.OrthoLinear.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#orthogonium.layers.linear.ortho_linear.UnitNormLinear" class="md-nav__link">
     <span class="md-ellipsis">
       UnitNormLinear
@@ -614,11 +662,11 @@
 
 
 
-<h2 id="orthogonium.layers.linear.ortho_linear.UnitNormLinear" class="doc doc-heading">
-            <code>UnitNormLinear</code>
+<h2 id="orthogonium.layers.linear.ortho_linear.OrthoLinear" class="doc doc-heading">
+            <code>OrthoLinear</code>
 
 
-<a href="#orthogonium.layers.linear.ortho_linear.UnitNormLinear" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#orthogonium.layers.linear.ortho_linear.OrthoLinear" class="headerlink" title="Permanent link">&para;</a></h2>
 
 
     <div class="doc doc-contents ">
@@ -633,7 +681,36 @@
 
               <details class="quote">
                 <summary>Source code in <code>orthogonium\layers\linear\ortho_linear.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">39</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
 <span class="normal">40</span>
 <span class="normal">41</span>
 <span class="normal">42</span>
@@ -653,13 +730,439 @@
 <span class="normal">56</span>
 <span class="normal">57</span>
 <span class="normal">58</span>
-<span class="normal">59</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">UnitNormLinear</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">):</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OrthoLinear</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">in_features</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">out_features</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">bias</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">ortho_params</span><span class="p">:</span> <span class="n">OrthoParams</span> <span class="o">=</span> <span class="n">OrthoParams</span><span class="p">(),</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes an orthogonal linear layer with customizable orthogonalization parameters.</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">            in_features : int</span>
+<span class="sd">                Number of input features.</span>
+<span class="sd">            out_features : int</span>
+<span class="sd">                Number of output features.</span>
+<span class="sd">            bias : bool</span>
+<span class="sd">                Whether to include a bias term in the layer. Default is True.</span>
+<span class="sd">            ortho_params : OrthoParams</span>
+<span class="sd">                Parameters for orthogonalization and spectral normalization. Default is the</span>
+<span class="sd">                default instance of OrthoParams.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">            in_features : int</span>
+<span class="sd">                The size of each input sample.</span>
+<span class="sd">            out_features : int</span>
+<span class="sd">                The size of each output sample.</span>
+<span class="sd">            bias : bool</span>
+<span class="sd">                Indicates if the layer should include a learnable bias parameter.</span>
+<span class="sd">            ortho_params : OrthoParams</span>
+<span class="sd">                An object containing orthogonalization and normalization configurations.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        The layer is initialized with orthogonal weights using `torch.nn.init.orthogonal_`.</span>
+<span class="sd">        Weight parameters are further parametrized for both spectral normalization and</span>
+<span class="sd">        orthogonal constraints using the provided `OrthoParams` object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OrthoLinear</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">in_features</span><span class="p">,</span> <span class="n">out_features</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">)</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">orthogonal_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">parametrize</span><span class="o">.</span><span class="n">register_parametrization</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="s2">&quot;weight&quot;</span><span class="p">,</span>
+            <span class="n">ortho_params</span><span class="o">.</span><span class="n">spectral_normalizer</span><span class="p">(</span>
+                <span class="n">weight_shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_features</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_features</span><span class="p">)</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">parametrize</span><span class="o">.</span><span class="n">register_parametrization</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;weight&quot;</span><span class="p">,</span> <span class="n">ortho_params</span><span class="o">.</span><span class="n">orthogonalizer</span><span class="p">(</span><span class="n">weight_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">singular_values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">svs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">svd</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">full_matrices</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">compute_uv</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+        <span class="n">stable_rank</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">svs</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="n">svs</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">svs</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">svs</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">stable_rank</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="orthogonium.layers.linear.ortho_linear.OrthoLinear.__init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">in_features</span><span class="p">,</span> <span class="n">out_features</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ortho_params</span><span class="o">=</span><span class="n">OrthoParams</span><span class="p">())</span></code>
+
+<a href="#orthogonium.layers.linear.ortho_linear.OrthoLinear.__init__" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Initializes an orthogonal linear layer with customizable orthogonalization parameters.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="orthogonium.layers.linear.ortho_linear.OrthoLinear.__init__.in_features">in_features</span></code></td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>int
+Number of input features.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="orthogonium.layers.linear.ortho_linear.OrthoLinear.__init__.out_features">out_features</span></code></td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>int
+Number of output features.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="orthogonium.layers.linear.ortho_linear.OrthoLinear.__init__.bias">bias</span></code></td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>bool
+Whether to include a bias term in the layer. Default is True.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="orthogonium.layers.linear.ortho_linear.OrthoLinear.__init__.ortho_params">ortho_params</span></code></td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>OrthoParams
+Parameters for orthogonalization and spectral normalization. Default is the
+default instance of OrthoParams.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>in_features</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>int
+The size of each input sample.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>out_features</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>int
+The size of each output sample.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>bias</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>bool
+Indicates if the layer should include a learnable bias parameter.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ortho_params</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>OrthoParams
+An object containing orthogonalization and normalization configurations.</p>
+              </div>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="orthogonium.reparametrizers.OrthoParams" href="../reparametrizers/#orthogonium.reparametrizers.OrthoParams">OrthoParams</a>()</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+        <h5 id="orthogonium.layers.linear.ortho_linear.OrthoLinear.__init__--notes">Notes<a class="headerlink" href="#orthogonium.layers.linear.ortho_linear.OrthoLinear.__init__--notes" title="Permanent link">&para;</a></h5>
+<p>The layer is initialized with orthogonal weights using <code>torch.nn.init.orthogonal_</code>.
+Weight parameters are further parametrized for both spectral normalization and
+orthogonal constraints using the provided <code>OrthoParams</code> object.</p>
+
+            <details class="quote">
+              <summary>Source code in <code>orthogonium\layers\linear\ortho_linear.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">in_features</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">out_features</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">ortho_params</span><span class="p">:</span> <span class="n">OrthoParams</span> <span class="o">=</span> <span class="n">OrthoParams</span><span class="p">(),</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Initializes an orthogonal linear layer with customizable orthogonalization parameters.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        in_features : int</span>
+<span class="sd">            Number of input features.</span>
+<span class="sd">        out_features : int</span>
+<span class="sd">            Number of output features.</span>
+<span class="sd">        bias : bool</span>
+<span class="sd">            Whether to include a bias term in the layer. Default is True.</span>
+<span class="sd">        ortho_params : OrthoParams</span>
+<span class="sd">            Parameters for orthogonalization and spectral normalization. Default is the</span>
+<span class="sd">            default instance of OrthoParams.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        in_features : int</span>
+<span class="sd">            The size of each input sample.</span>
+<span class="sd">        out_features : int</span>
+<span class="sd">            The size of each output sample.</span>
+<span class="sd">        bias : bool</span>
+<span class="sd">            Indicates if the layer should include a learnable bias parameter.</span>
+<span class="sd">        ortho_params : OrthoParams</span>
+<span class="sd">            An object containing orthogonalization and normalization configurations.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    The layer is initialized with orthogonal weights using `torch.nn.init.orthogonal_`.</span>
+<span class="sd">    Weight parameters are further parametrized for both spectral normalization and</span>
+<span class="sd">    orthogonal constraints using the provided `OrthoParams` object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">OrthoLinear</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">in_features</span><span class="p">,</span> <span class="n">out_features</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">)</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">orthogonal_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+    <span class="n">parametrize</span><span class="o">.</span><span class="n">register_parametrization</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="s2">&quot;weight&quot;</span><span class="p">,</span>
+        <span class="n">ortho_params</span><span class="o">.</span><span class="n">spectral_normalizer</span><span class="p">(</span>
+            <span class="n">weight_shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_features</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_features</span><span class="p">)</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">parametrize</span><span class="o">.</span><span class="n">register_parametrization</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;weight&quot;</span><span class="p">,</span> <span class="n">ortho_params</span><span class="o">.</span><span class="n">orthogonalizer</span><span class="p">(</span><span class="n">weight_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="orthogonium.layers.linear.ortho_linear.UnitNormLinear" class="doc doc-heading">
+            <code>UnitNormLinear</code>
+
+
+<a href="#orthogonium.layers.linear.ortho_linear.UnitNormLinear" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="torch.nn.Linear">Linear</span></code></p>
+
+
+
+
+
+
+
+              <details class="quote">
+                <summary>Source code in <code>orthogonium\layers\linear\ortho_linear.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 69</span>
+<span class="normal"> 70</span>
+<span class="normal"> 71</span>
+<span class="normal"> 72</span>
+<span class="normal"> 73</span>
+<span class="normal"> 74</span>
+<span class="normal"> 75</span>
+<span class="normal"> 76</span>
+<span class="normal"> 77</span>
+<span class="normal"> 78</span>
+<span class="normal"> 79</span>
+<span class="normal"> 80</span>
+<span class="normal"> 81</span>
+<span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">UnitNormLinear</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="o">*</span><span class="n">args</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;LInear layer where each output unit is normalized to have Frobenius norm 1&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A custom PyTorch Linear layer that ensures weights are normalized to unit norm along a specified dimension.</span>
+
+<span class="sd">        This class extends the torch.nn.Linear module and modifies the weight</span>
+<span class="sd">        matrix to maintain orthogonal initialization and unit norm</span>
+<span class="sd">        normalization during training. In this specific case, each output can be viewed as the result of a 1-Lipschitz</span>
+<span class="sd">        function. This means that the whole function in more than 1-Lipschitz but that each output taken independently</span>
+<span class="sd">        is 1-Lipschitz.</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">            weight: The learnable weight tensor with orthogonal initialization</span>
+<span class="sd">                and enforced unit norm parametrization.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *args: Variable length positional arguments passed to the base</span>
+<span class="sd">                Linear class.</span>
+<span class="sd">            **kwargs: Variable length keyword arguments passed to the base</span>
+<span class="sd">                Linear class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">UnitNormLinear</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">orthogonal_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
         <span class="n">parametrize</span><span class="o">.</span><span class="n">register_parametrization</span><span class="p">(</span>
@@ -700,28 +1203,141 @@
 
     <div class="doc doc-contents ">
 
-        <p>LInear layer where each output unit is normalized to have Frobenius norm 1</p>
+        <p>A custom PyTorch Linear layer that ensures weights are normalized to unit norm along a specified dimension.</p>
+<p>This class extends the torch.nn.Linear module and modifies the weight
+matrix to maintain orthogonal initialization and unit norm
+normalization during training. In this specific case, each output can be viewed as the result of a 1-Lipschitz
+function. This means that the whole function in more than 1-Lipschitz but that each output taken independently
+is 1-Lipschitz.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="orthogonium.layers.linear.ortho_linear.UnitNormLinear.__init__.weight">weight</span></code></td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The learnable weight tensor with orthogonal initialization
+and enforced unit norm parametrization.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>*args</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Variable length positional arguments passed to the base
+Linear class.</p>
+              </div>
+            </td>
+            <td>
+                  <code>()</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>**kwargs</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Variable length keyword arguments passed to the base
+Linear class.</p>
+              </div>
+            </td>
+            <td>
+                  <code>{}</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
             <details class="quote">
               <summary>Source code in <code>orthogonium\layers\linear\ortho_linear.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">40</span>
-<span class="normal">41</span>
-<span class="normal">42</span>
-<span class="normal">43</span>
-<span class="normal">44</span>
-<span class="normal">45</span>
-<span class="normal">46</span>
-<span class="normal">47</span>
-<span class="normal">48</span>
-<span class="normal">49</span>
-<span class="normal">50</span>
-<span class="normal">51</span>
-<span class="normal">52</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 70</span>
+<span class="normal"> 71</span>
+<span class="normal"> 72</span>
+<span class="normal"> 73</span>
+<span class="normal"> 74</span>
+<span class="normal"> 75</span>
+<span class="normal"> 76</span>
+<span class="normal"> 77</span>
+<span class="normal"> 78</span>
+<span class="normal"> 79</span>
+<span class="normal"> 80</span>
+<span class="normal"> 81</span>
+<span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="n">args</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;LInear layer where each output unit is normalized to have Frobenius norm 1&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A custom PyTorch Linear layer that ensures weights are normalized to unit norm along a specified dimension.</span>
+
+<span class="sd">    This class extends the torch.nn.Linear module and modifies the weight</span>
+<span class="sd">    matrix to maintain orthogonal initialization and unit norm</span>
+<span class="sd">    normalization during training. In this specific case, each output can be viewed as the result of a 1-Lipschitz</span>
+<span class="sd">    function. This means that the whole function in more than 1-Lipschitz but that each output taken independently</span>
+<span class="sd">    is 1-Lipschitz.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        weight: The learnable weight tensor with orthogonal initialization</span>
+<span class="sd">            and enforced unit norm parametrization.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        *args: Variable length positional arguments passed to the base</span>
+<span class="sd">            Linear class.</span>
+<span class="sd">        **kwargs: Variable length keyword arguments passed to the base</span>
+<span class="sd">            Linear class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="nb">super</span><span class="p">(</span><span class="n">UnitNormLinear</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">orthogonal_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
     <span class="n">parametrize</span><span class="o">.</span><span class="n">register_parametrization</span><span class="p">(</span>

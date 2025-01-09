@@ -373,6 +373,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="AdaptiveOrthoConv2d">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d--key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Features:
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d--behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Behavior:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -381,6 +405,30 @@
       AdaptiveOrthoConvTranspose2d
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="AdaptiveOrthoConvTranspose2d">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d--key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Features:
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d--behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Behavior:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -682,6 +730,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="AdaptiveOrthoConv2d">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d--key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Features:
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d--behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Behavior:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -690,6 +762,30 @@
       AdaptiveOrthoConvTranspose2d
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="AdaptiveOrthoConvTranspose2d">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d--key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Features:
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d--behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Behavior:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -887,28 +983,236 @@
     <div class="doc doc-contents ">
 
         <p>Factory function to create an orthogonal convolutional layer, selecting the appropriate class based on kernel size and stride.</p>
-<p><strong>Key Features:</strong>
-- Enforces orthogonality, preserving gradient norms.
-- Supports native striding, dilation, grouped convolutions, and flexible padding.</p>
-<p><strong>Behavior:</strong>
-- When kernel_size == stride, the layer is an <code>RKOConv2d</code>.
-- When stride == 1, the layer is a <code>FastBlockConv2d</code>.
-- Otherwise, the layer is a <code>BcopRkoConv2d</code>.</p>
-<p><strong>Arguments:</strong>
-- <code>in_channels</code> (int): Number of input channels.
-- <code>out_channels</code> (int): Number of output channels.
-- <code>kernel_size</code> (_size_2_t): Size of the convolution kernel.
-- <code>stride</code> (_size_2_t, optional): Stride of the convolution. Default is 1.
-- <code>padding</code> (str or _size_2_t, optional): Padding mode or size. Default is "same".
-- <code>dilation</code> (_size_2_t, optional): Dilation rate. Default is 1.
-- <code>groups</code> (int, optional): Number of blocked connections from input to output channels. Default is 1.
-- <code>bias</code> (bool, optional): Whether to include a learnable bias. Default is True.
-- <code>padding_mode</code> (str, optional): Padding mode. Default is "circular".
-- <code>ortho_params</code> (OrthoParams, optional): Parameters to control orthogonality. Default is <code>OrthoParams()</code>.</p>
-<p><strong>Returns:</strong>
-- A configured instance of <code>nn.Conv2d</code> (one of <code>RKOConv2d</code>, <code>FastBlockConv2d</code>, or <code>BcopRkoConv2d</code>).</p>
-<p><strong>Raises:</strong>
-- <code>ValueError</code>: If kernel_size &lt; stride, as orthogonality cannot be enforced.</p>
+<h4 id="orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d--key-features">Key Features:<a class="headerlink" href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d--key-features" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code>- Enforces orthogonality, preserving gradient norms.
+- Supports native striding, dilation, grouped convolutions, and flexible padding.
+</code></pre></div>
+<h4 id="orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d--behavior">Behavior:<a class="headerlink" href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConv2d--behavior" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code>- When kernel_size == stride, the layer is an `RKOConv2d`.
+- When stride == 1, the layer is a `FastBlockConv2d`.
+- Otherwise, the layer is a `BcopRkoConv2d`.
+</code></pre></div>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>in_channels</code>
+            </td>
+            <td>
+                  <code>int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of input channels.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>out_channels</code>
+            </td>
+            <td>
+                  <code>int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of output channels.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>kernel_size</code>
+            </td>
+            <td>
+                  <code><span title="torch.nn.common_types._size_2_t">_size_2_t</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Size of the convolution kernel.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>stride</code>
+            </td>
+            <td>
+                  <code><span title="torch.nn.common_types._size_2_t">_size_2_t</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Stride of the convolution. Default is 1.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>padding</code>
+            </td>
+            <td>
+                  <code>str or <span title="torch.nn.common_types._size_2_t">_size_2_t</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Padding mode or size. Default is "same".</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;same&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>dilation</code>
+            </td>
+            <td>
+                  <code><span title="torch.nn.common_types._size_2_t">_size_2_t</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dilation rate. Default is 1.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>groups</code>
+            </td>
+            <td>
+                  <code>int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of blocked connections from input to output channels. Default is 1.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>bias</code>
+            </td>
+            <td>
+                  <code>bool</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to include a learnable bias. Default is True.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>padding_mode</code>
+            </td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Padding mode. Default is "circular".</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;circular&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ortho_params</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="orthogonium.reparametrizers.OrthoParams" href="../reparametrizers/#orthogonium.reparametrizers.OrthoParams">OrthoParams</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parameters to control orthogonality. Default is <code>OrthoParams()</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="orthogonium.reparametrizers.OrthoParams" href="../reparametrizers/#orthogonium.reparametrizers.OrthoParams">OrthoParams</a>()</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="torch.nn.Conv2d">Conv2d</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A configured instance of <code>nn.Conv2d</code> (one of <code>RKOConv2d</code>, <code>FastBlockConv2d</code>, or <code>BcopRkoConv2d</code>).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code>`ValueError`</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If kernel_size &lt; stride, as orthogonality cannot be enforced.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
             <details class="quote">
               <summary>Source code in <code>orthogonium\layers\conv\AOC\ortho_conv.py</code></summary>
@@ -976,7 +1280,9 @@
 <span class="normal">76</span>
 <span class="normal">77</span>
 <span class="normal">78</span>
-<span class="normal">79</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">AdaptiveOrthoConv2d</span><span class="p">(</span>
+<span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">AdaptiveOrthoConv2d</span><span class="p">(</span>
     <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">out_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">kernel_size</span><span class="p">:</span> <span class="n">_size_2_t</span><span class="p">,</span>
@@ -991,32 +1297,34 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Factory function to create an orthogonal convolutional layer, selecting the appropriate class based on kernel size and stride.</span>
 
-<span class="sd">    **Key Features:**</span>
-<span class="sd">    - Enforces orthogonality, preserving gradient norms.</span>
-<span class="sd">    - Supports native striding, dilation, grouped convolutions, and flexible padding.</span>
+<span class="sd">    Key Features:</span>
+<span class="sd">    -------------</span>
+<span class="sd">        - Enforces orthogonality, preserving gradient norms.</span>
+<span class="sd">        - Supports native striding, dilation, grouped convolutions, and flexible padding.</span>
 
-<span class="sd">    **Behavior:**</span>
-<span class="sd">    - When kernel_size == stride, the layer is an `RKOConv2d`.</span>
-<span class="sd">    - When stride == 1, the layer is a `FastBlockConv2d`.</span>
-<span class="sd">    - Otherwise, the layer is a `BcopRkoConv2d`.</span>
+<span class="sd">    Behavior:</span>
+<span class="sd">    -------------</span>
+<span class="sd">        - When kernel_size == stride, the layer is an `RKOConv2d`.</span>
+<span class="sd">        - When stride == 1, the layer is a `FastBlockConv2d`.</span>
+<span class="sd">        - Otherwise, the layer is a `BcopRkoConv2d`.</span>
 
-<span class="sd">    **Arguments:**</span>
-<span class="sd">    - `in_channels` (int): Number of input channels.</span>
-<span class="sd">    - `out_channels` (int): Number of output channels.</span>
-<span class="sd">    - `kernel_size` (_size_2_t): Size of the convolution kernel.</span>
-<span class="sd">    - `stride` (_size_2_t, optional): Stride of the convolution. Default is 1.</span>
-<span class="sd">    - `padding` (str or _size_2_t, optional): Padding mode or size. Default is &quot;same&quot;.</span>
-<span class="sd">    - `dilation` (_size_2_t, optional): Dilation rate. Default is 1.</span>
-<span class="sd">    - `groups` (int, optional): Number of blocked connections from input to output channels. Default is 1.</span>
-<span class="sd">    - `bias` (bool, optional): Whether to include a learnable bias. Default is True.</span>
-<span class="sd">    - `padding_mode` (str, optional): Padding mode. Default is &quot;circular&quot;.</span>
-<span class="sd">    - `ortho_params` (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.</span>
+<span class="sd">    Arguments:</span>
+<span class="sd">        in_channels (int): Number of input channels.</span>
+<span class="sd">        out_channels (int): Number of output channels.</span>
+<span class="sd">        kernel_size (_size_2_t): Size of the convolution kernel.</span>
+<span class="sd">        stride (_size_2_t, optional): Stride of the convolution. Default is 1.</span>
+<span class="sd">        padding (str or _size_2_t, optional): Padding mode or size. Default is &quot;same&quot;.</span>
+<span class="sd">        dilation (_size_2_t, optional): Dilation rate. Default is 1.</span>
+<span class="sd">        groups (int, optional): Number of blocked connections from input to output channels. Default is 1.</span>
+<span class="sd">        bias (bool, optional): Whether to include a learnable bias. Default is True.</span>
+<span class="sd">        padding_mode (str, optional): Padding mode. Default is &quot;circular&quot;.</span>
+<span class="sd">        ortho_params (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.</span>
 
-<span class="sd">    **Returns:**</span>
-<span class="sd">    - A configured instance of `nn.Conv2d` (one of `RKOConv2d`, `FastBlockConv2d`, or `BcopRkoConv2d`).</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        A configured instance of `nn.Conv2d` (one of `RKOConv2d`, `FastBlockConv2d`, or `BcopRkoConv2d`).</span>
 
-<span class="sd">    **Raises:**</span>
-<span class="sd">    - `ValueError`: If kernel_size &lt; stride, as orthogonality cannot be enforced.</span>
+<span class="sd">    Raises:</span>
+<span class="sd">        `ValueError`: If kernel_size &lt; stride, as orthogonality cannot be enforced.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">kernel_size</span> <span class="o">&lt;</span> <span class="n">stride</span><span class="p">:</span>
@@ -1059,35 +1367,235 @@
     <div class="doc doc-contents ">
 
         <p>Factory function to create an orthogonal convolutional transpose layer, adapting based on kernel size and stride.</p>
-<p><strong>Key Features:</strong>
-- Ensures orthogonality in transpose convolutions for stable gradient propagation.
-- Supports dilation, grouped operations, and efficient kernel construction.</p>
-<p><strong>Behavior:</strong>
-- When kernel_size == stride, the layer is an <code>RkoConvTranspose2d</code>.
-- When stride == 1, the layer is a <code>FastBlockConvTranspose2D</code>.
-- Otherwise, the layer is a <code>BcopRkoConvTranspose2d</code>.</p>
-<p><strong>Arguments:</strong>
-- <code>in_channels</code> (int): Number of input channels.
-- <code>out_channels</code> (int): Number of output channels.
-- <code>kernel_size</code> (_size_2_t): Size of the convolution kernel.
-- <code>stride</code> (_size_2_t, optional): Stride of the transpose convolution. Default is 1.
-- <code>padding</code> (_size_2_t, optional): Padding size. Default is 0.
-- <code>output_padding</code> (_size_2_t, optional): Additional size for output. Default is 0.
-- <code>groups</code> (int, optional): Number of groups. Default is 1.
-- <code>bias</code> (bool, optional): Whether to include a learnable bias. Default is True.
-- <code>dilation</code> (_size_2_t, optional): Dilation rate. Default is 1.
-- <code>padding_mode</code> (str, optional): Padding mode. Default is "zeros".
-- <code>ortho_params</code> (OrthoParams, optional): Parameters to control orthogonality. Default is <code>OrthoParams()</code>.</p>
-<p><strong>Returns:</strong>
-- A configured instance of <code>nn.ConvTranspose2d</code> (one of <code>RkoConvTranspose2d</code>, <code>FastBlockConvTranspose2D</code>, or <code>BcopRkoConvTranspose2d</code>).</p>
-<p><strong>Raises:</strong>
+<h4 id="orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d--key-features">Key Features:<a class="headerlink" href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d--key-features" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code>- Ensures orthogonality in transpose convolutions for stable gradient propagation.
+- Supports dilation, grouped operations, and efficient kernel construction.
+</code></pre></div>
+<h4 id="orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d--behavior">Behavior:<a class="headerlink" href="#orthogonium.layers.conv.AOC.ortho_conv.AdaptiveOrthoConvTranspose2d--behavior" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code>- When kernel_size == stride, the layer is an `RkoConvTranspose2d`.
+- When stride == 1, the layer is a `FastBlockConvTranspose2D`.
+- Otherwise, the layer is a `BcopRkoConvTranspose2d`.
+</code></pre></div>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>in_channels</code>
+            </td>
+            <td>
+                  <code>int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of input channels.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>out_channels</code>
+            </td>
+            <td>
+                  <code>int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of output channels.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>kernel_size</code>
+            </td>
+            <td>
+                  <code><span title="torch.nn.common_types._size_2_t">_size_2_t</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Size of the convolution kernel.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>stride</code>
+            </td>
+            <td>
+                  <code><span title="torch.nn.common_types._size_2_t">_size_2_t</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Stride of the transpose convolution. Default is 1.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>padding</code>
+            </td>
+            <td>
+                  <code><span title="torch.nn.common_types._size_2_t">_size_2_t</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Padding size. Default is 0.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>output_padding</code>
+            </td>
+            <td>
+                  <code><span title="torch.nn.common_types._size_2_t">_size_2_t</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Additional size for output. Default is 0.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>groups</code>
+            </td>
+            <td>
+                  <code>int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of groups. Default is 1.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>bias</code>
+            </td>
+            <td>
+                  <code>bool</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to include a learnable bias. Default is True.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>dilation</code>
+            </td>
+            <td>
+                  <code><span title="torch.nn.common_types._size_2_t">_size_2_t</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dilation rate. Default is 1.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>padding_mode</code>
+            </td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Padding mode. Default is "zeros".</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;zeros&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ortho_params</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="orthogonium.reparametrizers.OrthoParams" href="../reparametrizers/#orthogonium.reparametrizers.OrthoParams">OrthoParams</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parameters to control orthogonality. Default is <code>OrthoParams()</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="orthogonium.reparametrizers.OrthoParams" href="../reparametrizers/#orthogonium.reparametrizers.OrthoParams">OrthoParams</a>()</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="torch.nn.ConvTranspose2d">ConvTranspose2d</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A configured instance of <code>nn.ConvTranspose2d</code> (one of <code>RkoConvTranspose2d</code>, <code>FastBlockConvTranspose2D</code>, or <code>BcopRkoConvTranspose2d</code>).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+        <p><strong>Raises:</strong>
 - <code>ValueError</code>: If kernel_size &lt; stride, as orthogonality cannot be enforced.</p>
 
             <details class="quote">
               <summary>Source code in <code>orthogonium\layers\conv\AOC\ortho_conv.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 82</span>
-<span class="normal"> 83</span>
-<span class="normal"> 84</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 84</span>
 <span class="normal"> 85</span>
 <span class="normal"> 86</span>
 <span class="normal"> 87</span>
@@ -1152,7 +1660,11 @@
 <span class="normal">146</span>
 <span class="normal">147</span>
 <span class="normal">148</span>
-<span class="normal">149</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">AdaptiveOrthoConvTranspose2d</span><span class="p">(</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">AdaptiveOrthoConvTranspose2d</span><span class="p">(</span>
     <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">out_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">kernel_size</span><span class="p">:</span> <span class="n">_size_2_t</span><span class="p">,</span>
@@ -1168,30 +1680,32 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Factory function to create an orthogonal convolutional transpose layer, adapting based on kernel size and stride.</span>
 
-<span class="sd">    **Key Features:**</span>
-<span class="sd">    - Ensures orthogonality in transpose convolutions for stable gradient propagation.</span>
-<span class="sd">    - Supports dilation, grouped operations, and efficient kernel construction.</span>
+<span class="sd">    Key Features:</span>
+<span class="sd">    -------------</span>
+<span class="sd">        - Ensures orthogonality in transpose convolutions for stable gradient propagation.</span>
+<span class="sd">        - Supports dilation, grouped operations, and efficient kernel construction.</span>
 
-<span class="sd">    **Behavior:**</span>
-<span class="sd">    - When kernel_size == stride, the layer is an `RkoConvTranspose2d`.</span>
-<span class="sd">    - When stride == 1, the layer is a `FastBlockConvTranspose2D`.</span>
-<span class="sd">    - Otherwise, the layer is a `BcopRkoConvTranspose2d`.</span>
+<span class="sd">    Behavior:</span>
+<span class="sd">    ---------</span>
+<span class="sd">        - When kernel_size == stride, the layer is an `RkoConvTranspose2d`.</span>
+<span class="sd">        - When stride == 1, the layer is a `FastBlockConvTranspose2D`.</span>
+<span class="sd">        - Otherwise, the layer is a `BcopRkoConvTranspose2d`.</span>
 
-<span class="sd">    **Arguments:**</span>
-<span class="sd">    - `in_channels` (int): Number of input channels.</span>
-<span class="sd">    - `out_channels` (int): Number of output channels.</span>
-<span class="sd">    - `kernel_size` (_size_2_t): Size of the convolution kernel.</span>
-<span class="sd">    - `stride` (_size_2_t, optional): Stride of the transpose convolution. Default is 1.</span>
-<span class="sd">    - `padding` (_size_2_t, optional): Padding size. Default is 0.</span>
-<span class="sd">    - `output_padding` (_size_2_t, optional): Additional size for output. Default is 0.</span>
-<span class="sd">    - `groups` (int, optional): Number of groups. Default is 1.</span>
-<span class="sd">    - `bias` (bool, optional): Whether to include a learnable bias. Default is True.</span>
-<span class="sd">    - `dilation` (_size_2_t, optional): Dilation rate. Default is 1.</span>
-<span class="sd">    - `padding_mode` (str, optional): Padding mode. Default is &quot;zeros&quot;.</span>
-<span class="sd">    - `ortho_params` (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.</span>
+<span class="sd">    Arguments:</span>
+<span class="sd">        in_channels (int): Number of input channels.</span>
+<span class="sd">        out_channels (int): Number of output channels.</span>
+<span class="sd">        kernel_size (_size_2_t): Size of the convolution kernel.</span>
+<span class="sd">        stride (_size_2_t, optional): Stride of the transpose convolution. Default is 1.</span>
+<span class="sd">        padding (_size_2_t, optional): Padding size. Default is 0.</span>
+<span class="sd">        output_padding (_size_2_t, optional): Additional size for output. Default is 0.</span>
+<span class="sd">        groups (int, optional): Number of groups. Default is 1.</span>
+<span class="sd">        bias (bool, optional): Whether to include a learnable bias. Default is True.</span>
+<span class="sd">        dilation (_size_2_t, optional): Dilation rate. Default is 1.</span>
+<span class="sd">        padding_mode (str, optional): Padding mode. Default is &quot;zeros&quot;.</span>
+<span class="sd">        ortho_params (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.</span>
 
-<span class="sd">    **Returns:**</span>
-<span class="sd">    - A configured instance of `nn.ConvTranspose2d` (one of `RkoConvTranspose2d`, `FastBlockConvTranspose2D`, or `BcopRkoConvTranspose2d`).</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        A configured instance of `nn.ConvTranspose2d` (one of `RkoConvTranspose2d`, `FastBlockConvTranspose2D`, or `BcopRkoConvTranspose2d`).</span>
 
 <span class="sd">    **Raises:**</span>
 <span class="sd">    - `ValueError`: If kernel_size &lt; stride, as orthogonality cannot be enforced.</span>
