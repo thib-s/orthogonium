@@ -10,6 +10,14 @@ SQRT_2 = np.sqrt(2)
 
 class Abs(nn.Module):
     def __init__(self):
+        """
+        Initializes an instance of the Abs class.
+
+        This method is automatically called when a new object of the Abs class
+        is instantiated. It calls the initializer of its superclass to ensure
+        proper initialization of inherited class functionality, setting up
+        the required base structures or attributes.
+        """
         super(Abs, self).__init__()
 
     def forward(self, z):
@@ -18,6 +26,16 @@ class Abs(nn.Module):
 
 class MaxMin(nn.Module):
     def __init__(self, axis=1):
+        """
+        This class implements the MaxMin activation function. Which is a
+        pairwise activation function that returns the maximum and minimum (ordered)
+        of each pair of elements in the input tensor.
+
+        Parameters
+        ----------
+        axis : int, default=1 the axis along which to apply the activation function.
+
+        """
         self.axis = axis
         super(MaxMin, self).__init__()
 
@@ -29,6 +47,22 @@ class MaxMin(nn.Module):
 
 class HouseHolder(nn.Module):
     def __init__(self, channels, axis=1):
+        """
+        A activation that applies a parameterized transformation via Householder
+        reflection technique. It is initialized with the number of input channels, which must
+        be even, and an axis that determines the dimension along which operations are applied.
+        This is a corrected version of the original implementation from Singla et al. (2019),
+        which features a 1/sqrt(2) scaling factor to be 1-Lipschitz.
+
+        Attributes:
+            theta (torch.nn.Parameter): Learnable parameter that determines the transformation
+                applied via Householder reflection.
+            axis (int): Dimension along which the operation is performed.
+
+        Args:
+            channels (int): Total number of input channels. Must be an even number.
+            axis (int): Dimension along which the transformation is applied. Default is 1.
+        """
         super(HouseHolder, self).__init__()
         assert (channels % 2) == 0
         eff_channels = channels // 2
@@ -54,6 +88,38 @@ class HouseHolder(nn.Module):
 
 class HouseHolder_Order_2(nn.Module):
     def __init__(self, channels, axis=1):
+        """
+        Represents a layer or module that performs operations using Householder
+        transformations of order 2, parameterized by angles corresponding to
+        each group of channels. This is a corrected version of the original
+        implementation from Singla et al. (2019), which features a 1/sqrt(2)
+        scaling factor to be 1-Lipschitz.
+
+        Attributes:
+            num_groups (int): The number of groups, which is half the number
+            of channels provided as input.
+
+            axis (int): The axis along which the computation is performed.
+
+            theta0 (torch.nn.Parameter): A tensor parameter of shape `(num_groups,)`
+            representing the first set of angles (in radians) used in the
+            parameterization.
+
+            theta1 (torch.nn.Parameter): A tensor parameter of shape `(num_groups,)`
+            representing the second set of angles (in radians) used in the
+            parameterization.
+
+            theta2 (torch.nn.Parameter): A tensor parameter of shape `(num_groups,)`
+            representing the third set of angles (in radians) used in the
+            parameterization.
+
+        Args:
+            channels (int): The total number of input channels. Must be an even
+            number, as it will be split into groups.
+
+            axis (int, optional): Specifies the axis for computations. Defaults
+            to 1.
+        """
         super(HouseHolder_Order_2, self).__init__()
         assert (channels % 2) == 0
         self.num_groups = channels // 2
