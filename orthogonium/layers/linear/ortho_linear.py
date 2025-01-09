@@ -15,6 +15,36 @@ class OrthoLinear(nn.Linear):
         bias: bool = True,
         ortho_params: OrthoParams = OrthoParams(),
     ):
+        """
+        Initializes an orthogonal linear layer with customizable orthogonalization parameters.
+
+        Attributes:
+            in_features : int
+                Number of input features.
+            out_features : int
+                Number of output features.
+            bias : bool
+                Whether to include a bias term in the layer. Default is True.
+            ortho_params : OrthoParams
+                Parameters for orthogonalization and spectral normalization. Default is the
+                default instance of OrthoParams.
+
+        Parameters:
+            in_features : int
+                The size of each input sample.
+            out_features : int
+                The size of each output sample.
+            bias : bool
+                Indicates if the layer should include a learnable bias parameter.
+            ortho_params : OrthoParams
+                An object containing orthogonalization and normalization configurations.
+
+        Notes
+        -----
+        The layer is initialized with orthogonal weights using `torch.nn.init.orthogonal_`.
+        Weight parameters are further parametrized for both spectral normalization and
+        orthogonal constraints using the provided `OrthoParams` object.
+        """
         super(OrthoLinear, self).__init__(in_features, out_features, bias=bias)
         torch.nn.init.orthogonal_(self.weight)
         parametrize.register_parametrization(
@@ -42,7 +72,25 @@ class UnitNormLinear(nn.Linear):
         *args,
         **kwargs,
     ):
-        """LInear layer where each output unit is normalized to have Frobenius norm 1"""
+        """
+        A custom PyTorch Linear layer that ensures weights are normalized to unit norm along a specified dimension.
+
+        This class extends the torch.nn.Linear module and modifies the weight
+        matrix to maintain orthogonal initialization and unit norm
+        normalization during training. In this specific case, each output can be viewed as the result of a 1-Lipschitz
+        function. This means that the whole function in more than 1-Lipschitz but that each output taken independently
+        is 1-Lipschitz.
+
+        Attributes:
+            weight: The learnable weight tensor with orthogonal initialization
+                and enforced unit norm parametrization.
+
+        Args:
+            *args: Variable length positional arguments passed to the base
+                Linear class.
+            **kwargs: Variable length keyword arguments passed to the base
+                Linear class.
+        """
         super(UnitNormLinear, self).__init__(*args, **kwargs)
         torch.nn.init.orthogonal_(self.weight)
         parametrize.register_parametrization(

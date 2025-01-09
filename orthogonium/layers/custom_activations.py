@@ -32,8 +32,7 @@ class MaxMin(nn.Module):
         of each pair of elements in the input tensor.
 
         Parameters
-        ----------
-        axis : int, default=1 the axis along which to apply the activation function.
+            axis : int, default=1 the axis along which to apply the activation function.
 
         """
         self.axis = axis
