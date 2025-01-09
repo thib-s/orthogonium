@@ -7,6 +7,8 @@ nav:
       - convolutions: api/conv.md
       - linear layers: api/linear.md
       - reparametrizers: api/reparametrizers.md
+      - activations: api/activations.md
+      - losses: api/losses.md
 #      - layers.conv.AOC module: api/aoc.md
 #      - layers.conv.adaptiveSOC module: api/adaptiveSOC.md
 #      - layers.conv.SLL module: api/sll.md

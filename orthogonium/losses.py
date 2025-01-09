@@ -8,6 +8,26 @@ from orthogonium.layers import UnitNormLinear
 
 
 def check_last_linear_layer_type(model):
+    """
+    Determines the type of the last linear layer in a given model.
+
+    This function inspects the architecture of the model and identifies the last
+    linear layer of specific types (nn.Linear, OrthoLinear, UnitNormLinear). It
+    then returns a string indicating the type of the last linear layer based on
+    its class. This allows to determine the parameter to use for computing the
+    VRA of a model's output.
+
+    Args:
+        model: The model containing layers to be inspected.
+
+    Returns:
+        str: A string indicating the type of the last linear layer.
+             The possible values are:
+                 - "global" if the layer is of type OrthoLinear.
+                 - "classwise" if the layer is of type UnitNormLinear.
+                 - "unknown" if the layer is of any other type or if no
+                   linear layer is found.
+    """
     # Find the last linear layer in the model
     last_linear_layer = None
     layers = list(model.children())
@@ -102,6 +122,24 @@ def VRA(
 
 class LossXent(nn.Module):
     def __init__(self, n_classes, offset=2.12132, temperature=0.25):
+        """
+        A custom loss function class for cross-entropy calculation.
+
+        This class initializes a cross-entropy loss criterion along with additional
+        parameters, such as an offset and a temperature factor, to allow a finer control over
+        the accuracy/robustness tradeoff during training.
+
+        Attributes:
+            criterion (nn.CrossEntropyLoss): The PyTorch cross-entropy loss criterion.
+            n_classes (int): The number of classes present in the dataset.
+            offset (float): An offset value for customizing the loss computation.
+            temperature (float): A temperature factor for scaling logits during loss calculation.
+
+        Parameters:
+            n_classes (int): The number of classes in the dataset.
+            offset (float, optional): The offset value for loss computation. Default is 2.12132.
+            temperature (float, optional): The temperature scaling factor. Default is 0.25.
+        """
         super(LossXent, self).__init__()
         self.criterion = nn.CrossEntropyLoss()
         self.n_classes = n_classes
@@ -118,6 +156,15 @@ class LossXent(nn.Module):
 
 class CosineLoss(nn.Module):
     def __init__(self):
+        """
+        A class that implements the Cosine Loss for measuring the cosine similarity
+        between predictions and targets. Designed for use in scenarios involving
+        angle-based loss calculations or similarity measurements.
+
+        Attributes:
+            None
+
+        """
         super(CosineLoss, self).__init__()
 
     def forward(self, yp, yt):
