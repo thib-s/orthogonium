@@ -138,14 +138,17 @@ def attach_soc_weight(
         weight_name (str): name of the weight
         kernel_shape (tuple): shape of the kernel (out_channels, in_channels/groups, kernel_size, kernel_size)
         groups (int): number of groups
-        bjorck_params (BjorckParams, optional): parameters of the Bjorck orthogonalization. Defaults to BjorckParams().
+        exp_params (ExpParams): parameters for the exponential algorithm.
 
     Returns:
         torch.Tensor: a handle to the attached weight
     """
     out_channels, in_channels, kernel_size, k2 = kernel_shape
     in_channels *= groups  # compute the real number of input channels
-    assert kernel_size == k2, "only square kernels are supported for the moment"
+    assert (
+        kernel_size == k2
+    ), "only square kernels are supported (to compute skew symmetric kernels)"
+    assert kernel_size % 2 == 1, "kernel size must be odd"
     max_channels = max(in_channels, out_channels)
     layer.register_parameter(
         weight_name,
@@ -250,11 +253,6 @@ class FastSOC(nn.Conv2d):
             groups,
             exp_params=exp_params,
         )
-        if bias:
-            self.bias = nn.Parameter(torch.Tensor(out_channels))
-            nn.init.zeros_(self.bias)
-        else:
-            self.register_parameter("bias", None)
 
     def singular_values(self):
         """Compute the singular values of the convolutional layer using the FFT+SVD method.
@@ -363,12 +361,6 @@ class SOCTranspose(nn.ConvTranspose2d):
             exp_params=exp_params,
         )
 
-        if bias:
-            self.bias = nn.Parameter(torch.Tensor(out_channels))
-            nn.init.zeros_(self.bias)
-        else:
-            self.register_parameter("bias", None)
-
     def singular_values(self):
         if self.padding_mode != "circular":
             print(
@@ -383,8 +375,8 @@ class SOCTranspose(nn.ConvTranspose2d):
                 self.groups,
                 self.in_channels // self.groups,
                 self.out_channels // self.groups,
-                self.kernel_size,
-                self.kernel_size,
+                self.weight.shape[-2],
+                self.weight.shape[-1],
             )
             .numpy(),
             self._input_shape,

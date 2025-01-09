@@ -75,14 +75,26 @@ class SOCRkoConv2d(nn.Conv2d):
         self.groups = groups
         self.intermediate_channels = max(in_channels, out_channels // stride**2)
         del self.weight
+        int_kernel_size = kernel_size - (stride - 1)
+        if int_kernel_size % 2 == 0:
+            if int_kernel_size <= 2:
+                int_kernel_size += 1
+            else:
+                int_kernel_size -= 1
+            # warn user that kernel size changed
+            warnings.warn(
+                f"kernel size changed from {kernel_size} to {int_kernel_size} "
+                f"as even kernel size is not supported for SOC.",
+                RuntimeWarning,
+            )
         attach_soc_weight(
             self,
             "weight_1",
             (
                 self.intermediate_channels,
                 in_channels // groups,
-                kernel_size - (stride - 1),
-                kernel_size - (stride - 1),
+                int_kernel_size,
+                int_kernel_size,
             ),
             groups,
             exp_params=exp_params,
@@ -95,12 +107,6 @@ class SOCRkoConv2d(nn.Conv2d):
             scale=1.0,
             ortho_params=ortho_params,
         )
-
-        if bias:
-            self.bias = nn.Parameter(torch.Tensor(out_channels))
-            nn.init.zeros_(self.bias)
-        else:
-            self.register_parameter("bias", None)
 
     @property
     def weight(self):
@@ -237,14 +243,26 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
             #     RuntimeWarning,
             # )
         del self.weight
+        int_kernel_size = kernel_size - (stride - 1)
+        if int_kernel_size % 2 == 0:
+            if int_kernel_size <= 2:
+                int_kernel_size += 1
+            else:
+                int_kernel_size -= 1
+            # warn user that kernel size changed
+            warnings.warn(
+                f"kernel size changed from {kernel_size} to {int_kernel_size} "
+                f"as even kernel size is not supported for SOC.",
+                RuntimeWarning,
+            )
         attach_soc_weight(
             self,
             "weight_1",
             (
                 self.intermediate_channels,
                 out_channels // groups,
-                kernel_size - (stride - 1),
-                kernel_size - (stride - 1),
+                int_kernel_size,
+                int_kernel_size,
             ),
             groups,
             exp_params=exp_params,
@@ -257,12 +275,6 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
             scale=1.0,
             ortho_params=ortho_params,
         )
-
-        if bias:
-            self.bias = nn.Parameter(torch.Tensor(out_channels))
-            nn.init.zeros_(self.bias)
-        else:
-            self.register_parameter("bias", None)
 
     def singular_values(self):
         if self.padding_mode != "circular":
@@ -278,8 +290,8 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
                 self.groups,
                 self.intermediate_channels // self.groups,
                 self.out_channels // self.groups,
-                self.kernel_size,
-                self.kernel_size,
+                self.weight_1.shape[-2],
+                self.weight_1.shape[-1],
             )
             .numpy(),
             self._input_shape,
