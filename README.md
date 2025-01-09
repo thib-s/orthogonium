@@ -29,6 +29,9 @@
     <a href="#">
         <img src="https://img.shields.io/badge/License-MIT-efefef">
     </a>
+    <a href="https://thib-s.github.io/orthogonium/">
+        <img alt="Documentation" src="https://img.shields.io/badge/Docs-here-0000ff">
+    </a>
 </div>
 <br>
 
@@ -39,7 +42,7 @@ build orthogonal layers, with a focus on convolutional layers . We noticed that 
 significant role in the final performance : a more efficient implementation 
 allows larger networks and more training steps within the same compute 
 budget. So our implementation differs from original papers in order to 
-be faster, to consume less memory or be more flexible.
+be faster, to consume less memory or be more flexible. Feel free to read the [documentation](https://thib-s.github.io/orthogonium/)!
 
 # 📃 What is included in this library ?
 
