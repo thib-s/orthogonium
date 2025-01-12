@@ -32,10 +32,12 @@ An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Archite
 In [1], the SLL layer for convolutions is a 1-Lipschitz residual operation defined approximately as:
 
 $$
-y = x - \mathbf{K}^T \\star (\sigma(\\mathbf{K} \\star x + b)),
+y = x - \mathbf{K}^T \\star (t \\times  \sigma(\\mathbf{K} \\star x + b)),
 $$
 
-where $\mathbf{K}$ represents a toeplitz (convolution) matrix with suitable norm constraints.
+where $\mathbf{K}$ represents a toeplitz (convolution) matrix that represent a 1-Lipschitz operator.
+This is done in practice by computing a normalization vector $\mathbf{t}$ and rescaling the
+activation outputs by $\mathbf{t}$.
 
 By default, the SLL formulation does **not** allow strides or changes in the number of channels.  
 To address these issues, `SLLxAOCLipschitzResBlock` adds extra orthogonal convolutions before and/or
@@ -76,11 +78,15 @@ class SLLxAOCLipschitzResBlock(nn.Module):
         The forward pass follows:
 
         $$
-        \displaystyle
-        \text{out} \;=\; x \;-\; 2 \,\convtrcode{K}{}{1}\Bigl(
-          \; t \,\sigma\bigl(\convcode{K}{}{1}(x) \;+\; b \bigr)
-        \Bigr),
+        y = (\mathbf{K}_{post} \circledast \mathbf{K}_{pre}) \\star x - (\mathbf{K}_{post} \circledast \mathbf{K}^T) \\star (t \\times  \sigma(( \mathbf{K} \circledast \mathbf{K}_{pre}) \\star x + b)),
         $$
+
+        where $\mathbf{K}_{pre}$ and $\mathbf{K}_{post}$ are obtained with AOC.
+
+
+        <img src="../../assets/SLL_3.png" alt="illustration of SLL x AOC" width="600">
+
+
 
         where the kernel `\kernel{K}` may effectively be expanded by pre/post AOC layers to
         handle stride and channel changes. This approach is described in "Improving
@@ -221,10 +227,7 @@ class SDPBasedLipschitzDense(nn.Module):
         SLL approach, but operates on vectors:
 
         $$
-        \displaystyle
-        \text{out} \;=\; x - 2\, W^\top \Bigl(
-          t \,\sigma\bigl(W\,x + b\bigr)
-        \Bigr).
+        y = x - K^T \\times (t \\times \sigma(K \\times x + b)),
         $$
 
         **Args**:
@@ -283,10 +286,7 @@ class AOCLipschitzResBlock(nn.Module):
         an orthogonal parameterization, without explicitly computing a scaling factor `t`.
 
         $$
-        \displaystyle
-        \text{out} = x \;-\; 2\,\convtrcode{K}{}{1}\Bigl(
-          \;\sigma\bigl(\convcode{K}{}{1}(x)\bigr)
-        \Bigr).
+        y = x - \mathbf{K}^T \\star (\sigma(\\mathbf{K} \\star x + b)),
         $$
 
         **Args**:
