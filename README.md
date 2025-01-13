@@ -111,30 +111,47 @@ $AOC.
 
 # 🏠 Install the library:
 
-The library will soon be available on pip, in the meanwhile, you can clone the repository and run the following command 
+The library is available on pip,so you can install it by running the following command:
+```
+pip install orthogonium
+```
+
+If you wish to deep dive in the code and edit your local versin, you can clone the repository and run the following command 
 to install it locally:
 ```
+git clone git@github.com:thib-s/orthogonium.git
 pip install -e .
 ```
 
 ## Use the layer:
 
 ```python
-from orthogonium.layers.conv.AOC import AdaptiveOrthoConv2d
+from orthogonium.layers.conv.AOC import AdaptiveOrthoConv2d, AdaptiveOrthoConvTranspose2d
 from orthogonium.reparametrizers import DEFAULT_ORTHO_PARAMS
 
 # use OrthoConv2d with the same params as torch.nn.Conv2d
-
+kernel_size = 3
 conv = AdaptiveOrthoConv2d(
     kernel_size=kernel_size,
     in_channels=256,
     out_channels=256,
     stride=2,
     groups=16,
-    bias=True,
-    padding=(kernel_size // 2, kernel_size // 2),
+    dilation=2,
     padding_mode="circular",
-    ortho_params=DEFAULT_ORTHO_PARAMS
+    ortho_params=DEFAULT_ORTHO_PARAMS,
+)
+# conv.weight can be assigned to a torch.nn.Conv2d 
+
+# this works similarly for ConvTranspose2d:
+conv_transpose = AdaptiveOrthoConvTranspose2d(
+    in_channels=256,
+    out_channels=256,
+    kernel_size=kernel_size,
+    stride=2,
+    dilation=2,
+    groups=16,
+    ortho_params=DEFAULT_ORTHO_PARAMS,
 )
 ```
 
