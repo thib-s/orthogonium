@@ -39,7 +39,7 @@ build orthogonal layers, with a focus on convolutional layers . We noticed that 
 significant role in the final performance : a more efficient implementation 
 allows larger networks and more training steps within the same compute 
 budget. So our implementation differs from original papers in order to 
-be faster, to consume less memory or be more flexible.
+be faster, to consume less memory or be more flexible. Feel free to read the [documentation](https://thib-s.github.io/orthogonium/)!
 
 # 📃 What is included in this library ?
 
@@ -174,7 +174,10 @@ in a larger scale setting.
 # 🍻 Contributing
 
 This library is still in a very early stage, so expect some bugs and missing features. Also, before the version 1.0.0,
-the API may change and no backward compatibility will be ensured, this will allow a rapid integration of new features.
+the API may change and no backward compatibility will be ensured (code is expected to keep working under minor changes
+but the loading of parametrized network could fail). This will allow a rapid integration of new features, if you project
+to release a trained architecture, exporting the convolutions to torch.nn.conv2D is advised (by saving the `weight` 
+attribute of a layer). If you plan to release a training script, fix the version in your requirements.
 In order to prioritize the development, we will focus on the most used layers and models. If you have a specific need,
 please open an issue, and we will try to address it as soon as possible.
 

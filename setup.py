@@ -44,7 +44,7 @@ if os.path.exists(req_dev_path):
 readme_path = os.path.join(this_directory, "README.md")
 readme_contents = ""
 if os.path.exists(readme_path):
-    with open(readme_path) as fp:
+    with open(readme_path, "r", encoding="utf-8") as fp:
         readme_contents = fp.read().strip()
 
 with open(os.path.join(this_directory, "orthogonium/VERSION")) as f:
@@ -56,7 +56,7 @@ setup(
     # Version of the package:
     version=version,
     # Find the package automatically (include everything):
-    packages=find_packages(include=["orthogonium"]),
+    packages=find_packages(include=["orthogonium", "orthogonium.*"]),
     package_data={
         "orthogonium": ["VERSION"],  # Add the VERSION file
     },
