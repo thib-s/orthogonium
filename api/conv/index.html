@@ -1787,9 +1787,11 @@ An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Archite
 <h3 id="orthogonium.layers.conv.SLL.sll_layer--notes-on-the-sll-approach">Notes on the SLL approach<a class="headerlink" href="#orthogonium.layers.conv.SLL.sll_layer--notes-on-the-sll-approach" title="Permanent link">&para;</a></h3>
 <p>In [1], the SLL layer for convolutions is a 1-Lipschitz residual operation defined approximately as:</p>
 <div class="arithmatex">\[
-y = x - \mathbf{K}^T \star (\sigma(\mathbf{K} \star x + b)),
+y = x - \mathbf{K}^T \star (t \times  \sigma(\mathbf{K} \star x + b)),
 \]</div>
-<p>where <span class="arithmatex">\(\mathbf{K}\)</span> represents a toeplitz (convolution) matrix with suitable norm constraints.</p>
+<p>where <span class="arithmatex">\(\mathbf{K}\)</span> represents a toeplitz (convolution) matrix that represent a 1-Lipschitz operator.
+This is done in practice by computing a normalization vector <span class="arithmatex">\(\mathbf{t}\)</span> and rescaling the
+activation outputs by <span class="arithmatex">\(\mathbf{t}\)</span>.</p>
 <p>By default, the SLL formulation does <strong>not</strong> allow strides or changes in the number of channels.<br />
 To address these issues, <code>SLLxAOCLipschitzResBlock</code> adds extra orthogonal convolutions before and/or
 after the main SLL operation. These additional convolutions can be merged via block convolution
@@ -1837,10 +1839,7 @@ convolution in the skip branch—quite similar to typical ResNet blocks.</p>
 
               <details class="quote">
                 <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">268</span>
-<span class="normal">269</span>
-<span class="normal">270</span>
-<span class="normal">271</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">271</span>
 <span class="normal">272</span>
 <span class="normal">273</span>
 <span class="normal">274</span>
@@ -1950,10 +1949,7 @@ convolution in the skip branch—quite similar to typical ResNet blocks.</p>
 <span class="sd">        an orthogonal parameterization, without explicitly computing a scaling factor `t`.</span>
 
 <span class="sd">        $$</span>
-<span class="sd">        \displaystyle</span>
-<span class="sd">        \text{out} = x \;-\; 2\,\convtrcode{K}{}{1}\Bigl(</span>
-<span class="sd">          \;\sigma\bigl(\convcode{K}{}{1}(x)\bigr)</span>
-<span class="sd">        \Bigr).</span>
+<span class="sd">        y = x - \mathbf{K}^T \\star (\sigma(\\mathbf{K} \\star x + b)),</span>
 <span class="sd">        $$</span>
 
 <span class="sd">        **Args**:</span>
@@ -2058,10 +2054,7 @@ convolution in the skip branch—quite similar to typical ResNet blocks.</p>
 <code>AdaptiveOrthoConv2d</code> (AOC). This preserves 1-Lipschitz (or lower) behavior through
 an orthogonal parameterization, without explicitly computing a scaling factor <code>t</code>.</p>
 <div class="arithmatex">\[
-\displaystyle
-        ext{out} = x \;-\; 2\,\convtrcode{K}{}{1}\Bigl(
-  \;\sigmaigl(\convcode{K}{}{1}(x)igr)
-\Bigr).
+y = x - \mathbf{K}^T \star (\sigma(\mathbf{K} \star x + b)),
 \]</div>
 <p><strong>Args</strong>:
   - <code>in_channels</code> (int): Number of input channels.
@@ -2075,10 +2068,7 @@ an orthogonal parameterization, without explicitly computing a scaling factor <c
 
             <details class="quote">
               <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">269</span>
-<span class="normal">270</span>
-<span class="normal">271</span>
-<span class="normal">272</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">272</span>
 <span class="normal">273</span>
 <span class="normal">274</span>
 <span class="normal">275</span>
@@ -2153,10 +2143,7 @@ an orthogonal parameterization, without explicitly computing a scaling factor <c
 <span class="sd">    an orthogonal parameterization, without explicitly computing a scaling factor `t`.</span>
 
 <span class="sd">    $$</span>
-<span class="sd">    \displaystyle</span>
-<span class="sd">    \text{out} = x \;-\; 2\,\convtrcode{K}{}{1}\Bigl(</span>
-<span class="sd">      \;\sigma\bigl(\convcode{K}{}{1}(x)\bigr)</span>
-<span class="sd">    \Bigr).</span>
+<span class="sd">    y = x - \mathbf{K}^T \\star (\sigma(\\mathbf{K} \\star x + b)),</span>
 <span class="sd">    $$</span>
 
 <span class="sd">    **Args**:</span>
@@ -2235,13 +2222,7 @@ an orthogonal parameterization, without explicitly computing a scaling factor <c
 
               <details class="quote">
                 <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">217</span>
-<span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
-<span class="normal">221</span>
-<span class="normal">222</span>
-<span class="normal">223</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">223</span>
 <span class="normal">224</span>
 <span class="normal">225</span>
 <span class="normal">226</span>
@@ -2283,17 +2264,17 @@ an orthogonal parameterization, without explicitly computing a scaling factor <c
 <span class="normal">262</span>
 <span class="normal">263</span>
 <span class="normal">264</span>
-<span class="normal">265</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SDPBasedLipschitzDense</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SDPBasedLipschitzDense</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_features</span><span class="p">,</span> <span class="n">out_features</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        A 1-Lipschitz fully-connected layer (dense version). Similar to the convolutional</span>
 <span class="sd">        SLL approach, but operates on vectors:</span>
 
 <span class="sd">        $$</span>
-<span class="sd">        \displaystyle</span>
-<span class="sd">        \text{out} \;=\; x - 2\, W^\top \Bigl(</span>
-<span class="sd">          t \,\sigma\bigl(W\,x + b\bigr)</span>
-<span class="sd">        \Bigr).</span>
+<span class="sd">        y = x - K^T \\times (t \\times \sigma(K \\times x + b)),</span>
 <span class="sd">        $$</span>
 
 <span class="sd">        **Args**:</span>
@@ -2361,10 +2342,7 @@ an orthogonal parameterization, without explicitly computing a scaling factor <c
         <p>A 1-Lipschitz fully-connected layer (dense version). Similar to the convolutional
 SLL approach, but operates on vectors:</p>
 <div class="arithmatex">\[
-\displaystyle
-        ext{out} \;=\; x - 2\, W^       op \Bigl(
-  t \,\sigmaigl(W\,x + bigr)
-\Bigr).
+y = x - K^T \times (t \times \sigma(K \times x + b)),
 \]</div>
 <p><strong>Args</strong>:
   - <code>in_features</code> (int): Input size.
@@ -2373,13 +2351,7 @@ SLL approach, but operates on vectors:</p>
 
             <details class="quote">
               <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
-<span class="normal">221</span>
-<span class="normal">222</span>
-<span class="normal">223</span>
-<span class="normal">224</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">224</span>
 <span class="normal">225</span>
 <span class="normal">226</span>
 <span class="normal">227</span>
@@ -2402,16 +2374,16 @@ SLL approach, but operates on vectors:</p>
 <span class="normal">244</span>
 <span class="normal">245</span>
 <span class="normal">246</span>
-<span class="normal">247</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_features</span><span class="p">,</span> <span class="n">out_features</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_features</span><span class="p">,</span> <span class="n">out_features</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A 1-Lipschitz fully-connected layer (dense version). Similar to the convolutional</span>
 <span class="sd">    SLL approach, but operates on vectors:</span>
 
 <span class="sd">    $$</span>
-<span class="sd">    \displaystyle</span>
-<span class="sd">    \text{out} \;=\; x - 2\, W^\top \Bigl(</span>
-<span class="sd">      t \,\sigma\bigl(W\,x + b\bigr)</span>
-<span class="sd">    \Bigr).</span>
+<span class="sd">    y = x - K^T \\times (t \\times \sigma(K \\times x + b)),</span>
 <span class="sd">    $$</span>
 
 <span class="sd">    **Args**:</span>
@@ -2469,13 +2441,7 @@ SLL approach, but operates on vectors:</p>
 
               <details class="quote">
                 <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">156</span>
-<span class="normal">157</span>
-<span class="normal">158</span>
-<span class="normal">159</span>
-<span class="normal">160</span>
-<span class="normal">161</span>
-<span class="normal">162</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">162</span>
 <span class="normal">163</span>
 <span class="normal">164</span>
 <span class="normal">165</span>
@@ -2527,7 +2493,13 @@ SLL approach, but operates on vectors:</p>
 <span class="normal">211</span>
 <span class="normal">212</span>
 <span class="normal">213</span>
-<span class="normal">214</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SDPBasedLipschitzResBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SDPBasedLipschitzResBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">         Original 1-Lipschitz convolutional residual block, based on the SDP-based Lipschitz</span>
@@ -2632,13 +2604,7 @@ for downsampling in a standard residual architecture).</p>
 
             <details class="quote">
               <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">157</span>
-<span class="normal">158</span>
-<span class="normal">159</span>
-<span class="normal">160</span>
-<span class="normal">161</span>
-<span class="normal">162</span>
-<span class="normal">163</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">163</span>
 <span class="normal">164</span>
 <span class="normal">165</span>
 <span class="normal">166</span>
@@ -2670,7 +2636,13 @@ for downsampling in a standard residual architecture).</p>
 <span class="normal">192</span>
 <span class="normal">193</span>
 <span class="normal">194</span>
-<span class="normal">195</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">     Original 1-Lipschitz convolutional residual block, based on the SDP-based Lipschitz</span>
 <span class="sd">    layer (SLL) approach [1]. It has a structure akin to:</span>
@@ -2746,9 +2718,7 @@ for downsampling in a standard residual architecture).</p>
 
               <details class="quote">
                 <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 69</span>
-<span class="normal"> 70</span>
-<span class="normal"> 71</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 71</span>
 <span class="normal"> 72</span>
 <span class="normal"> 73</span>
 <span class="normal"> 74</span>
@@ -2830,7 +2800,13 @@ for downsampling in a standard residual architecture).</p>
 <span class="normal">150</span>
 <span class="normal">151</span>
 <span class="normal">152</span>
-<span class="normal">153</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SLLxAOCLipschitzResBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SLLxAOCLipschitzResBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">cout</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extended SLL-based convolutional residual block. Supports arbitrary kernel sizes,</span>
@@ -2840,11 +2816,15 @@ for downsampling in a standard residual architecture).</p>
 <span class="sd">        The forward pass follows:</span>
 
 <span class="sd">        $$</span>
-<span class="sd">        \displaystyle</span>
-<span class="sd">        \text{out} \;=\; x \;-\; 2 \,\convtrcode{K}{}{1}\Bigl(</span>
-<span class="sd">          \; t \,\sigma\bigl(\convcode{K}{}{1}(x) \;+\; b \bigr)</span>
-<span class="sd">        \Bigr),</span>
+<span class="sd">        y = (\mathbf{K}_{post} \circledast \mathbf{K}_{pre}) \\star x - (\mathbf{K}_{post} \circledast \mathbf{K}^T) \\star (t \\times  \sigma(( \mathbf{K} \circledast \mathbf{K}_{pre}) \\star x + b)),</span>
 <span class="sd">        $$</span>
+
+<span class="sd">        where $\mathbf{K}_{pre}$ and $\mathbf{K}_{post}$ are obtained with AOC.</span>
+
+
+<span class="sd">        &lt;img src=&quot;../../assets/SLL_3.png&quot; alt=&quot;illustration of SLL x AOC&quot; width=&quot;600&quot;&gt;</span>
+
+
 
 <span class="sd">        where the kernel `\kernel{K}` may effectively be expanded by pre/post AOC layers to</span>
 <span class="sd">        handle stride and channel changes. This approach is described in &quot;Improving</span>
@@ -2946,11 +2926,10 @@ strides, and changes in the number of channels by integrating additional
 orthogonal convolutions <em>and</em> fusing them via <code>\mathbconv</code> [1].</p>
 <p>The forward pass follows:</p>
 <div class="arithmatex">\[
-\displaystyle
-        ext{out} \;=\; x \;-\; 2 \,\convtrcode{K}{}{1}\Bigl(
-  \; t \,\sigmaigl(\convcode{K}{}{1}(x) \;+\; b igr)
-\Bigr),
+y = (\mathbf{K}_{post} \circledast \mathbf{K}_{pre}) \star x - (\mathbf{K}_{post} \circledast \mathbf{K}^T) \star (t \times  \sigma(( \mathbf{K} \circledast \mathbf{K}_{pre}) \star x + b)),
 \]</div>
+<p>where <span class="arithmatex">\(\mathbf{K}_{pre}\)</span> and <span class="arithmatex">\(\mathbf{K}_{post}\)</span> are obtained with AOC.</p>
+<p><img src="../../assets/SLL_3.png" alt="illustration of SLL x AOC" width="600"></p>
 <p>where the kernel <code>\kernel{K}</code> may effectively be expanded by pre/post AOC layers to
 handle stride and channel changes. This approach is described in "Improving
 SDP-based Lipschitz Layers" of [1].</p>
@@ -2962,9 +2941,7 @@ SDP-based Lipschitz Layers" of [1].</p>
 
             <details class="quote">
               <summary>Source code in <code>orthogonium\layers\conv\SLL\sll_layer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 70</span>
-<span class="normal"> 71</span>
-<span class="normal"> 72</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 72</span>
 <span class="normal"> 73</span>
 <span class="normal"> 74</span>
 <span class="normal"> 75</span>
@@ -3010,7 +2987,13 @@ SDP-based Lipschitz Layers" of [1].</p>
 <span class="normal">115</span>
 <span class="normal">116</span>
 <span class="normal">117</span>
-<span class="normal">118</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">cout</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cin</span><span class="p">,</span> <span class="n">cout</span><span class="p">,</span> <span class="n">inner_dim_factor</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Extended SLL-based convolutional residual block. Supports arbitrary kernel sizes,</span>
 <span class="sd">    strides, and changes in the number of channels by integrating additional</span>
@@ -3019,11 +3002,15 @@ SDP-based Lipschitz Layers" of [1].</p>
 <span class="sd">    The forward pass follows:</span>
 
 <span class="sd">    $$</span>
-<span class="sd">    \displaystyle</span>
-<span class="sd">    \text{out} \;=\; x \;-\; 2 \,\convtrcode{K}{}{1}\Bigl(</span>
-<span class="sd">      \; t \,\sigma\bigl(\convcode{K}{}{1}(x) \;+\; b \bigr)</span>
-<span class="sd">    \Bigr),</span>
+<span class="sd">    y = (\mathbf{K}_{post} \circledast \mathbf{K}_{pre}) \\star x - (\mathbf{K}_{post} \circledast \mathbf{K}^T) \\star (t \\times  \sigma(( \mathbf{K} \circledast \mathbf{K}_{pre}) \\star x + b)),</span>
 <span class="sd">    $$</span>
+
+<span class="sd">    where $\mathbf{K}_{pre}$ and $\mathbf{K}_{post}$ are obtained with AOC.</span>
+
+
+<span class="sd">    &lt;img src=&quot;../../assets/SLL_3.png&quot; alt=&quot;illustration of SLL x AOC&quot; width=&quot;600&quot;&gt;</span>
+
+
 
 <span class="sd">    where the kernel `\kernel{K}` may effectively be expanded by pre/post AOC layers to</span>
 <span class="sd">    handle stride and channel changes. This approach is described in &quot;Improving</span>
