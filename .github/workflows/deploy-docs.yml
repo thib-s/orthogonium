@@ -27,7 +27,7 @@ jobs:
       - name: "Install Dependencies"
         run: |
           python -m pip install --upgrade pip
-          pip install mkdocs mkdocs-material numkdoc mike
+          pip install mkdocs mkdocs-material numkdoc mike mkdocstrings[python]
           pip install -r requirements.txt
           pip install torch
           pip install -e .
