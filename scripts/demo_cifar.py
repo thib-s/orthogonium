@@ -1,35 +1,46 @@
+"""
+This script is a quick demonstration of the behaviour of the orthogonium library.
+It trains a small CNN (4.8M params) on the CIFAR10 dataset. This script does not aim to reach state-of-the-art performance, but to provide
+decent performance in a reasonable amount of time on affordable hardware (30min for the first setup on a RTX 3080).
+The training can be adapted for 3 different settings:
+- non robust training: the loss is the cross-entropy loss, and the model reaches 89% accuracy and 0% verified robust accuracy in 60 epochs.
+- mildly robust training: the loss is the cross-entropy loss with a high margin, and the model reaches 80% accuracy and 32% VRA in 150 epochs.
+- robust training: the loss is the cross-entropy loss with a high margin, and the model reaches 77% accuracy and 45% VRA in 150 epochs.
+"""
+
+import argparse
 import math
 import os
 
+import schedulefree
+import torch.utils.data
+import torchmetrics
 from lightning.pytorch import callbacks as pl_callbacks
 from lightning.pytorch import Trainer
 from lightning.pytorch import LightningModule
 from lightning.pytorch import LightningDataModule
-import schedulefree
-import torch.utils.data
-import torchmetrics
 from lightning.pytorch.loggers import WandbLogger
+from torch.nn import AvgPool2d
 from torch.utils.data import DataLoader
 from torchinfo import summary
-from torchvision.datasets import ImageFolder
-from torchvision.transforms import CenterCrop
+from torchvision.datasets import CIFAR10
 from torchvision.transforms import Compose
 from torchvision.transforms import Normalize
+from torchvision.transforms import RandAugment
 from torchvision.transforms import RandomHorizontalFlip
 from torchvision.transforms import RandomResizedCrop
-from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
 from orthogonium.model_factory.classparam import ClassParam
-from orthogonium.layers import UnitNormLinear
 from orthogonium.layers.conv.AOC import AdaptiveOrthoConv2d
+from orthogonium.layers.linear import OrthoLinear
 from orthogonium.layers.custom_activations import MaxMin
-from orthogonium.reparametrizers import DEFAULT_ORTHO_PARAMS, QR_ORTHO_PARAMS
-from orthogonium.losses import check_last_linear_layer_type
-from orthogonium.losses import LossXent
+from orthogonium.losses import LossXent, CosineLoss
 from orthogonium.losses import VRA
-from orthogonium.model_factory.models_factory import AOCNetV1
-from orthogonium.model_factory.models_factory import Residual
+from orthogonium.model_factory.models_factory import (
+    StagedCNN,
+    PatchBasedExapandedCNN,
+)
 
 torch.backends.cudnn.benchmark = True
 torch.set_float32_matmul_precision("medium")
@@ -38,22 +49,46 @@ torch.set_float32_matmul_precision("medium")
 this_directory = os.path.abspath(os.path.dirname(__file__))
 parent_directory = os.path.abspath(os.path.join(this_directory, os.pardir))
 
-MAX_EPOCHS = 300  # as done in resnet strikes back
+settings = {
+    "non_robust": {
+        "loss": CosineLoss,
+        "epochs": 30,
+    },
+    "mildly_robust": {
+        "loss": ClassParam(
+            LossXent,
+            n_classes=10,
+            # sqrt(2) /0.1983 is the used factor in VRA computation
+            offset=(math.sqrt(2) / 0.1983) * (8 / 255),
+            temperature=0.25,
+        ),
+        "epochs": 150,
+    },
+    "robust": {
+        "loss": ClassParam(
+            LossXent,
+            n_classes=10,
+            offset=(math.sqrt(2) / 0.1983)
+            * (36 / 255),  # aims for 36/255 verified robust accuracy
+            temperature=0.25,
+        ),
+        "epochs": 150,
+    },
+}
 
 
-class ImagenetDataModule(LightningDataModule):
+class Cifar10DataModule(LightningDataModule):
     # Dataset configuration
-    _DATA_PATH = f"/local_data/imagenet_cache/ILSVRC/Data/CLS-LOC/"
     _BATCH_SIZE = 256
     _NUM_WORKERS = 8  # Number of parallel processes fetching data
     _PREPROCESSING_PARAMS = {
-        # "img_mean": (0.41757566, 0.26098573, 0.25888634),
-        # "img_std": (0.21938758, 0.1983, 0.19342837),
-        "img_mean": (0.5, 0.5, 0.5),
-        "img_std": (0.5, 0.5, 0.5),
-        "crop_size": 224,
+        "img_mean": (0.41757566, 0.26098573, 0.25888634),
+        "img_std": (0.21938758, 0.1983, 0.19342837),
+        # "img_mean": (0.5, 0.5, 0.5),
+        # "img_std": (0.5, 0.5, 0.5),
+        "crop_size": 32,
         "horizontal_flip_prob": 0.5,
-        # "randaug_params": {"magnitude": 8, "num_ops": 2},
+        # "randaug_params": {"magnitude": 5, "num_ops": 1},
         "random_resized_crop_params": {
             "scale": (0.5, 1.0),
             "ratio": (3.0 / 4.0, 4.0 / 3.0),
@@ -64,7 +99,6 @@ class ImagenetDataModule(LightningDataModule):
         # Define the transformations
         transform = Compose(
             [
-                Resize(256),
                 RandomResizedCrop(
                     self._PREPROCESSING_PARAMS["crop_size"],
                     **self._PREPROCESSING_PARAMS["random_resized_crop_params"],
@@ -82,8 +116,10 @@ class ImagenetDataModule(LightningDataModule):
         )
 
         # Load the dataset
-        train_dataset = ImageFolder(
-            self._DATA_PATH + "train",
+        train_dataset = CIFAR10(
+            root="./data",
+            train=True,
+            download=True,
             transform=transform,
         )
 
@@ -99,8 +135,8 @@ class ImagenetDataModule(LightningDataModule):
         # Define the transformations
         transform = Compose(
             [
-                Resize(256),
-                CenterCrop(self._PREPROCESSING_PARAMS["crop_size"]),
+                # Resize(256),
+                # CenterCrop(self._PREPROCESSING_PARAMS["crop_size"]),
                 ToTensor(),
                 Normalize(
                     mean=self._PREPROCESSING_PARAMS["img_mean"],
@@ -110,8 +146,10 @@ class ImagenetDataModule(LightningDataModule):
         )
 
         # Load the dataset
-        val_dataset = ImageFolder(
-            self._DATA_PATH + "val",
+        val_dataset = CIFAR10(
+            root="./data",
+            train=False,
+            download=True,
             transform=transform,
         )
 
@@ -124,39 +162,39 @@ class ImagenetDataModule(LightningDataModule):
 
 
 class ClassificationLightningModule(LightningModule):
-    def __init__(self, num_classes=1000):
+    def __init__(self, num_classes=10, loss=None):
         super().__init__()
         self.num_classes = num_classes
-        self.model = AOCNetV1(
-            img_shape=(3, 224, 224),
-            n_classes=num_classes,
+        self.model = PatchBasedExapandedCNN(
+            img_shape=(3, 32, 32),
+            dim=256,
+            depth=12,
+            kernel_size=3,
+            patch_size=2,
             expand_factor=2,
-            block_depth=3,
-            kernel_size=5,
-            embedding_dim=2048,
-            groups=None,  # None is depthwise, 1 is no groups
-            # skip=None,
-            skip=ClassParam(
-                Residual,
-                init_val=3.0,
-            ),
+            groups=None,
+            n_classes=10,
+            skip=True,
             conv=ClassParam(
                 AdaptiveOrthoConv2d,
                 bias=False,
                 padding="same",
-                padding_mode="zeros",
-                ortho_params=QR_ORTHO_PARAMS,
             ),
             act=ClassParam(MaxMin),
-            lin=ClassParam(UnitNormLinear, bias=False),
+            pool=ClassParam(
+                AdaptiveOrthoConv2d,
+                in_channels=256,
+                out_channels=256,
+                groups=128,
+                bias=False,
+                padding=0,
+                kernel_size=16,
+                stride=16,
+            ),
+            lin=ClassParam(OrthoLinear, bias=False),
             norm=None,
-            pool=None,  # ClassParam(nn.LPPool2d, norm_type=2),
         )
-        # self.criteria = CosineLoss()
-        # self.criteria = LossXent(num_classes, offset=0, temperature=0.5 * 0.125)
-        self.criteria = LossXent(
-            num_classes, offset=1.5 * math.sqrt(2), temperature=0.25
-        )
+        self.criteria = loss() if loss is not None else torch.nn.CrossEntropyLoss()
         self.train_acc = torchmetrics.Accuracy(
             task="multiclass", num_classes=num_classes
         )
@@ -179,11 +217,12 @@ class ClassificationLightningModule(LightningModule):
             VRA(
                 y_hat,
                 label,
-                L=1 / min(ImagenetDataModule._PREPROCESSING_PARAMS["img_std"]),
+                L=1 / min(Cifar10DataModule._PREPROCESSING_PARAMS["img_std"]),
                 eps=36 / 255,
-                last_layer_type=check_last_linear_layer_type(self.model),
+                last_layer_type="global",
             )
-        )  # L is 1 / min std of imagenet
+        )  # L is 1 / max std of imagenet
+        # Log the train loss to Tensorboard
         self.log(
             "loss",
             loss,
@@ -217,16 +256,17 @@ class ClassificationLightningModule(LightningModule):
         img, label = batch
         y_hat = self.model(img)
         loss = self.criteria(y_hat, label)
+        # label = label.argmax(dim=-1)
         self.val_acc(y_hat, label)
         self.val_vra(
             VRA(
                 y_hat,
                 label,
-                L=1 / min(ImagenetDataModule._PREPROCESSING_PARAMS["img_std"]),
+                L=1 / min(Cifar10DataModule._PREPROCESSING_PARAMS["img_std"]),
                 eps=36 / 255,
-                last_layer_type=check_last_linear_layer_type(self.model),
+                last_layer_type="global",
             )
-        )  # L is 1 / min std of imagenet
+        )  # L is 1 / max std of imagenet
         self.log(
             "val_loss",
             loss,
@@ -291,7 +331,6 @@ class ClassificationLightningModule(LightningModule):
         Setup the Adam optimizer. Note, that this function also can return a lr scheduler, which is
         usually useful for training video models.
         """
-        # return torch.optim.AdamW(self.parameters(), lr=0.0001, weight_decay=1e-5)
         optimizer = schedulefree.AdamWScheduleFree(
             self.parameters(), lr=5e-3, weight_decay=0
         )
@@ -301,35 +340,43 @@ class ClassificationLightningModule(LightningModule):
 
 
 def train():
-    classification_module = ClassificationLightningModule(num_classes=1000)
-    data_module = ImagenetDataModule()
-    wandb_logger = WandbLogger(project="lipschitz-robust-imagenet", log_model=True)
-    # wandb_logger.experiment.config["ortho_method"] = method
-    # wandb_logger.experiment.config["criteria"] = criteria
-    checkpoint_callback = pl_callbacks.ModelCheckpoint(
-        monitor="loss",
-        mode="min",
-        save_top_k=1,
-        save_last=True,
-        dirpath=f"./checkpoints/{wandb_logger.experiment.dir}",
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--setting",
+        type=str,
+        default="non_robust",
+        help="The setting to use for training. Can be 'non_robust', 'mildly_robust' or 'robust'.",
     )
+    args = parser.parse_args()
+    setting = settings[args.setting]
+    classification_module = ClassificationLightningModule(
+        num_classes=10, loss=setting["loss"]
+    )
+    data_module = Cifar10DataModule()
+    # wandb_logger = WandbLogger(project="lipschitz-robust-cifar10", log_model=True)
+    # checkpoint_callback = pl_callbacks.ModelCheckpoint(
+    #     monitor="loss",
+    #     mode="min",
+    #     save_top_k=1,
+    #     save_last=True,
+    #     dirpath=f"./checkpoints/{wandb_logger.experiment.dir}",
+    # )
     trainer = Trainer(
         accelerator="gpu",
         devices=-1,  # GPUs per node
         num_nodes=1,  # Number of nodes
-        # num_nodes=3,  # Number of nodes
         strategy="ddp",  # Distributed strategy
         precision="bf16-mixed",
-        max_epochs=MAX_EPOCHS,
+        max_epochs=setting["epochs"],
         enable_model_summary=True,
-        logger=[wandb_logger],
-        # logger=False,
+        # logger=[wandb_logger],
+        logger=False,
         callbacks=[
             # pl_callbacks.LearningRateFinder(max_lr=0.05),
-            checkpoint_callback,
+            # checkpoint_callback,
         ],
     )
-    summary(classification_module, input_size=(1, 3, 224, 224))
+    summary(classification_module, input_size=(1, 3, 32, 32))
 
     trainer.fit(classification_module, data_module)
     # save the model

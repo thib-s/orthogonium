@@ -4,6 +4,7 @@ import os
 import schedulefree
 import torch.utils.data
 import torchmetrics
+from lightning.pytorch import callbacks as pl_callbacks
 from lightning.pytorch import Trainer
 from lightning.pytorch import LightningModule
 from lightning.pytorch import LightningDataModule
@@ -155,7 +156,8 @@ class ClassificationLightningModule(LightningModule):
 
     def training_step(self, batch, batch_idx):
         self.model.train()
-        self.opt.train()
+        if hasattr(self.optimizers(), "train"):
+            self.optimizers().train()
         img, label = batch
         y_hat = self.model(img)
         loss = self.criteria(y_hat, label)
@@ -164,7 +166,7 @@ class ClassificationLightningModule(LightningModule):
             VRA(
                 y_hat,
                 label,
-                L=1 / max(Cifar10DataModule._PREPROCESSING_PARAMS["img_std"]),
+                L=1 / min(Cifar10DataModule._PREPROCESSING_PARAMS["img_std"]),
                 eps=36 / 255,
                 last_layer_type="global",
             )
@@ -198,7 +200,8 @@ class ClassificationLightningModule(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         self.model.eval()
-        self.opt.eval()
+        if hasattr(self.optimizers(), "eval"):
+            self.optimizers().eval()
         img, label = batch
         y_hat = self.model(img)
         loss = self.criteria(y_hat, label)
@@ -208,7 +211,7 @@ class ClassificationLightningModule(LightningModule):
             VRA(
                 y_hat,
                 label,
-                L=1 / max(Cifar10DataModule._PREPROCESSING_PARAMS["img_std"]),
+                L=1 / min(Cifar10DataModule._PREPROCESSING_PARAMS["img_std"]),
                 eps=36 / 255,
                 last_layer_type="global",
             )
@@ -239,6 +242,39 @@ class ClassificationLightningModule(LightningModule):
         )
         return loss
 
+    def on_fit_start(self) -> None:
+        if hasattr(self.optimizers(), "train"):
+            self.optimizers().train()
+
+    def on_predict_start(self) -> None:
+        if hasattr(self.optimizers(), "eval"):
+            self.optimizers().eval()
+
+    def on_validation_model_eval(self) -> None:
+        self.model.eval()
+        if hasattr(self.optimizers(), "eval"):
+            self.optimizers().eval()
+
+    def on_validation_model_train(self) -> None:
+        self.model.train()
+        if hasattr(self.optimizers(), "train"):
+            self.optimizers().train()
+
+    def on_test_model_eval(self) -> None:
+        self.model.eval()
+        if hasattr(self.optimizers(), "eval"):
+            self.optimizers().eval()
+
+    def on_test_model_train(self) -> None:
+        self.model.train()
+        if hasattr(self.optimizers(), "train"):
+            self.optimizers().train()
+
+    def on_predict_model_eval(self) -> None:  # redundant with on_predict_start()
+        self.model.eval()
+        if hasattr(self.optimizers(), "eval"):
+            self.optimizers().eval()
+
     def configure_optimizers(self):
         """
         Setup the Adam optimizer. Note, that this function also can return a lr scheduler, which is
@@ -247,14 +283,22 @@ class ClassificationLightningModule(LightningModule):
         optimizer = schedulefree.AdamWScheduleFree(
             self.parameters(), lr=1e-4, weight_decay=0
         )
-        self.opt = optimizer
+        optimizer.train()
+        self.hparams["lr"] = optimizer.param_groups[0]["lr"]
         return optimizer
 
 
 def train():
     classification_module = ClassificationLightningModule(num_classes=10)
     data_module = Cifar10DataModule()
-    wandb_logger = WandbLogger(project="lipschitz-robust-cifar10", log_model=True)
+    # wandb_logger = WandbLogger(project="lipschitz-robust-cifar10", log_model=True)
+    # checkpoint_callback = pl_callbacks.ModelCheckpoint(
+    #     monitor="loss",
+    #     mode="min",
+    #     save_top_k=1,
+    #     save_last=True,
+    #     dirpath=f"./checkpoints/{wandb_logger.experiment.dir}",
+    # )
     trainer = Trainer(
         accelerator="gpu",
         devices=-1,  # GPUs per node
@@ -263,8 +307,12 @@ def train():
         precision="bf16-mixed",
         max_epochs=MAX_EPOCHS,
         enable_model_summary=True,
-        logger=[wandb_logger],
-        default_root_dir="~/checkpoints/",
+        # logger=[wandb_logger],
+        # logger=False,
+        callbacks=[
+            # pl_callbacks.LearningRateFinder(max_lr=0.05),
+            # checkpoint_callback,
+        ],
     )
     summary(classification_module, input_size=(1, 3, 32, 32))
 
