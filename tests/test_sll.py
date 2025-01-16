@@ -44,12 +44,11 @@ def test_lipschitz_layers(layer_class, init_params, batch_shape):
     x = torch.randn(*batch_shape, requires_grad=True)  # Input
 
     # Pre-optimization Lipschitz constant (if applicable)
-    if hasattr(layer, "compute_t"):
-        pre_lipschitz_constant = compute_lipschitz_constant(layer, x)
-        print(f"{layer_class.__name__} | Before: {pre_lipschitz_constant:.6f}")
-        assert (
-            pre_lipschitz_constant <= 1 + 1e-4
-        ), "Pre-optimization Lipschitz constant violation."
+    pre_lipschitz_constant = compute_lipschitz_constant(layer, x)
+    print(f"{layer_class.__name__} | Before: {pre_lipschitz_constant:.6f}")
+    assert (
+        pre_lipschitz_constant <= 1 + 1e-4
+    ), "Pre-optimization Lipschitz constant violation."
 
     # Define optimizer and loss function
     optimizer = torch.optim.Adam(layer.parameters(), lr=1e-3)
@@ -63,12 +62,11 @@ def test_lipschitz_layers(layer_class, init_params, batch_shape):
         optimizer.step()
 
     # Post-optimization Lipschitz constant (if applicable)
-    if hasattr(layer, "compute_t"):
-        post_lipschitz_constant = compute_lipschitz_constant(layer, x)
-        print(f"{layer_class.__name__} | After: {post_lipschitz_constant:.6f}")
-        assert (
-            post_lipschitz_constant <= 1 + 1e-4
-        ), "Post-optimization Lipschitz constant violation."
+    post_lipschitz_constant = compute_lipschitz_constant(layer, x)
+    print(f"{layer_class.__name__} | After: {post_lipschitz_constant:.6f}")
+    assert (
+        post_lipschitz_constant <= 1 + 1e-4
+    ), "Post-optimization Lipschitz constant violation."
 
 
 def compute_lipschitz_constant(layer, x):
