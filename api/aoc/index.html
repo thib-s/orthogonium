@@ -779,6 +779,16 @@ standard convolutional layer, but the weight are constrained to be orthogonal.</
 </code></pre></div>
 
 
+<details class="note" open>
+  <summary>Note</summary>
+  <ul>
+<li>This implementation also work under zero padding, it lipschitz constant is still tight, but it looses
+    orthogonality.orthogonality on the image border.</li>
+<li>the unit tesing validated for a tolerance of 1e-4 under various orthogonalization schemes (see
+    reparametrizers). Only Cholesky based methods were validated for a lower tolerance of 5e-2.</li>
+</ul>
+</details>
+
 <p><span class="doc-section-title">Parameters:</span></p>
     <table>
       <thead>
@@ -1003,9 +1013,9 @@ standard convolutional layer, but the weight are constrained to be orthogonal.</
 <details class="references" open>
   <summary>References</summary>
   <ul>
-<li><code>[1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., &amp; Serrurier, M. (2025).
+<li>[1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., &amp; Serrurier, M. (2025).
 An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
-&lt;https://arxiv.org/abs/2501.07930&gt;</code>_</li>
+<a href="https://arxiv.org/abs/2501.07930">https://arxiv.org/abs/2501.07930</a></li>
 </ul>
 </details>
             <details class="quote">
@@ -1087,7 +1097,13 @@ An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Archite
 <span class="normal">89</span>
 <span class="normal">90</span>
 <span class="normal">91</span>
-<span class="normal">92</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">AdaptiveOrthoConv2d</span><span class="p">(</span>
+<span class="normal">92</span>
+<span class="normal">93</span>
+<span class="normal">94</span>
+<span class="normal">95</span>
+<span class="normal">96</span>
+<span class="normal">97</span>
+<span class="normal">98</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">AdaptiveOrthoConv2d</span><span class="p">(</span>
     <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">out_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">kernel_size</span><span class="p">:</span> <span class="n">_size_2_t</span><span class="p">,</span>
@@ -1113,10 +1129,16 @@ An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Archite
 <span class="sd">        - Supports native striding, dilation, grouped convolutions, and flexible padding.</span>
 
 <span class="sd">    Behavior:</span>
-<span class="sd">    -------------</span>
+<span class="sd">    ---------</span>
 <span class="sd">        - When kernel_size == stride, the layer is an `RKOConv2d`.</span>
 <span class="sd">        - When stride == 1, the layer is a `FastBlockConv2d`.</span>
 <span class="sd">        - Otherwise, the layer is a `BcopRkoConv2d`.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        - This implementation also work under zero padding, it lipschitz constant is still tight, but it looses</span>
+<span class="sd">            orthogonality.orthogonality on the image border.</span>
+<span class="sd">        - the unit tesing validated for a tolerance of 1e-4 under various orthogonalization schemes (see</span>
+<span class="sd">            reparametrizers). Only Cholesky based methods were validated for a lower tolerance of 5e-2.</span>
 
 <span class="sd">    Arguments:</span>
 <span class="sd">        in_channels (int): Number of input channels.</span>
@@ -1138,9 +1160,9 @@ An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Archite
 
 
 <span class="sd">    References:</span>
-<span class="sd">        - `[1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., &amp; Serrurier, M. (2025).</span>
+<span class="sd">        - [1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., &amp; Serrurier, M. (2025).</span>
 <span class="sd">        An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.</span>
-<span class="sd">        &lt;https://arxiv.org/abs/2501.07930&gt;`_</span>
+<span class="sd">        &lt;https://arxiv.org/abs/2501.07930&gt;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">kernel_size</span> <span class="o">&lt;</span> <span class="n">stride</span><span class="p">:</span>
@@ -1198,6 +1220,16 @@ standard convolutional layer, but the weight are constrained to be orthogonal.</
 - Otherwise, the layer is a `BcopRkoConvTranspose2d`.
 </code></pre></div>
 
+
+<details class="note" open>
+  <summary>Note</summary>
+  <ul>
+<li>This implementation also work under zero padding, it lipschitz constant is still tight, but it looses
+    orthogonality.orthogonality on the image border.</li>
+<li>The current implementation of the torch.nn.ConvTranspose2d does not support circular padding. One can
+    implement padding manually by add a padding layer before and setting padding = (0,0).</li>
+</ul>
+</details>
 
 <p><span class="doc-section-title">Parameters:</span></p>
     <table>
@@ -1418,20 +1450,14 @@ standard convolutional layer, but the weight are constrained to be orthogonal.</
 <details class="references" open>
   <summary>References</summary>
   <ul>
-<li><code>[1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., &amp; Serrurier, M. (2025).
+<li>[1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., &amp; Serrurier, M. (2025).
 An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
-&lt;https://arxiv.org/abs/2501.07930&gt;</code>_</li>
+<a href="https://arxiv.org/abs/2501.07930">https://arxiv.org/abs/2501.07930</a></li>
 </ul>
 </details>
             <details class="quote">
               <summary>Source code in <code>orthogonium\layers\conv\AOC\ortho_conv.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 95</span>
-<span class="normal"> 96</span>
-<span class="normal"> 97</span>
-<span class="normal"> 98</span>
-<span class="normal"> 99</span>
-<span class="normal">100</span>
-<span class="normal">101</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">101</span>
 <span class="normal">102</span>
 <span class="normal">103</span>
 <span class="normal">104</span>
@@ -1505,7 +1531,20 @@ An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Archite
 <span class="normal">172</span>
 <span class="normal">173</span>
 <span class="normal">174</span>
-<span class="normal">175</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">AdaptiveOrthoConvTranspose2d</span><span class="p">(</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">AdaptiveOrthoConvTranspose2d</span><span class="p">(</span>
     <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">out_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">kernel_size</span><span class="p">:</span> <span class="n">_size_2_t</span><span class="p">,</span>
@@ -1537,6 +1576,13 @@ An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Archite
 <span class="sd">        - When stride == 1, the layer is a `FastBlockConvTranspose2D`.</span>
 <span class="sd">        - Otherwise, the layer is a `BcopRkoConvTranspose2d`.</span>
 
+
+<span class="sd">    Note:</span>
+<span class="sd">        - This implementation also work under zero padding, it lipschitz constant is still tight, but it looses</span>
+<span class="sd">            orthogonality.orthogonality on the image border.</span>
+<span class="sd">        - The current implementation of the torch.nn.ConvTranspose2d does not support circular padding. One can</span>
+<span class="sd">            implement padding manually by add a padding layer before and setting padding = (0,0).</span>
+
 <span class="sd">    Arguments:</span>
 <span class="sd">        in_channels (int): Number of input channels.</span>
 <span class="sd">        out_channels (int): Number of output channels.</span>
@@ -1558,9 +1604,9 @@ An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Archite
 
 
 <span class="sd">    References:</span>
-<span class="sd">        - `[1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., &amp; Serrurier, M. (2025).</span>
+<span class="sd">        - [1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., &amp; Serrurier, M. (2025).</span>
 <span class="sd">        An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.</span>
-<span class="sd">        &lt;https://arxiv.org/abs/2501.07930&gt;`_</span>
+<span class="sd">        &lt;https://arxiv.org/abs/2501.07930&gt;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">kernel_size</span> <span class="o">&lt;</span> <span class="n">stride</span><span class="p">:</span>

@@ -614,7 +614,8 @@
     <div class="doc doc-contents ">
 
         <p>Computes Lipschitz constant (and optional 'stability rank') of a convolution layer. This use the layer paramaters
-to decide the correct function to call depending the the padding mode, the shape of the kernel and the stride.</p>
+to decide the correct function to call depending the the padding mode, the shape of the kernel and the stride.
+Under the hood it uses the methods described in [1] and [2].</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -770,6 +771,19 @@ is returned. Default is True.</p>
       </tbody>
     </table>
 
+
+<details class="references" open>
+  <summary>References</summary>
+  <ul>
+<li>[1] Delattre, B., Barthélemy, Q., Araujo, A., &amp; Allauzen, A. (2023, July).
+Efficient bound of Lipschitz constant for convolutional layers by gram iteration.
+In International Conference on Machine Learning (pp. 7513-7532). PMLR.
+<a href="https://arxiv.org/abs/2305.16173">https://arxiv.org/abs/2305.16173</a></li>
+<li>[2] Delattre, B., Barthélemy, Q., &amp; Allauzen, A. (2024).
+Spectral Norm of Convolutional Layers with Circular and Zero Paddings.
+<a href="https://arxiv.org/abs/2402.00240">https://arxiv.org/abs/2402.00240</a></li>
+</ul>
+</details>
             <details class="quote">
               <summary>Source code in <code>orthogonium\layers\conv\singular_values\get_sv.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">  5</span>
@@ -921,7 +935,17 @@ is returned. Default is True.</p>
 <span class="normal">151</span>
 <span class="normal">152</span>
 <span class="normal">153</span>
-<span class="normal">154</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_conv_sv</span><span class="p">(</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_conv_sv</span><span class="p">(</span>
     <span class="n">layer</span><span class="p">,</span>
     <span class="n">n_iter</span><span class="p">,</span>
     <span class="n">agg_groups</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -933,6 +957,7 @@ is returned. Default is True.</p>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Computes Lipschitz constant (and optional &#39;stability rank&#39;) of a convolution layer. This use the layer paramaters</span>
 <span class="sd">    to decide the correct function to call depending the the padding mode, the shape of the kernel and the stride.</span>
+<span class="sd">    Under the hood it uses the methods described in [1] and [2].</span>
 
 <span class="sd">    Parameters:</span>
 <span class="sd">        layer (torch.nn.Module): Convolutional layer to compute the Lipschitz constant for. It must have a weight</span>
@@ -955,6 +980,15 @@ is returned. Default is True.</p>
 <span class="sd">        There is currently an issue when estimating the lipschitz constant of a layer with circular padding and</span>
 <span class="sd">        asymmetric padding (ie. even kernel size and no stride). The function may return a lipschitz constant lower</span>
 <span class="sd">        than the actual value.</span>
+
+<span class="sd">    References:</span>
+<span class="sd">        - [1] Delattre, B., Barthélemy, Q., Araujo, A., &amp; Allauzen, A. (2023, July).</span>
+<span class="sd">        Efficient bound of Lipschitz constant for convolutional layers by gram iteration.</span>
+<span class="sd">        In International Conference on Machine Learning (pp. 7513-7532). PMLR.</span>
+<span class="sd">        &lt;https://arxiv.org/abs/2305.16173&gt;</span>
+<span class="sd">        - [2] Delattre, B., Barthélemy, Q., &amp; Allauzen, A. (2024).</span>
+<span class="sd">        Spectral Norm of Convolutional Layers with Circular and Zero Paddings.</span>
+<span class="sd">        &lt;https://arxiv.org/abs/2402.00240&gt;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">_compute_grouped_lip</span><span class="p">(</span>
