@@ -9,6 +9,7 @@ nav:
       - reparametrizers: api/reparametrizers.md
       - activations: api/activations.md
       - losses: api/losses.md
+      - singular values: api/singular_values.md
 #      - layers.conv.AOC module: api/aoc.md
 #      - layers.conv.adaptiveSOC module: api/adaptiveSOC.md
 #      - layers.conv.SLL module: api/sll.md

@@ -16,7 +16,7 @@ def get_conv_sv(
     to decide the correct function to call depending the the padding mode, the shape of the kernel and the stride.
 
     Parameters:
-         layer (torch.nn.Module): Convolutional layer to compute the Lipschitz constant for. It must have a weight
+        layer (torch.nn.Module): Convolutional layer to compute the Lipschitz constant for. It must have a weight
             attribute. This function is expected to work only for layer in this library as striding is handled using
             the fact that our layers uses two subkernels in this situation.
         n_iter (int): Number of iterations for the Delattre algorithm.
@@ -28,6 +28,14 @@ def get_conv_sv(
         device (torch.device, optional): Device to use for the computation. Default is None.
         detach (bool, optional): If True, the result is detached from the computation graph. Default is True.
         imsize (int, optional): Size of the input image. Required for circular padding. Default is None.
+
+    Returns:
+        float or tuple: Lipschitz constant of the layer. If return_stab_rank is True, the function returns a tuple
+
+    Warnings:
+        There is currently an issue when estimating the lipschitz constant of a layer with circular padding and
+        asymmetric padding (ie. even kernel size and no stride). The function may return a lipschitz constant lower
+        than the actual value.
     """
 
     def _compute_grouped_lip(
