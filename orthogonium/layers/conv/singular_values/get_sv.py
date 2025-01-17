@@ -14,6 +14,7 @@ def get_conv_sv(
     """
     Computes Lipschitz constant (and optional 'stability rank') of a convolution layer. This use the layer paramaters
     to decide the correct function to call depending the the padding mode, the shape of the kernel and the stride.
+    Under the hood it uses the methods described in [1] and [2].
 
     Parameters:
         layer (torch.nn.Module): Convolutional layer to compute the Lipschitz constant for. It must have a weight
@@ -36,6 +37,15 @@ def get_conv_sv(
         There is currently an issue when estimating the lipschitz constant of a layer with circular padding and
         asymmetric padding (ie. even kernel size and no stride). The function may return a lipschitz constant lower
         than the actual value.
+
+    References:
+        - [1] Delattre, B., Barthélemy, Q., Araujo, A., & Allauzen, A. (2023, July).
+        Efficient bound of Lipschitz constant for convolutional layers by gram iteration.
+        In International Conference on Machine Learning (pp. 7513-7532). PMLR.
+        <https://arxiv.org/abs/2305.16173>
+        - [2] Delattre, B., Barthélemy, Q., & Allauzen, A. (2024).
+        Spectral Norm of Convolutional Layers with Circular and Zero Paddings.
+        <https://arxiv.org/abs/2402.00240>
     """
 
     def _compute_grouped_lip(

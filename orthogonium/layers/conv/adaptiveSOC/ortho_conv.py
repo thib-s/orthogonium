@@ -27,12 +27,65 @@ def AdaptiveSOCConv2d(
     ortho_params: OrthoParams = OrthoParams(),
 ) -> nn.Conv2d:
     """
-    factory function to create an Orthogonal Convolutional layer
-    choosing the appropriate class depending on the kernel size and stride.
+    Factory function to create an orthogonal convolutional layer, selecting the appropriate class based on kernel
+    size and stride. This is a modified implementation of the `Skew orthogonal convolution` [1], with significant
+    modification from the original paper:
 
-    When kernel_size == stride, the layer is a RKOConv2d.
-    When stride == 1, the layer is a FlashBCOP.
-    Otherwise, the layer is a BcopRkoConv2d.
+
+    - This implementation provide an explicit kernel (which is larger the original kernel size) so the forward is done
+        in a single iteration. As described in [2].
+    - This implementation avoid the use of channels padding to handle case where cin != cout. Similarly, stride is
+        handled natively using the ad adaptive scheme.
+    - the fantastic four method is replaced by AOL which allows to reduce the number of iterations required to
+        converge.
+
+    It aims to be more scalable to large networks and large image sizes, while enforcing orthogonality in the
+    convolutional layers. This layer also intend to be compatible with all the feature of the `nn.Conv2d` class
+    (e.g., striding, dilation, grouping, etc.). This method has an explicit kernel, which means that the forward
+    operation is equivalent to a standard convolutional layer, but the weight are constrained to be orthogonal.
+
+    Note:
+        - this implementation changes the size of the kernel, which also change the padding semantics. Please adjust
+            the padding according to the kernel size and the number of iterations.
+        - current unit testing use a tolerance of 8e-2 sor this layer can be expected to be 1.08 lipschitz continuous.
+            Similarly, the stable rank is evaluated loosely (must be greater than 0.5).
+
+    Key Features:
+    -------------
+        - Enforces orthogonality, preserving gradient norms.
+        - Supports native striding, dilation, grouped convolutions, and flexible padding.
+
+    Behavior:
+    -------------
+        - When kernel_size == stride, the layer is an `RKOConv2d`.
+        - When stride == 1, the layer is a `FastBlockConv2d`.
+        - Otherwise, the layer is a `BcopRkoConv2d`.
+
+    Arguments:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+        kernel_size (_size_2_t): Size of the convolution kernel.
+        stride (_size_2_t, optional): Stride of the convolution. Default is 1.
+        padding (str or _size_2_t, optional): Padding mode or size. Default is "same".
+        dilation (_size_2_t, optional): Dilation rate. Default is 1.
+        groups (int, optional): Number of blocked connections from input to output channels. Default is 1.
+        bias (bool, optional): Whether to include a learnable bias. Default is True.
+        padding_mode (str, optional): Padding mode. Default is "circular".
+        ortho_params (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.
+
+    Returns:
+        A configured instance of `nn.Conv2d` (one of `RKOConv2d`, `FastBlockConv2d`, or `BcopRkoConv2d`).
+
+    Raises:
+        `ValueError`: If kernel_size < stride, as orthogonality cannot be enforced.
+
+
+    References:
+        - [1] Singla, S., & Feizi, S. (2021, July). Skew orthogonal convolutions. In International Conference
+        on Machine Learning (pp. 9756-9766). PMLR.<https://arxiv.org/abs/2105.11417>
+        - [2] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
+        An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
+        <https://arxiv.org/abs/2501.07930>
     """
     if kernel_size < stride:
         raise ValueError(
@@ -72,16 +125,64 @@ def AdaptiveSOCConvTranspose2d(
     ortho_params: OrthoParams = OrthoParams(),
 ) -> nn.ConvTranspose2d:
     """
-    factory function to create an Orthogonal Convolutional Transpose layer
-    choosing the appropriate class depending on the kernel size and stride.
+    Factory function to create an orthogonal transposed convolutional layer, selecting the appropriate class based on
+    kernel size and stride. This is a modified implementation of the `Skew orthogonal convolution` [1], with significant
+    modification from the original paper:
 
-    As we handle native striding with explicit kernel. It unlocks
-    the possibility to use the same parametrization for transposed convolutions.
-    This class uses the same interface as the ConvTranspose2d class.
+    - This implementation provide an explicit kernel (which is larger the original kernel size) so the forward is done
+        in a single iteration. As described in [2].
+    - This implementation avoid the use of channels padding to handle case where cin != cout. Similarly, stride is
+        handled natively using the ad adaptive scheme.
+    - the fantastic four method is replaced by AOL which allows to reduce the number of iterations required to
+        converge.
 
-    Unfortunately, circular padding is not supported for the transposed convolution.
-    But unit testing have shown that the convolution is still orthogonal when
-        `out_channels * (stride**2) > in_channels`.
+    It aims to be more scalable to large networks and large image sizes, while enforcing orthogonality in the
+    convolutional layers. This layer also intend to be compatible with all the feature of the `nn.Conv2d` class
+    (e.g., striding, dilation, grouping, etc.). This method has an explicit kernel, which means that the forward
+    operation is equivalent to a standard convolutional layer, but the weight are constrained to be orthogonal.
+
+    Note:
+        - this implementation changes the size of the kernel, which also change the padding semantics. Please adjust
+            the padding according to the kernel size and the number of iterations.
+        - current unit testing use a tolerance of 8e-2 sor this layer can be expected to be 1.08 lipschitz continuous.
+            Similarly, the stable rank is evaluated loosely (must be greater than 0.5).
+
+    Key Features:
+    -------------
+        - Enforces orthogonality, preserving gradient norms.
+        - Supports native striding, dilation, grouped convolutions, and flexible padding.
+
+    Behavior:
+    -------------
+        - When kernel_size == stride, the layer is an `RKOConv2d`.
+        - When stride == 1, the layer is a `FastBlockConv2d`.
+        - Otherwise, the layer is a `BcopRkoConv2d`.
+
+    Arguments:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+        kernel_size (_size_2_t): Size of the convolution kernel.
+        stride (_size_2_t, optional): Stride of the convolution. Default is 1.
+        padding (str or _size_2_t, optional): Padding mode or size. Default is "same".
+        dilation (_size_2_t, optional): Dilation rate. Default is 1.
+        groups (int, optional): Number of blocked connections from input to output channels. Default is 1.
+        bias (bool, optional): Whether to include a learnable bias. Default is True.
+        padding_mode (str, optional): Padding mode. Default is "circular".
+        ortho_params (OrthoParams, optional): Parameters to control orthogonality. Default is `OrthoParams()`.
+
+    Returns:
+        A configured instance of `nn.Conv2d` (one of `RKOConv2d`, `FastBlockConv2d`, or `BcopRkoConv2d`).
+
+    Raises:
+        `ValueError`: If kernel_size < stride, as orthogonality cannot be enforced.
+
+
+    References:
+        - [1] Singla, S., & Feizi, S. (2021, July). Skew orthogonal convolutions. In International Conference
+        on Machine Learning (pp. 9756-9766). PMLR.<https://arxiv.org/abs/2105.11417>
+        - [2] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
+        An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
+        <https://arxiv.org/abs/2501.07930>
     """
     if kernel_size < stride:
         raise ValueError(
