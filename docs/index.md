@@ -29,6 +29,8 @@
     <a href="#">
         <img src="https://img.shields.io/badge/License-MIT-efefef">
     </a>
+    <a href="https://arxiv.org/abs/2501.07930">
+        <img src="https://img.shields.io/badge/arXiv-2501.07930-b31b1b.svg">
 </div>
 <br>
 
@@ -39,7 +41,7 @@ build orthogonal layers, with a focus on convolutional layers . We noticed that 
 significant role in the final performance : a more efficient implementation 
 allows larger networks and more training steps within the same compute 
 budget. So our implementation differs from original papers in order to 
-be faster, to consume less memory or be more flexible. Feel free to read the [documentation](https://thib-s.github.io/orthogonium/)!
+be faster, to consume less memory or be more flexible.
 
 # 📃 What is included in this library ?
 
@@ -108,30 +110,47 @@ $AOC.
 
 # 🏠 Install the library:
 
-The library will soon be available on pip, in the meanwhile, you can clone the repository and run the following command 
+The library is available on pip,so you can install it by running the following command:
+```
+pip install orthogonium
+```
+
+If you wish to deep dive in the code and edit your local versin, you can clone the repository and run the following command 
 to install it locally:
 ```
+git clone git@github.com:thib-s/orthogonium.git
 pip install -e .
 ```
 
 ## Use the layer:
 
 ```python
-from orthogonium.layers.conv.AOC import AdaptiveOrthoConv2d
+from orthogonium.layers.conv.AOC import AdaptiveOrthoConv2d, AdaptiveOrthoConvTranspose2d
 from orthogonium.reparametrizers import DEFAULT_ORTHO_PARAMS
 
 # use OrthoConv2d with the same params as torch.nn.Conv2d
-
+kernel_size = 3
 conv = AdaptiveOrthoConv2d(
   kernel_size=kernel_size,
   in_channels=256,
   out_channels=256,
   stride=2,
   groups=16,
-  bias=True,
-  padding=(kernel_size // 2, kernel_size // 2),
+    dilation=2,
   padding_mode="circular",
-  ortho_params=DEFAULT_ORTHO_PARAMS
+    ortho_params=DEFAULT_ORTHO_PARAMS,
+)
+# conv.weight can be assigned to a torch.nn.Conv2d 
+
+# this works similarly for ConvTranspose2d:
+conv_transpose = AdaptiveOrthoConvTranspose2d(
+    in_channels=256,
+    out_channels=256,
+    kernel_size=kernel_size,
+    stride=2,
+    dilation=2,
+    groups=16,
+    ortho_params=DEFAULT_ORTHO_PARAMS,
 )
 ```
 
@@ -170,6 +189,22 @@ in a larger scale setting.
 - [Spectral Norm of Convolutional Layers with Circular and Zero Paddings](https://arxiv.org/abs/2402.00240) 
 - [Efficient Bound of Lipschitz Constant for Convolutional Layers by Gram Iteration](https://arxiv.org/abs/2305.16173)
 - [github of the two papers](https://github.com/blaisedelattre/lip4conv/tree/main)
+
+
+# 📖 Citations
+If you find this repository useful for your research, please cite:
+
+```
+@misc{boissin2025adaptiveorthogonalconvolutionscheme,
+      title={An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures}, 
+      author={Thibaut Boissin and Franck Mamalet and Thomas Fel and Agustin Martin Picard and Thomas Massena and Mathieu Serrurier},
+      year={2025},
+      eprint={2501.07930},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2501.07930}, 
+}
+```
 
 # 🍻 Contributing
 
