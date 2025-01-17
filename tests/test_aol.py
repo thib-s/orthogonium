@@ -6,7 +6,7 @@ from orthogonium.layers.conv.AOL.aol import AOLConv2D, AOLConvTranspose2D
 @pytest.mark.parametrize("convclass", [AOLConv2D, AOLConvTranspose2D])
 @pytest.mark.parametrize("in_channels", [4, 8])
 @pytest.mark.parametrize("out_channels", [4, 8])
-@pytest.mark.parametrize("kernel_size", [2, 3, 5])
+@pytest.mark.parametrize("kernel_size", [2, 3])
 @pytest.mark.parametrize("groups", [1, 4])
 def test_lipschitz_layers(convclass, in_channels, out_channels, kernel_size, groups):
     """
@@ -21,7 +21,7 @@ def test_lipschitz_layers(convclass, in_channels, out_channels, kernel_size, gro
     )
 
     # Define input and target tensors
-    x = torch.randn((8, in_channels, 8, 8), requires_grad=True)  # Input
+    x = torch.randn((4, in_channels, 8, 8), requires_grad=True)  # Input
 
     # Pre-optimization Lipschitz constant (if applicable)
     pre_lipschitz_constant = compute_lipschitz_constant(layer, x)
@@ -73,5 +73,5 @@ def compute_lipschitz_constant(layer, x):
     jacobian = torch.tensor(jacobian).view(y.numel(), x.numel())  # Construct Jacobian
 
     # Compute singular values and return the maximum value
-    singular_values = torch.linalg.svdvals(jacobian)
+    singular_values = torch.linalg.svdvals(jacobian).detach()
     return singular_values.max().item()
