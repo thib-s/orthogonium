@@ -53,15 +53,7 @@ class SOCRkoConv2d(nn.Conv2d):
             bias,
             padding_mode,
         )
-        self.padding_mode = padding_mode
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-        self.groups = groups
-        self.in_channels = in_channels
-        self.out_channels = out_channels
         self.max_channels = max(in_channels, out_channels)
-
         # raise runtime error if kernel size >= stride
         if kernel_size < stride:
             raise ValueError(
@@ -69,10 +61,6 @@ class SOCRkoConv2d(nn.Conv2d):
             )
         if ((self.max_channels // groups) < 2) and (kernel_size != stride):
             raise ValueError("inner conv must have at least 2 channels")
-        self.padding = padding
-        self.stride = stride
-        self.kernel_size = kernel_size
-        self.groups = groups
         self.intermediate_channels = max(in_channels, out_channels // stride**2)
         del self.weight
         int_kernel_size = kernel_size - (stride - 1)
@@ -107,6 +95,7 @@ class SOCRkoConv2d(nn.Conv2d):
             scale=1.0,
             ortho_params=ortho_params,
         )
+        self.kernel_size = self.weight.shape[-2:]
 
     @property
     def weight(self):
@@ -119,59 +108,6 @@ class SOCRkoConv2d(nn.Conv2d):
                 return fast_matrix_conv(
                     self.weight_1, self.weight_2, self.groups
                 ).contiguous()
-
-    def singular_values(self):
-        """
-        The estimation of the singular values under striding is not trivial.
-        This approximation is obtained by composing the singular values of the
-        two convolutions. The singular values of the first convolution are computed
-        using the FFT method, while the singular values of the second convolution
-        are computed using the SVD method. The product of the singular values of
-        can lead to an overestimation of the largest singular values, and an underestimation
-        of the smallest singular values. However when both convolutions are orthogonal,
-        the estimation is exact. In other words this method is a good sanity check to
-        ensure that the convolutions are orthogonal.
-        """
-        if self.padding_mode != "circular":
-            print(
-                f"padding {self.padding} not supported, return min and max"
-                f"singular values as if it was 'circular' padding "
-                f"(overestimate the values)."
-            )
-        sv_min, sv_max, stable_rank = conv_singular_values_numpy(
-            self.weight_1.detach()
-            .cpu()
-            .reshape(
-                self.groups,
-                self.intermediate_channels // self.groups,
-                self.in_channels // self.groups,
-                self.weight_1.shape[-2],
-                self.weight_1.shape[-1],
-            )
-            .numpy(),
-            self._input_shape,
-        )
-        svs_2 = np.linalg.svd(
-            self.weight_2.reshape(
-                self.groups,
-                self.out_channels // self.groups,
-                (self.intermediate_channels // self.groups) * (self.stride**2),
-            )
-            .detach()
-            .cpu()
-            .numpy(),
-            compute_uv=False,
-        )
-        sv_min = sv_min * svs_2.min()
-        sv_max = sv_max * svs_2.max()
-        stable_rank = 0.5 * stable_rank + 0.5 * (
-            (np.mean(svs_2) ** 2) / (svs_2.max() ** 2)
-        )
-        return sv_min, sv_max, stable_rank
-
-    def forward(self, X):
-        self._input_shape = X.shape[2:]
-        return super(SOCRkoConv2d, self).forward(X)
 
 
 class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
@@ -210,13 +146,6 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
             dilation,
             padding_mode,
         )
-        self.padding_mode = padding_mode
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-        self.groups = groups
-        self.in_channels = in_channels
-        self.out_channels = out_channels
         self.max_channels = max(in_channels, out_channels)
 
         # raise runtime error if kernel size >= stride
@@ -226,22 +155,10 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
             )
         if ((self.max_channels // groups) < 2) and (kernel_size != stride):
             raise ValueError("inner conv must have at least 2 channels")
-        self.padding = padding
-        self.stride = stride
-        self.kernel_size = kernel_size
-        self.groups = groups
         if out_channels * (stride**2) >= in_channels:
             self.intermediate_channels = max(in_channels // (stride**2), out_channels)
         else:
             self.intermediate_channels = out_channels
-            # raise warning because this configuration don't yield orthogonal
-            # convolutions
-            # warnings.warn(
-            #     "This configuration does not yield orthogonal convolutions due to "
-            #     "padding issues: pytorch does not implement circular padding for "
-            #     "transposed convolutions",
-            #     RuntimeWarning,
-            # )
         del self.weight
         int_kernel_size = kernel_size - (stride - 1)
         if int_kernel_size % 2 == 0:
@@ -275,44 +192,7 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
             scale=1.0,
             ortho_params=ortho_params,
         )
-
-    def singular_values(self):
-        if self.padding_mode != "circular":
-            print(
-                f"padding {self.padding} not supported, return min and max"
-                f"singular values as if it was 'circular' padding "
-                f"(overestimate the values)."
-            )
-        sv_min, sv_max, stable_rank = conv_singular_values_numpy(
-            self.weight_1.detach()
-            .cpu()
-            .reshape(
-                self.groups,
-                self.intermediate_channels // self.groups,
-                self.out_channels // self.groups,
-                self.weight_1.shape[-2],
-                self.weight_1.shape[-1],
-            )
-            .numpy(),
-            self._input_shape,
-        )
-        svs_2 = np.linalg.svd(
-            self.weight_2.reshape(
-                self.groups,
-                self.in_channels // self.groups,
-                self.intermediate_channels // self.groups * (self.stride**2),
-            )
-            .detach()
-            .cpu()
-            .numpy(),
-            compute_uv=False,
-        )
-        sv_min = sv_min * svs_2.min()
-        sv_max = sv_max * svs_2.max()
-        stable_rank = 0.5 * stable_rank + 0.5 * (
-            (np.mean(svs_2) ** 2) / (svs_2.max() ** 2)
-        )
-        return sv_min, sv_max, stable_rank
+        self.kernel_size = self.weight.shape[-2:]
 
     @property
     def weight(self):
@@ -322,7 +202,3 @@ class SOCRkoConvTranspose2d(nn.ConvTranspose2d):
             with parametrize.cached():
                 kernel = fast_matrix_conv(self.weight_1, self.weight_2, self.groups)
         return kernel.contiguous()
-
-    def forward(self, X):
-        self._input_shape = X.shape[2:]
-        return super(SOCRkoConvTranspose2d, self).forward(X)

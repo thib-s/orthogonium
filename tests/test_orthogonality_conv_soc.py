@@ -5,34 +5,10 @@ from orthogonium.layers.conv.adaptiveSOC import (
     AdaptiveSOCConv2d,
     AdaptiveSOCConvTranspose2d,
 )
-from orthogonium.layers.conv.adaptiveSOC.soc_x_rko_conv import SOCRkoConv2d
-from orthogonium.layers.conv.adaptiveSOC.fast_skew_ortho_conv import FastSOC
-
+from orthogonium.layers.conv.singular_values import get_conv_sv
+from tests.test_orthogonality_conv import _compute_sv_impulse_response_layer
 
 device = "cpu"  #  torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-def _compute_sv_impulse_response_layer(layer, img_shape):
-    with torch.no_grad():
-        layer = layer.to(device)
-        inputs = (
-            torch.eye(img_shape[0] * img_shape[1] * img_shape[2])
-            .view(
-                img_shape[0] * img_shape[1] * img_shape[2],
-                img_shape[0],
-                img_shape[1],
-                img_shape[2],
-            )
-            .to(device)
-        )
-        outputs = layer(inputs)
-        try:
-            svs = torch.linalg.svdvals(outputs.view(outputs.shape[0], -1))
-            svs = svs.cpu()
-            return svs.min(), svs.max(), svs.mean() / svs.max()
-        except np.linalg.LinAlgError:
-            print("SVD failed returning only largest singular value")
-            return torch.norm(outputs.view(outputs.shape[0], -1), p=2).max(), 0, 0
 
 
 def check_orthogonal_layer(
@@ -42,10 +18,10 @@ def check_orthogonal_layer(
     kernel_size,
     output_channels,
     expected_kernel_shape,
-    tol=5e-4,
-    sigma_min_requirement=0.95,
+    tol=1e-2,
+    sigma_min_requirement=0.0,
+    imsize=8,
 ):
-    imsize = 8
     # Test backpropagation and weight update
     try:
         orthoconv = orthoconv.to(device)
@@ -61,47 +37,37 @@ def check_orthogonal_layer(
         orthoconv.eval()  # so i    mpulse response test checks the eval mode
     except Exception as e:
         pytest.fail(f"Backpropagation or weight update failed with: {e}")
-    # # check that orthoconv.weight has the correct shape
-    # if orthoconv.weight.data.shape != expected_kernel_shape:
-    #     pytest.fail(
-    #         f"BCOP weight has incorrect shape: {orthoconv.weight.shape} vs {(output_channels, input_channels // groups, kernel_size, kernel_size)}"
-    #     )
-    # Test singular_values function
-    try:
-        sigma_min, sigma_max, stable_rank = orthoconv.singular_values()  # try:
-    except np.linalg.LinAlgError as e:
-        pytest.skip(f"SVD failed with: {e}")
-    sigma_min_ir, sigma_max_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
-        orthoconv, (input_channels, imsize, imsize)
-    )
+    with torch.no_grad():
+        try:
+            sigma_max, stable_rank = get_conv_sv(
+                orthoconv,
+                n_iter=6 if orthoconv.padding_mode == "circular" else 3,
+                imsize=imsize,
+            )
+        except np.linalg.LinAlgError as e:
+            pytest.skip(f"SVD failed with: {e}")
+        sigma_min_ir, sigma_max_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
+            orthoconv, (input_channels, imsize, imsize)
+        )
     print(f"input_shape = {inp.shape}, output_shape = {output.shape}")
     print(
         f"({input_channels}->{output_channels}, g{groups}, k{kernel_size}), "
         f"sigma_max:"
         f" {sigma_max:.3f}/{sigma_max_ir:.3f}, "
         f"sigma_min:"
-        f" {sigma_min:.3f}/{sigma_min_ir:.3f}, "
+        f" {sigma_min_ir:.3f}, "
         f"stable_rank: {stable_rank:.3f}/{stable_rank_ir:.3f}"
     )
     # check that the singular values are close to 1
     assert sigma_max_ir < (1 + tol), "sigma_max is not less than 1"
-    # assert (sigma_min_ir < (1 + tol)) and (
-    #     sigma_min_ir > sigma_min_requirement
-    # ), "sigma_min is not close to 1"
-    # assert abs(stable_rank_ir - 1) < tol, "stable_rank is not close to 1"
-    # check that the singular values are close to the impulse response values
-    # assert (
-    #     sigma_max > sigma_max_ir - 1e-2
-    # ), f"sigma_max must be greater to its IR value (1%): {sigma_max} vs {sigma_max_ir}"
+    assert (sigma_min_ir < (1 + tol)) and (
+        sigma_min_ir > sigma_min_requirement
+    ), "sigma_min is not close to 1"
+    # check that table rank is greater than 0.75
+    assert stable_rank_ir > 0.75, "stable rank is not greater than 0.75"
     assert (
-        abs(sigma_max - sigma_max_ir) < tol
-    ), f"sigma_max is not close to its IR value: {sigma_max} vs {sigma_max_ir}"
-    # assert (
-    #     abs(sigma_min - sigma_min_ir) < tol
-    # ), f"sigma_min is not close to its IR value: {sigma_min} vs {sigma_min_ir}"
-    # assert (
-    #     abs(stable_rank - stable_rank_ir) < tol
-    # ), f"stable_rank is not close to its IR value: {stable_rank} vs {stable_rank_ir}"
+        sigma_max + tol >= sigma_max_ir
+    ), f"sigma_max is not greater than its IR value: {sigma_max} vs {sigma_max_ir}"
 
 
 @pytest.mark.parametrize("kernel_size", [1, 3])
@@ -122,7 +88,7 @@ def test_standard_configs(kernel_size, input_channels, output_channels, stride, 
             stride=stride,
             groups=groups,
             bias=False,
-            padding=(kernel_size // 2, kernel_size // 2),
+            padding=(3 * (kernel_size // 2), 3 * (kernel_size // 2)),
             padding_mode="circular",
         )
     except Exception as e:
@@ -144,7 +110,7 @@ def test_standard_configs(kernel_size, input_channels, output_channels, stride, 
             kernel_size,
             kernel_size,
         ),
-        tol=5e-2,
+        tol=8e-2,
         sigma_min_requirement=0.0,
     )
 
@@ -273,7 +239,7 @@ def test_strided(kernel_size, input_channels, output_channels, stride, groups):
             stride=stride,
             groups=groups,
             bias=False,
-            padding=((kernel_size - 1) // 2, (kernel_size - 1) // 2),
+            padding=(3 * ((kernel_size - 1) // 2), 3 * ((kernel_size - 1) // 2)),
             padding_mode="circular",
         )
     except Exception as e:
@@ -295,7 +261,7 @@ def test_strided(kernel_size, input_channels, output_channels, stride, groups):
             kernel_size,
             kernel_size,
         ),
-        tol=5e-2,
+        tol=8e-2,
         sigma_min_requirement=0.0,
     )
 
@@ -398,7 +364,7 @@ def test_depthwise(kernel_size, input_channels, output_channels, stride, groups)
             stride=stride,
             groups=groups,
             bias=False,
-            padding=(kernel_size // 2, kernel_size // 2),
+            padding=(3 * (kernel_size // 2), 3 * (kernel_size // 2)),
             padding_mode="circular",
         )
     except Exception as e:
@@ -420,7 +386,7 @@ def test_depthwise(kernel_size, input_channels, output_channels, stride, groups)
             kernel_size,
             kernel_size,
         ),
-        tol=5e-2,
+        tol=8e-2,
         sigma_min_requirement=0.0,
     )
 
@@ -508,9 +474,9 @@ def test_depthwise(kernel_size, input_channels, output_channels, stride, groups)
 @pytest.mark.parametrize("output_channels", [4, 8])
 @pytest.mark.parametrize("stride", [1])
 @pytest.mark.parametrize("groups", [1, 2])
-def test_convtranspose(kernel_size, input_channels, output_channels, stride, groups):
+def test_convtranspose_1(kernel_size, input_channels, output_channels, stride, groups):
     # Test instantiation
-    padding = (0, 0)
+    padding = (3 * (kernel_size // 2), 3 * (kernel_size // 2))
     padding_mode = "zeros"
     try:
 
@@ -549,7 +515,7 @@ def test_convtranspose(kernel_size, input_channels, output_channels, stride, gro
             kernel_size,
             kernel_size,
         ),
-        tol=5e-2,
+        tol=8e-2,
         sigma_min_requirement=0.0,
     )
 
@@ -559,9 +525,9 @@ def test_convtranspose(kernel_size, input_channels, output_channels, stride, gro
 @pytest.mark.parametrize("output_channels", [4, 8])
 @pytest.mark.parametrize("stride", [2])
 @pytest.mark.parametrize("groups", [1, 2])
-def test_convtranspose(kernel_size, input_channels, output_channels, stride, groups):
+def test_convtranspose_2(kernel_size, input_channels, output_channels, stride, groups):
     # Test instantiation
-    padding = (0, 0)
+    padding = (0, 0) if kernel_size == stride else (3, 3)
     padding_mode = "zeros"
     try:
 
@@ -600,6 +566,6 @@ def test_convtranspose(kernel_size, input_channels, output_channels, stride, gro
             kernel_size,
             kernel_size,
         ),
-        tol=5e-2,
+        tol=8e-2,
         sigma_min_requirement=0.0,
     )

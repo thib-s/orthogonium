@@ -151,50 +151,6 @@ class RKOConv2d(nn.Conv2d):
             ),
         )
 
-    def forward(self, X):
-        self._input_shape = X.shape[2:]
-        return super(RKOConv2d, self).forward(X)
-
-    def singular_values(self):
-        if (self.stride[0] == self.kernel_size[0]) and (
-            self.stride[1] == self.kernel_size[1]
-        ):
-            svs = np.linalg.svd(
-                self.weight.reshape(
-                    self.groups,
-                    self.out_channels // self.groups,
-                    (self.in_channels // self.groups)
-                    * (self.stride[0] * self.stride[1]),
-                )
-                .detach()
-                .cpu()
-                .numpy(),
-                compute_uv=False,
-            )
-            sv_min = svs.min()
-            sv_max = svs.max()
-            stable_rank = (np.mean(svs) ** 2) / (svs.max() ** 2)
-            return sv_min, sv_max, stable_rank
-        elif self.stride[0] > 1 or self.stride[1] > 1:
-            raise RuntimeError(
-                "Not able to compute singular values for this configuration"
-            )
-        # Implements interface required by LipschitzModuleL2
-        sv_min, sv_max, stable_rank = conv_singular_values_numpy(
-            self.weight.detach()
-            .cpu()
-            .view(
-                self.groups,
-                self.out_channels // self.groups,
-                self.in_channels // self.groups,
-                self.kernel_size[0],
-                self.kernel_size[1],
-            )
-            .numpy(),
-            self._input_shape,
-        )
-        return sv_min, sv_max, stable_rank
-
 
 class RkoConvTranspose2d(nn.ConvTranspose2d):
     def __init__(
@@ -216,17 +172,13 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
             out_channels,
             kernel_size,
             stride,
-            padding if padding_mode == "zeros" else 0,
+            padding,
             output_padding,
             groups,
             bias,
             dilation,
-            "zeros",
+            padding_mode,
         )
-        self.real_padding_mode = padding_mode
-        if padding == "same":
-            padding = self._calculate_same_padding()
-        self.real_padding = self._standardize_padding(padding)
         if self.kernel_size[0] < self.stride[0] or self.kernel_size[1] < self.stride[1]:
             raise ValueError(
                 "kernel size must be smaller than stride. The set of orthogonal convolutions is empty in this setting."
@@ -258,111 +210,3 @@ class RkoConvTranspose2d(nn.ConvTranspose2d):
             scale=self.scale,
             ortho_params=ortho_params,
         )
-
-    def _calculate_same_padding(self) -> tuple:
-        """Calculate padding for 'same' mode."""
-        return (
-            int(
-                np.ceil(
-                    (self.dilation[0] * (self.kernel_size[0] - 1) + 1 - self.stride[0])
-                    / 2
-                )
-            ),
-            int(
-                np.floor(
-                    (self.dilation[0] * (self.kernel_size[0] - 1) + 1 - self.stride[0])
-                    / 2
-                )
-            ),
-            int(
-                np.ceil(
-                    (self.dilation[1] * (self.kernel_size[1] - 1) + 1 - self.stride[1])
-                    / 2
-                )
-            ),
-            int(
-                np.floor(
-                    (self.dilation[1] * (self.kernel_size[1] - 1) + 1 - self.stride[1])
-                    / 2
-                )
-            ),
-        )
-
-    def _standardize_padding(self, padding: _size_2_t) -> tuple:
-        """Ensure padding is always a tuple."""
-        if isinstance(padding, int):
-            padding = (padding, padding)
-        if isinstance(padding, tuple):
-            if len(padding) == 2:
-                padding = (padding[0], padding[0], padding[1], padding[1])
-            return padding
-        raise ValueError(f"padding must be int or tuple, got {type(padding)} instead")
-
-    def singular_values(self):
-        if (self.stride[0] == self.kernel_size[0]) and (
-            self.stride[1] == self.kernel_size[1]
-        ):
-            svs = np.linalg.svd(
-                self.weight.reshape(
-                    self.groups,
-                    self.in_channels // self.groups,
-                    (self.out_channels // self.groups)
-                    * (self.stride[0] * self.stride[1]),
-                )
-                .detach()
-                .cpu()
-                .numpy(),
-                compute_uv=False,
-            )
-            sv_min = svs.min()
-            sv_max = svs.max()
-            stable_rank = (np.mean(svs) ** 2) / (svs.max() ** 2)
-            return sv_min, sv_max, stable_rank
-        elif self.stride[0] > 1 or self.stride[1] > 1:
-            raise RuntimeError(
-                "Not able to compute singular values for this configuration"
-            )
-        # Implements interface required by LipschitzModuleL2
-        sv_min, sv_max, stable_rank = conv_singular_values_numpy(
-            self.weight.detach()
-            .cpu()
-            .view(
-                self.groups,
-                self.out_channels // self.groups,
-                self.in_channels // self.groups,
-                self.kernel_size[0],
-                self.kernel_size[1],
-            )
-            .numpy(),
-            self._input_shape,
-        )
-        return sv_min, sv_max, stable_rank
-
-    def forward(self, X):
-        self._input_shape = X.shape[2:]
-        if self.real_padding_mode != "zeros":
-            X = nn.functional.pad(X, self.real_padding, self.real_padding_mode)
-            y = nn.functional.conv_transpose2d(
-                X,
-                self.weight,
-                self.bias,
-                self.stride,
-                (
-                    (
-                        -self.stride[0]
-                        + self.dilation[0] * (self.kernel_size[0] - 1)
-                        + 1
-                    ),
-                    (
-                        -self.stride[1]
-                        + self.dilation[1] * (self.kernel_size[1] - 1)
-                        + 1
-                    ),
-                ),
-                self.output_padding,
-                self.groups,
-                dilation=self.dilation,
-            )
-            return y
-        else:
-            return super(RkoConvTranspose2d, self).forward(X)

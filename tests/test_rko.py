@@ -3,26 +3,12 @@ import pytest
 import torch
 
 from orthogonium.layers.conv.AOC.rko_conv import RKOConv2d
+from orthogonium.layers.conv.singular_values import get_conv_sv
 from orthogonium.reparametrizers import DEFAULT_TEST_ORTHO_PARAMS
+from tests.test_orthogonality_conv import _compute_sv_impulse_response_layer
+
 
 # from orthogonium.layers.conv.fast_block_ortho_conv import FlashBCOP
-
-
-def _compute_sv_impulse_response_layer(layer, img_shape):
-    with torch.no_grad():
-        inputs = torch.eye(img_shape[0] * img_shape[1] * img_shape[2]).view(
-            img_shape[0] * img_shape[1] * img_shape[2],
-            img_shape[0],
-            img_shape[1],
-            img_shape[2],
-        )
-        outputs = layer(inputs)
-        try:
-            svs = torch.linalg.svdvals(outputs.view(outputs.shape[0], -1))
-            return svs.min(), svs.max(), svs.mean() / svs.max()
-        except np.linalg.LinAlgError:
-            print("SVD failed returning only largest singular value")
-            return torch.norm(outputs.view(outputs.shape[0], -1), p=2).max(), 0, 0
 
 
 def check_orthogonal_layer(
@@ -54,33 +40,35 @@ def check_orthogonal_layer(
         pytest.fail(
             f"RKO weight has incorrect shape: {orthoconv.weight.shape} vs {(output_channels, input_channels // groups, kernel_size, kernel_size)}"
         )
-    # check that the layer is norm preserving
-    inp_norm = torch.sqrt(torch.square(inp).sum(dim=(-3, -2, -1))).float().item()
-    out_norm = torch.sqrt(torch.square(output).sum(dim=(-3, -2, -1))).float().item()
-    # Test singular_values function
-    sigma_min_ir, sigma_max_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
-        orthoconv, (input_channels, imsize, imsize)
-    )
-    try:
-        sigma_min, sigma_max, stable_rank = orthoconv.singular_values()
-    except RuntimeError as e:
-        if e.args[0].startswith(
-            "Not able to compute singular values for this configuration"
-        ):
-            sigma_min, sigma_max, stable_rank = (
-                sigma_min_ir,
-                sigma_max_ir,
-                stable_rank_ir,
+    with torch.no_grad():
+        # Test singular_values function
+        sigma_min_ir, sigma_max_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
+            orthoconv, (input_channels, imsize, imsize)
+        )
+        try:
+            sigma_max, stable_rank = get_conv_sv(
+                orthoconv,
+                n_iter=8 if orthoconv.padding_mode == "circular" else 4,
+                imsize=imsize,
             )
-        else:
-            pytest.fail(f"Error in singular_values method: {e}")
+        except RuntimeError as e:
+            if e.args[0].startswith(
+                "Not able to compute singular values for this configuration"
+            ):
+                sigma_min, sigma_max, stable_rank = (
+                    sigma_min_ir,
+                    sigma_max_ir,
+                    stable_rank_ir,
+                )
+            else:
+                pytest.fail(f"Error in singular_values method: {e}")
     print(
         f"({input_channels}->{output_channels}, g{groups}, k{kernel_size}), "
         f"sigma_max:"
         f" {sigma_max:.3f}/{sigma_max_ir:.3f}, "
         f"sigma_min:"
-        f" {sigma_min:.3f}/{sigma_min_ir:.3f}, "
-        f"stable_rank: {stable_rank:.3f}/{stable_rank_ir:.3f}"
+        f"{sigma_min_ir:.3f}, "
+        f"stable_rank:{stable_rank_ir:.3f}"
     )
     tol = 1e-4
     # check that the singular values are close to 1
@@ -90,17 +78,6 @@ def check_orthogonal_layer(
             sigma_min_ir > 0.95
         ), "sigma_min is not close to 1"
         assert abs(stable_rank_ir - 1) < tol, "stable_rank is not close to 1"
-    # check that the singular values are close to the impulse response values
-    assert (
-        abs(sigma_max - sigma_max_ir) < tol
-    ), f"sigma_max is not close to its IR value: {sigma_max} vs {sigma_max_ir}"
-    assert (
-        abs(sigma_min - sigma_min_ir) < tol
-    ), f"sigma_min is not close to its IR value: {sigma_min} vs {sigma_min_ir}"
-    if check_orthogonality:
-        assert (
-            abs(stable_rank - stable_rank_ir) < tol
-        ), f"stable_rank is not close to its IR value: {stable_rank} vs {stable_rank_ir}"
 
 
 @pytest.mark.parametrize("kernel_size", [1, 3, 5])
@@ -113,7 +90,11 @@ def test_standard_configs(kernel_size, input_channels, output_channels, stride, 
     test combinations of kernel size, input channels, output channels, stride and groups
     """
     # Test instantiation
-    padding = (0,0) if (kernel_size == stride) else ((kernel_size - 1) // 2, (kernel_size - 1) // 2)
+    padding = (
+        (0, 0)
+        if (kernel_size == stride)
+        else ((kernel_size - 1) // 2, (kernel_size - 1) // 2)
+    )
     try:
         orthoconv = RKOConv2d(
             kernel_size=kernel_size,
@@ -162,7 +143,11 @@ def test_strided(kernel_size, input_channels, output_channels, stride, groups):
     that you actually increase overall dimension.
     """
     # Test instantiation
-    padding = (0,0) if (kernel_size == stride) else ((kernel_size - 1) // 2, (kernel_size - 1) // 2)
+    padding = (
+        (0, 0)
+        if (kernel_size == stride)
+        else ((kernel_size - 1) // 2, (kernel_size - 1) // 2)
+    )
     try:
         orthoconv = RKOConv2d(
             kernel_size=kernel_size,
@@ -292,7 +277,11 @@ def test_depthwise(kernel_size, input_channels, output_channels, stride, groups)
     test combinations of kernel size, input channels, output channels, stride and groups
     """
     # Test instantiation
-    padding = (0,0) if (kernel_size == stride) else ((kernel_size - 1) // 2, (kernel_size - 1) // 2)
+    padding = (
+        (0, 0)
+        if (kernel_size == stride)
+        else ((kernel_size - 1) // 2, (kernel_size - 1) // 2)
+    )
     try:
         orthoconv = RKOConv2d(
             kernel_size=kernel_size,

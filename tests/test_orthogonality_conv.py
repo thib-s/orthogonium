@@ -3,6 +3,7 @@ import pytest
 import torch
 from orthogonium.layers import AdaptiveOrthoConv2d
 from orthogonium.layers.conv.AOC import BcopRkoConv2d, FastBlockConv2d, RKOConv2d
+from orthogonium.layers.conv.singular_values import get_conv_sv
 from orthogonium.reparametrizers import (
     DEFAULT_TEST_ORTHO_PARAMS,
     EXP_ORTHO_PARAMS,
@@ -12,23 +13,40 @@ from orthogonium.reparametrizers import (
 )
 
 
-device = "cpu" #  torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cpu"  #  torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
     with torch.no_grad():
         layer = layer.to(device)
-        inputs = torch.eye(img_shape[0] * img_shape[1] * img_shape[2]).view(
-            img_shape[0] * img_shape[1] * img_shape[2],
-            img_shape[0],
-            img_shape[1],
-            img_shape[2],
-        ).to(device)
+        inputs = (
+            torch.eye(img_shape[0] * img_shape[1] * img_shape[2])
+            .view(
+                img_shape[0] * img_shape[1] * img_shape[2],
+                img_shape[0],
+                img_shape[1],
+                img_shape[2],
+            )
+            .to(device)
+        )
         outputs = layer(inputs)
         try:
-            svs = torch.linalg.svdvals(outputs.view(outputs.shape[0], -1))
-            svs = svs.cpu()
-            return svs.min(), svs.max(), svs.mean() / svs.max()
+            outputs_reshaped = outputs.view(outputs.shape[0], -1)
+            sv_max = torch.linalg.norm(outputs_reshaped, ord=2)
+            sv_min = torch.linalg.norm(outputs_reshaped, ord=-2)
+            fro_norm = torch.linalg.norm(outputs_reshaped, ord="fro")
+            # svs = torch.linalg.svdvals(outputs.view(outputs.shape[0], -1))
+            # svs = svs.cpu()
+            # return svs.min(), svs.max(), svs.mean() / svs.max()
+            return (
+                sv_min,
+                sv_max,
+                fro_norm**2
+                / (
+                    sv_max**2
+                    * min(outputs_reshaped.shape[0], outputs_reshaped.shape[1])
+                ),
+            )
         except np.linalg.LinAlgError:
             print("SVD failed returning only largest singular value")
             return torch.norm(outputs.view(outputs.shape[0], -1), p=2).max(), 0, 0
@@ -66,7 +84,11 @@ def check_orthogonal_layer(
             f"BCOP weight has incorrect shape: {orthoconv.weight.shape} vs {(output_channels, input_channels // groups, kernel_size, kernel_size)}"
         )
     # Test singular_values function
-    sigma_min, sigma_max, stable_rank = orthoconv.singular_values()  # try:
+    sigma_max, stable_rank = get_conv_sv(
+        orthoconv,
+        n_iter=6 if orthoconv.padding_mode == "circular" else 3,
+        imsize=imsize,
+    )
     sigma_min_ir, sigma_max_ir, stable_rank_ir = _compute_sv_impulse_response_layer(
         orthoconv, (input_channels, imsize, imsize)
     )
@@ -76,7 +98,7 @@ def check_orthogonal_layer(
         f"sigma_max:"
         f" {sigma_max:.3f}/{sigma_max_ir:.3f}, "
         f"sigma_min:"
-        f" {sigma_min:.3f}/{sigma_min_ir:.3f}, "
+        f" {sigma_min_ir:.3f}, "
         f"stable_rank: {stable_rank:.3f}/{stable_rank_ir:.3f}"
     )
     # check that the singular values are close to 1
@@ -90,14 +112,8 @@ def check_orthogonal_layer(
     #     sigma_max > sigma_max_ir - 1e-2
     # ), f"sigma_max must be greater to its IR value (1%): {sigma_max} vs {sigma_max_ir}"
     assert (
-        abs(sigma_max - sigma_max_ir) < tol
-    ), f"sigma_max is not close to its IR value: {sigma_max} vs {sigma_max_ir}"
-    assert (
-        abs(sigma_min - sigma_min_ir) < tol
-    ), f"sigma_min is not close to its IR value: {sigma_min} vs {sigma_min_ir}"
-    assert (
-        abs(stable_rank - stable_rank_ir) < tol
-    ), f"stable_rank is not close to its IR value: {stable_rank} vs {stable_rank_ir}"
+        sigma_max + tol >= sigma_max_ir
+    ), f"sigma_max is not greater than its IR value: {sigma_max} vs {sigma_max_ir}"
 
 
 @pytest.mark.parametrize("kernel_size", [1, 3, 5])

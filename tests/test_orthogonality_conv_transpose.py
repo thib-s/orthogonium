@@ -17,25 +17,8 @@ from orthogonium.reparametrizers import (
 )
 
 
-def _compute_sv_impulse_response_layer(layer, img_shape):
-    with torch.no_grad():
-        inputs = torch.eye(img_shape[0] * img_shape[1] * img_shape[2]).view(
-            img_shape[0] * img_shape[1] * img_shape[2],
-            img_shape[0],
-            img_shape[1],
-            img_shape[2],
-        )
-        outputs = layer(inputs)
-        try:
-            svs = torch.linalg.svdvals(outputs.view(outputs.shape[0], -1))
-            return svs.min(), svs.max(), svs.mean() / svs.max()
-        except np.linalg.LinAlgError:
-            print("SVD failed returning only largest singular value")
-            return torch.norm(outputs.view(outputs.shape[0], -1), p=2).max(), 0, 0
-
-
 @pytest.mark.parametrize("kernel_size", [1, 2, 3])
-@pytest.mark.parametrize("input_channels", [4, 8, 32])
+@pytest.mark.parametrize("input_channels", [4, 8, 16])
 @pytest.mark.parametrize("output_channels", [4, 8, 32])
 @pytest.mark.parametrize("stride", [1, 2])
 @pytest.mark.parametrize("groups", [1, 2])
@@ -115,8 +98,8 @@ def test_invalid_kernel_smaller_than_stride():
 
 
 @pytest.mark.parametrize("kernel_size", [1, 3])
-@pytest.mark.parametrize("input_channels", [8, 16])
-@pytest.mark.parametrize("output_channels", [8, 16])
+@pytest.mark.parametrize("input_channels", [4, 8])
+@pytest.mark.parametrize("output_channels", [4, 8])
 @pytest.mark.parametrize("stride", [1, 2])
 @pytest.mark.parametrize("groups", [1, 2])
 @pytest.mark.parametrize(

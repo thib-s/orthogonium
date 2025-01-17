@@ -16,8 +16,7 @@ import math
 
 @dataclass
 class ExpParams:
-    pi_niter: int = 2
-    exp_niter: int = 4
+    exp_niter: int = 3
 
 
 class Skew(nn.Module):
@@ -188,13 +187,6 @@ class FastSOC(nn.Conv2d):
             bias,
             padding_mode,
         )
-        self.padding_mode = padding_mode
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-        self.groups = groups
-        self.in_channels = in_channels
-        self.out_channels = out_channels
         self.max_channels = max(in_channels, out_channels)
 
         # raise runtime error if kernel size >= stride
@@ -207,10 +199,6 @@ class FastSOC(nn.Conv2d):
             raise ValueError(
                 "kernel size must be smaller than stride. The set of orthonal convolutions is empty in this setting."
             )
-        self.padding = padding
-        self.stride = stride
-        self.kernel_size = kernel_size
-        self.groups = groups
         del self.weight
         attach_soc_weight(
             self,
@@ -219,42 +207,7 @@ class FastSOC(nn.Conv2d):
             groups,
             exp_params=exp_params,
         )
-
-    def singular_values(self):
-        """Compute the singular values of the convolutional layer using the FFT+SVD method.
-
-        Returns:
-            Tuple[float, float, float]: min singular value, max singular value and
-            normalized stable rank (1 means orthogonal matrix)
-        """
-        # use the fft+svd method to compute the singular values
-        # assuming circular padding, if "zero" padding is used the value
-        # will be overestimated (ie. the singular values will be larger than
-        # the real ones)
-        if self.padding_mode != "circular":
-            print(
-                f"padding {self.padding} not supported, return min and max"
-                f"singular values as if it was 'circular' padding "
-                f"(overestimate the values)."
-            )
-        sv_min, sv_max, stable_rank = conv_singular_values_numpy(
-            self.weight.detach()
-            .cpu()
-            .view(
-                self.groups,
-                self.out_channels // self.groups,
-                self.in_channels // self.groups,
-                self.weight.shape[-2],
-                self.weight.shape[-1],
-            )
-            .numpy(),
-            self._input_shape,
-        )
-        return sv_min, sv_max, stable_rank
-
-    def forward(self, X):
-        self._input_shape = X.shape[2:]
-        return super(FastSOC, self).forward(X)
+        self.kernel_size = self.weight.shape[-2:]
 
 
 class SOCTranspose(nn.ConvTranspose2d):
@@ -289,13 +242,6 @@ class SOCTranspose(nn.ConvTranspose2d):
             dilation,
             padding_mode,
         )
-        self.padding_mode = padding_mode
-        self.kernel_size = kernel_size
-        self.stride = stride
-        # self.padding = padding
-        self.groups = groups
-        self.in_channels = in_channels
-        self.out_channels = out_channels
         self.max_channels = max(in_channels, out_channels)
 
         # raise runtime error if kernel size >= stride
@@ -314,10 +260,6 @@ class SOCTranspose(nn.ConvTranspose2d):
                 "transposed convolutions",
                 RuntimeWarning,
             )
-        self.padding = padding
-        self.stride = stride
-        self.kernel_size = kernel_size
-        self.groups = groups
         del self.weight
         attach_soc_weight(
             self,
@@ -326,29 +268,4 @@ class SOCTranspose(nn.ConvTranspose2d):
             groups,
             exp_params=exp_params,
         )
-
-    def singular_values(self):
-        if self.padding_mode != "circular":
-            print(
-                f"padding {self.padding} not supported, return min and max"
-                f"singular values as if it was 'circular' padding "
-                f"(overestimate the values)."
-            )
-        sv_min, sv_max, stable_rank = conv_singular_values_numpy(
-            self.weight.detach()
-            .cpu()
-            .reshape(
-                self.groups,
-                self.in_channels // self.groups,
-                self.out_channels // self.groups,
-                self.weight.shape[-2],
-                self.weight.shape[-1],
-            )
-            .numpy(),
-            self._input_shape,
-        )
-        return sv_min, sv_max, stable_rank
-
-    def forward(self, X):
-        self._input_shape = X.shape[2:]
-        return super(SOCTranspose, self).forward(X)
+        self.kernel_size = self.weight.shape[-2:]
