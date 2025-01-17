@@ -101,9 +101,9 @@ class SLLxAOCLipschitzResBlock(nn.Module):
 
 
         References:
-            - `Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
+            - Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
             An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
-            <https://arxiv.org/abs/2501.07930>`_
+            <https://arxiv.org/abs/2501.07930>
         """
         super().__init__()
         inner_kernel_size = kernel_size - (stride - 1)
@@ -191,9 +191,10 @@ class SDPBasedLipschitzResBlock(nn.Module):
 
 
         References:
-            - `Araujo, A., Havens, A. J., Delattre, B., Allauzen, A., & Hu, B.
+            - Araujo, A., Havens, A. J., Delattre, B., Allauzen, A., & Hu, B.
             A Unified Algebraic Perspective on Lipschitz Neural Networks.
-            In The Eleventh International Conference on Learning Representations.<https://arxiv.org/abs/2303.03169>`_
+            In The Eleventh International Conference on Learning Representations.
+            <https://arxiv.org/abs/2303.03169>
         """
         super().__init__()
 
@@ -250,9 +251,10 @@ class SDPBasedLipschitzDense(nn.Module):
 
 
         References:
-            - `Araujo, A., Havens, A. J., Delattre, B., Allauzen, A., & Hu, B.
+            - Araujo, A., Havens, A. J., Delattre, B., Allauzen, A., & Hu, B.
             A Unified Algebraic Perspective on Lipschitz Neural Networks.
-            In The Eleventh International Conference on Learning Representations.<https://arxiv.org/abs/2303.03169>`_
+            In The Eleventh International Conference on Learning Representations.
+            <https://arxiv.org/abs/2303.03169>
         """
         super().__init__()
 
@@ -320,12 +322,13 @@ class AOCLipschitzResBlock(nn.Module):
 
 
         References:
-            - `[1] Araujo, A., Havens, A. J., Delattre, B., Allauzen, A., & Hu, B.
+            - [1] Araujo, A., Havens, A. J., Delattre, B., Allauzen, A., & Hu, B.
             A Unified Algebraic Perspective on Lipschitz Neural Networks.
-            In The Eleventh International Conference on Learning Representations.<https://arxiv.org/abs/2303.03169>`_
-            - `[2] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
+            In The Eleventh International Conference on Learning Representations.
+            <https://arxiv.org/abs/2303.03169>
+            - [2] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
             An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
-            <https://arxiv.org/abs/2501.07930>`_
+            <https://arxiv.org/abs/2501.07930>
         """
         super().__init__()
 

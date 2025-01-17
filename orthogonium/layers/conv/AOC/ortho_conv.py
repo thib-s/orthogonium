@@ -38,10 +38,16 @@ def AdaptiveOrthoConv2d(
         - Supports native striding, dilation, grouped convolutions, and flexible padding.
 
     Behavior:
-    -------------
+    ---------
         - When kernel_size == stride, the layer is an `RKOConv2d`.
         - When stride == 1, the layer is a `FastBlockConv2d`.
         - Otherwise, the layer is a `BcopRkoConv2d`.
+
+    Note:
+        - This implementation also work under zero padding, it lipschitz constant is still tight, but it looses
+            orthogonality.orthogonality on the image border.
+        - the unit tesing validated for a tolerance of 1e-4 under various orthogonalization schemes (see
+            reparametrizers). Only Cholesky based methods were validated for a lower tolerance of 5e-2.
 
     Arguments:
         in_channels (int): Number of input channels.
@@ -63,9 +69,9 @@ def AdaptiveOrthoConv2d(
 
 
     References:
-        - `[1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
+        - [1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
         An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
-        <https://arxiv.org/abs/2501.07930>`_
+        <https://arxiv.org/abs/2501.07930>
     """
 
     if kernel_size < stride:
@@ -124,6 +130,13 @@ def AdaptiveOrthoConvTranspose2d(
         - When stride == 1, the layer is a `FastBlockConvTranspose2D`.
         - Otherwise, the layer is a `BcopRkoConvTranspose2d`.
 
+
+    Note:
+        - This implementation also work under zero padding, it lipschitz constant is still tight, but it looses
+            orthogonality.orthogonality on the image border.
+        - The current implementation of the torch.nn.ConvTranspose2d does not support circular padding. One can
+            implement padding manually by add a padding layer before and setting padding = (0,0).
+
     Arguments:
         in_channels (int): Number of input channels.
         out_channels (int): Number of output channels.
@@ -145,9 +158,9 @@ def AdaptiveOrthoConvTranspose2d(
 
 
     References:
-        - `[1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
+        - [1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
         An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
-        <https://arxiv.org/abs/2501.07930>`_
+        <https://arxiv.org/abs/2501.07930>
     """
 
     if kernel_size < stride:
