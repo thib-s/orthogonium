@@ -97,6 +97,13 @@ class SLLxAOCLipschitzResBlock(nn.Module):
           - `inner_dim_factor` (float): Multiplier for the internal channel dimension.
           - `kernel_size` (int, optional): Base kernel size for the SLL portion. Default is 3.
           - `**kwargs`: Additional options (unused).
+
+
+
+        References:
+            - `Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
+            An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
+            <https://arxiv.org/abs/2501.07930>`_
         """
         super().__init__()
         inner_kernel_size = kernel_size - (stride - 1)
@@ -181,6 +188,12 @@ class SDPBasedLipschitzResBlock(nn.Module):
           - `kernel_size` (int, optional): Size of the convolution kernel. Default is 3.
           - `stride` (int, optional): Stride for the skip connection. Default is 2.
           - `**kwargs`: Additional keyword arguments (unused).
+
+
+        References:
+            - `Araujo, A., Havens, A. J., Delattre, B., Allauzen, A., & Hu, B.
+            A Unified Algebraic Perspective on Lipschitz Neural Networks.
+            In The Eleventh International Conference on Learning Representations.<https://arxiv.org/abs/2303.03169>`_
         """
         super().__init__()
 
@@ -234,6 +247,12 @@ class SDPBasedLipschitzDense(nn.Module):
           - `in_features` (int): Input size.
           - `out_features` (int): Output size (must match `in_features` to remain 1-Lipschitz).
           - `inner_dim` (int): The internal dimension used for the transform.
+
+
+        References:
+            - `Araujo, A., Havens, A. J., Delattre, B., Allauzen, A., & Hu, B.
+            A Unified Algebraic Perspective on Lipschitz Neural Networks.
+            In The Eleventh International Conference on Learning Representations.<https://arxiv.org/abs/2303.03169>`_
         """
         super().__init__()
 
@@ -298,6 +317,15 @@ class AOCLipschitzResBlock(nn.Module):
           - `bias` (bool, optional): If True, adds a learnable bias. Default is True.
           - `padding_mode` (str, optional): `'circular'` or `'zeros'`. Default is `'circular'`.
           - `ortho_params` (OrthoParams, optional): Orthogonal parameterization settings. Default is `OrthoParams()`.
+
+
+        References:
+            - `[1] Araujo, A., Havens, A. J., Delattre, B., Allauzen, A., & Hu, B.
+            A Unified Algebraic Perspective on Lipschitz Neural Networks.
+            In The Eleventh International Conference on Learning Representations.<https://arxiv.org/abs/2303.03169>`_
+            - `[2] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
+            An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
+            <https://arxiv.org/abs/2501.07930>`_
         """
         super().__init__()
 

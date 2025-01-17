@@ -431,32 +431,67 @@ class OrthoParams:
 
 
 DEFAULT_ORTHO_PARAMS = OrthoParams()
+"""
+The default orthogonalization parameters used by our library. 
+Suitable for most applications and includes:
+- A `BatchedPowerIteration` for spectral normalization
+- A `BatchedBjorckOrthogonalization` for orthogonalization
+"""
+
 BJORCK_PASS_THROUGH_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=3, eps=1e-4),  # type: ignore
     orthogonalizer=ClassParam(
         BatchedBjorckOrthogonalization, beta=0.5, niters=12, pass_through=True
     ),
 )
+"""
+Orthogonalization parameters that use the Bjorck orthogonalization method with
+a pass-through optimization. This configuration greatly reduces the consumed memory but
+at the cost of a slower convergence and worst perfomances.
+"""
+
 DEFAULT_TEST_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=4, eps=1e-4),  # type: ignore
     orthogonalizer=ClassParam(BatchedBjorckOrthogonalization, beta=0.5, niters=25),
     # orthogonalizer=ClassParam(BatchedQROrthogonalization),
     # orthogonalizer=ClassParam(BatchedExponentialOrthogonalization, niters=12),  # type: ignore
 )
+"""
+Setting with more iterations to ensure that test passes with epsilon=1e-4.
+"""
+
 EXP_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=3, eps=1e-6),  # type: ignore
     orthogonalizer=ClassParam(BatchedExponentialOrthogonalization, niters=12),  # type: ignore
 )
+"""
+Setting that use the exponential orthogonalization method with 12 iterations. The matrix is pre-conditionned
+ with the power iteration method.
+"""
+
 QR_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=ClassParam(BatchedPowerIteration, power_it_niter=3, eps=1e-3),  # type: ignore
     orthogonalizer=ClassParam(BatchedQROrthogonalization),  # type: ignore
 )
+"""
+Setting that use the QR orthogonalization method. The matrix is pre-conditionned
+ with the power iteration method.
+"""
+
 CHOLESKY_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=BatchedIdentity,  # type: ignore
     orthogonalizer=ClassParam(BatchedCholeskyOrthogonalization),  # type: ignore
 )
+"""
+Setting that use the Cholesky orthogonalization method. This method is memory and time efficient but
+cannot converge to the exact orthogonal matrix (tests passing with epsilon=5e-5 meaning the layer may be 1.05 lipschitz). 
+"""
 
 CHOLESKY_STABLE_ORTHO_PARAMS = OrthoParams(
     spectral_normalizer=BatchedIdentity,
     orthogonalizer=ClassParam(BatchedCholeskyOrthogonalization, stable=True),
 )
+"""
+Setting that use the Cholesky orthogonalization method and stores some values for backward to ensure numerical
+ stability.
+"""

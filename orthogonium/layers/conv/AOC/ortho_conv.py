@@ -25,7 +25,12 @@ def AdaptiveOrthoConv2d(
     ortho_params: OrthoParams = OrthoParams(),
 ) -> nn.Conv2d:
     """
-    Factory function to create an orthogonal convolutional layer, selecting the appropriate class based on kernel size and stride.
+    Factory function to create an orthogonal convolutional layer, selecting the appropriate class based on kernel
+    size and stride. This is the implementation for the `Adaptive Orthogonal Convolution` scheme [1]. It aims to be
+    scalable to large networks and large image sizes, while enforcing orthogonality in the convolutional layers.
+    This layer also intend to be compatible with all the feature of the `nn.Conv2d` class (e.g., striding, dilation,
+    grouping, etc.). This method has an explicit kernel, which means that the forward operation is equivalent to a
+    standard convolutional layer, but the weight are constrained to be orthogonal.
 
     Key Features:
     -------------
@@ -55,6 +60,12 @@ def AdaptiveOrthoConv2d(
 
     Raises:
         `ValueError`: If kernel_size < stride, as orthogonality cannot be enforced.
+
+
+    References:
+        - `[1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
+        An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
+        <https://arxiv.org/abs/2501.07930>`_
     """
 
     if kernel_size < stride:
@@ -95,7 +106,12 @@ def AdaptiveOrthoConvTranspose2d(
     ortho_params: OrthoParams = OrthoParams(),
 ) -> nn.ConvTranspose2d:
     """
-    Factory function to create an orthogonal convolutional transpose layer, adapting based on kernel size and stride.
+    Factory function to create an orthogonal transposed convolutional layer, selecting the appropriate class based on kernel
+    size and stride. This is the implementation for the `Adaptive Orthogonal Convolution` scheme [1]. It aims to be
+    scalable to large networks and large image sizes, while enforcing orthogonality in the convolutional layers.
+    This layer also intend to be compatible with all the feature of the `nn.Conv2d` class (e.g., striding, dilation,
+    grouping, etc.). This method has an explicit kernel, which means that the forward operation is equivalent to a
+    standard convolutional layer, but the weight are constrained to be orthogonal.
 
     Key Features:
     -------------
@@ -126,6 +142,12 @@ def AdaptiveOrthoConvTranspose2d(
 
     **Raises:**
     - `ValueError`: If kernel_size < stride, as orthogonality cannot be enforced.
+
+
+    References:
+        - `[1] Boissin, T., Mamalet, F., Fel, T., Picard, A. M., Massena, T., & Serrurier, M. (2025).
+        An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures.
+        <https://arxiv.org/abs/2501.07930>`_
     """
 
     if kernel_size < stride:
