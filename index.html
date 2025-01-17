@@ -420,6 +420,27 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/singular_values/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    singular values
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -512,6 +533,8 @@
     <a href="#">
         <img src="https://img.shields.io/badge/License-MIT-efefef">
     </a>
+    <a href="https://arxiv.org/abs/2501.07930">
+        <img src="https://img.shields.io/badge/arXiv-2501.07930-b31b1b.svg">
 </div>
 <p><br></p>
 <h1 id="orthogonium-improved-implementations-of-orthogonal-layers">✨ Orthogonium: Improved implementations of orthogonal layers<a class="headerlink" href="#orthogonium-improved-implementations-of-orthogonal-layers" title="Permanent link">&para;</a></h1>
@@ -625,26 +648,41 @@ implementation, and added <code>SLLxAOCLipschitzResBlock</code> that construct a
 $AOC.</p>
 <h2 id="more-layers-are-coming-soon">more layers are coming soon !<a class="headerlink" href="#more-layers-are-coming-soon" title="Permanent link">&para;</a></h2>
 <h1 id="install-the-library">🏠 Install the library:<a class="headerlink" href="#install-the-library" title="Permanent link">&para;</a></h1>
-<p>The library will soon be available on pip, in the meanwhile, you can clone the repository and run the following command 
+<p>The library is available on pip,so you can install it by running the following command:
+<div class="highlight"><pre><span></span><code>pip install orthogonium
+</code></pre></div></p>
+<p>If you wish to deep dive in the code and edit your local versin, you can clone the repository and run the following command 
 to install it locally:
-<div class="highlight"><pre><span></span><code>pip install -e .
+<div class="highlight"><pre><span></span><code>git clone git@github.com:thib-s/orthogonium.git
+pip install -e .
 </code></pre></div></p>
 <h2 id="use-the-layer">Use the layer:<a class="headerlink" href="#use-the-layer" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">orthogonium.layers.conv.AOC</span> <span class="kn">import</span> <span class="n">AdaptiveOrthoConv2d</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">orthogonium.layers.conv.AOC</span> <span class="kn">import</span> <span class="n">AdaptiveOrthoConv2d</span><span class="p">,</span> <span class="n">AdaptiveOrthoConvTranspose2d</span>
 <span class="kn">from</span> <span class="nn">orthogonium.reparametrizers</span> <span class="kn">import</span> <span class="n">DEFAULT_ORTHO_PARAMS</span>
 
 <span class="c1"># use OrthoConv2d with the same params as torch.nn.Conv2d</span>
-
+<span class="n">kernel_size</span> <span class="o">=</span> <span class="mi">3</span>
 <span class="n">conv</span> <span class="o">=</span> <span class="n">AdaptiveOrthoConv2d</span><span class="p">(</span>
   <span class="n">kernel_size</span><span class="o">=</span><span class="n">kernel_size</span><span class="p">,</span>
   <span class="n">in_channels</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
   <span class="n">out_channels</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
   <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
   <span class="n">groups</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
-  <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-  <span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="n">kernel_size</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">kernel_size</span> <span class="o">//</span> <span class="mi">2</span><span class="p">),</span>
+    <span class="n">dilation</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
   <span class="n">padding_mode</span><span class="o">=</span><span class="s2">&quot;circular&quot;</span><span class="p">,</span>
-  <span class="n">ortho_params</span><span class="o">=</span><span class="n">DEFAULT_ORTHO_PARAMS</span>
+    <span class="n">ortho_params</span><span class="o">=</span><span class="n">DEFAULT_ORTHO_PARAMS</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># conv.weight can be assigned to a torch.nn.Conv2d </span>
+
+<span class="c1"># this works similarly for ConvTranspose2d:</span>
+<span class="n">conv_transpose</span> <span class="o">=</span> <span class="n">AdaptiveOrthoConvTranspose2d</span><span class="p">(</span>
+    <span class="n">in_channels</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+    <span class="n">out_channels</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+    <span class="n">kernel_size</span><span class="o">=</span><span class="n">kernel_size</span><span class="p">,</span>
+    <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">dilation</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">groups</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+    <span class="n">ortho_params</span><span class="o">=</span><span class="n">DEFAULT_ORTHO_PARAMS</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 <h1 id="model-zoo">🐯 Model Zoo<a class="headerlink" href="#model-zoo" title="Permanent link">&para;</a></h1>
@@ -676,9 +714,24 @@ in a larger scale setting.</p>
 <li><a href="https://arxiv.org/abs/2305.16173">Efficient Bound of Lipschitz Constant for Convolutional Layers by Gram Iteration</a></li>
 <li><a href="https://github.com/blaisedelattre/lip4conv/tree/main">github of the two papers</a></li>
 </ul>
+<h1 id="citations">📖 Citations<a class="headerlink" href="#citations" title="Permanent link">&para;</a></h1>
+<p>If you find this repository useful for your research, please cite:</p>
+<div class="highlight"><pre><span></span><code>@misc{boissin2025adaptiveorthogonalconvolutionscheme,
+      title={An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures}, 
+      author={Thibaut Boissin and Franck Mamalet and Thomas Fel and Agustin Martin Picard and Thomas Massena and Mathieu Serrurier},
+      year={2025},
+      eprint={2501.07930},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2501.07930}, 
+}
+</code></pre></div>
 <h1 id="contributing">🍻 Contributing<a class="headerlink" href="#contributing" title="Permanent link">&para;</a></h1>
 <p>This library is still in a very early stage, so expect some bugs and missing features. Also, before the version 1.0.0,
-the API may change and no backward compatibility will be ensured, this will allow a rapid integration of new features.
+the API may change and no backward compatibility will be ensured (code is expected to keep working under minor changes
+but the loading of parametrized network could fail). This will allow a rapid integration of new features, if you project
+to release a trained architecture, exporting the convolutions to torch.nn.conv2D is advised (by saving the <code>weight</code> 
+attribute of a layer). If you plan to release a training script, fix the version in your requirements.
 In order to prioritize the development, we will focus on the most used layers and models. If you have a specific need,
 please open an issue, and we will try to address it as soon as possible.</p>
 <p>Also, if you have a model that you would like to share, please open a PR with the model and the training script. We will
