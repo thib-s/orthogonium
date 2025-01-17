@@ -10,10 +10,7 @@ from orthogonium.layers.conv.AOC.fast_block_ortho_conv import (
     transpose_kernel,
     conv_singular_values_numpy,
 )
-from orthogonium.layers.conv.adaptiveSOC.delattre24 import (
-    compute_delattre2024,
-    compute_delattre2023,
-)
+from orthogonium.layers.conv.AOL.aol import AOLReparametrizer
 import math
 
 
@@ -33,37 +30,6 @@ class Skew(nn.Module):
 
     def right_inverse(self, kernel):
         return kernel
-
-
-class PowerIterationConv(nn.Module):
-    def __init__(self, in_channels, kernel_size, groups, power_it_niter=3):
-        super(PowerIterationConv, self).__init__()
-        self.in_channels = in_channels
-        self.kernel_size = kernel_size
-        self.groups = groups
-        self.power_it_niter = power_it_niter
-
-    def forward(self, kernel):
-        # kernel = kernel.view(
-        #     self.groups,
-        #     self.in_channels // self.groups,
-        #     self.in_channels // self.groups,
-        #     self.kernel_size,
-        #     self.kernel_size,
-        # )
-        sigmas = compute_delattre2023(kernel, n_iter=self.power_it_niter)
-        kernel = kernel / sigmas.view(1, 1, 1, 1).detach()
-        # return kernel.view(
-        #     self.in_channels,
-        #     self.in_channels // self.groups,
-        #     self.kernel_size,
-        #     self.kernel_size,
-        # )
-        return kernel
-
-    def right_inverse(self, normalized_kernel):
-        # we assume that the kernel is normalized
-        return normalized_kernel
 
 
 class ConvExponential(nn.Module):
@@ -170,7 +136,7 @@ def attach_soc_weight(
     parametrize.register_parametrization(
         layer,
         weight_name,
-        PowerIterationConv(max_channels, kernel_size, groups, exp_params.pi_niter),
+        AOLReparametrizer(max_channels, groups=groups),
         unsafe=False,
     )
     parametrize.register_parametrization(
