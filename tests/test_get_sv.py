@@ -4,6 +4,7 @@ import numpy as np
 from torch import nn
 
 from orthogonium.layers import AdaptiveOrthoConv2d
+from orthogonium.layers.conv.AOC import RKOConv2d
 from orthogonium.layers.conv.AOL import AOLConv2D
 from orthogonium.layers.conv.singular_values import get_conv_sv
 from tests.test_orthogonality_conv import _compute_sv_impulse_response_layer
@@ -35,15 +36,15 @@ def device():
         (
             nn.Conv2d,
             dict(
-                in_channels=6,
-                out_channels=6,
+                in_channels=8,
+                out_channels=4,
                 kernel_size=3,
                 stride=1,
                 padding=1,
                 padding_mode="zeros",
-                groups=3,
+                groups=2,
             ),
-            (6, 8, 8),
+            (8, 8, 8),
         ),
         (
             nn.Conv2d,
@@ -108,6 +109,29 @@ def device():
             ),
             (6, 8, 8),
         ),
+        (
+            nn.Conv2d,
+            dict(
+                in_channels=4,
+                out_channels=16,
+                kernel_size=2,
+                stride=2,
+                padding=0,
+                groups=1,
+            ),
+            (4, 8, 8),
+        ),
+        (
+            RKOConv2d,
+            dict(
+                in_channels=4,
+                out_channels=2,
+                kernel_size=2,
+                stride=1,
+                padding="same",
+            ),
+            (4, 8, 8),
+        ),
     ],
 )
 def test_conv_sv_methods(layer_cls, kwargs, img_shape, device):
@@ -122,12 +146,13 @@ def test_conv_sv_methods(layer_cls, kwargs, img_shape, device):
 
     # Delattre-based Lipschitz estimation
     # (adjust n_iter to your desired accuracy)
-    lip_val = get_conv_sv(
+    lip_val, stab_rank = get_conv_sv(
         layer,
         n_iter=12 if kwargs.get("padding_mode") == "circular" else 5,
         agg_groups=True,
         device=device,
         detach=True,
+        return_stab_rank=True,
         imsize=8,
     )
 
@@ -136,8 +161,13 @@ def test_conv_sv_methods(layer_cls, kwargs, img_shape, device):
     min_sv, max_sv, ratio = _compute_sv_impulse_response_layer(layer, img_shape)
 
     print(f"Delattre: {lip_val:.6f}, Impulse: {max_sv:.6f}")
+    print(f"Stab rank: {stab_rank:.6f}, Ratio: {ratio:.6f}")
     # Because these are approximate methods, allow some tolerance in comparison
     # Adjust rtol/atol according to your expected accuracy
     assert np.allclose(
         lip_val, max_sv, rtol=1e-1, atol=5e-2
     ), f"Lipschitz constant (Delattre) = {lip_val} not close to max SV (impulse) = {max_sv}"
+
+    assert np.allclose(
+        stab_rank, ratio, rtol=1e-1, atol=5e-2
+    ), f"stable rank = {lip_val} not close to max SV (impulse) = {ratio}"
