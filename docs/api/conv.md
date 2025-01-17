@@ -11,3 +11,9 @@
         show_root_toc_entry: True
     selection:
         inherited_members: True
+
+::: orthogonium.layers.conv.AOL.aol
+    rendering:
+        show_root_toc_entry: True
+    selection:
+        inherited_members: True
