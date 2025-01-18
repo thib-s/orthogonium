@@ -15,7 +15,7 @@
         <img alt="PyLint" src="https://github.com/thib-s/orthogonium/actions/workflows/linters.yml/badge.svg">
     </a>
     <a href='https://coveralls.io/github/thib-s/orthogonium?branch=main'>
-        <img src='https://coveralls.io/repos/github/thib-s/orthogonium/badge.svg?branch=main' alt='Coverage Status' />
+        <img src='https://coveralls.io/repos/github/thib-s/orthogonium/badge.svg?branch=main&kill_cache=1' alt='Coverage Status' />
     </a>
     <a href="https://github.com/thib-s/orthogonium/actions/workflows/tests.yml">
         <img alt="Tests" src="https://github.com/thib-s/orthogonium/actions/workflows/tests.yml/badge.svg">
