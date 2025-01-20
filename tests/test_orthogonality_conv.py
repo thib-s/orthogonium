@@ -12,11 +12,13 @@ from orthogonium.reparametrizers import (
     CHOLESKY_STABLE_ORTHO_PARAMS,
 )
 
-
 device = "cpu"  #  torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def _compute_sv_impulse_response_layer(layer, img_shape):
+    # fixing seeds for reproducibility
+    torch.manual_seed(0)
+    np.random.seed(0)
     with torch.no_grad():
         layer = layer.to(device)
         inputs = (
@@ -62,6 +64,10 @@ def check_orthogonal_layer(
     tol=5e-4,
     sigma_min_requirement=0.95,
 ):
+    # fixing seeds for reproducibility
+    torch.manual_seed(0)
+    np.random.seed(0)
+
     imsize = 8
     # Test backpropagation and weight update
     try:

@@ -20,6 +20,10 @@ def check_orthogonal_layer(
     expected_kernel_shape,
     check_orthogonality=True,
 ):
+    # fixing seeds for reproducibility
+    torch.manual_seed(0)
+    np.random.seed(0)
+
     imsize = 8
     # Test backpropagation and weight update
     try:

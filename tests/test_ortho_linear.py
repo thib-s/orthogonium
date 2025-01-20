@@ -11,7 +11,7 @@ from orthogonium.reparametrizers import (
     QR_ORTHO_PARAMS,
 )
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def _compute_sv_weight_matrix(layer):

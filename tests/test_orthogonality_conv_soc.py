@@ -8,10 +8,6 @@ from orthogonium.layers.conv.adaptiveSOC import (
 from orthogonium.layers.conv.singular_values import get_conv_sv
 from tests.test_orthogonality_conv import _compute_sv_impulse_response_layer
 
-# fixing seeds for reproducibility
-torch.manual_seed(0)
-np.random.seed(0)
-
 device = "cpu"  #  torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -26,6 +22,9 @@ def check_orthogonal_layer(
     sigma_min_requirement=0.0,
     imsize=8,
 ):
+    # fixing seeds for reproducibility
+    torch.manual_seed(0)
+    np.random.seed(0)
     # Test backpropagation and weight update
     try:
         orthoconv = orthoconv.to(device)

@@ -9,15 +9,11 @@ from orthogonium.layers.conv.AOL import AOLConv2D
 from orthogonium.layers.conv.singular_values import get_conv_sv
 from tests.test_orthogonality_conv import _compute_sv_impulse_response_layer
 
-# fixing seeds for reproducibility
-torch.manual_seed(0)
-np.random.seed(0)
-
 
 @pytest.fixture(scope="session")
 def device():
     """Pytest fixture that returns 'cuda' if available, otherwise 'cpu'."""
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    return "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 @pytest.mark.parametrize(
@@ -144,6 +140,9 @@ def test_conv_sv_methods(layer_cls, kwargs, img_shape, device):
     _compute_sv_impulse_response_layer(...) produce comparable results
     for various Conv2d (or subclass) configurations.
     """
+    # fixing seeds for reproducibility
+    torch.manual_seed(0)
+    np.random.seed(0)
 
     # Create and move layer to the device
     layer = layer_cls(**kwargs, bias=False).to(device)
@@ -176,7 +175,7 @@ def test_conv_sv_methods(layer_cls, kwargs, img_shape, device):
         assert np.allclose(
             stab_rank, ratio, rtol=1e-1, atol=5e-2
         ), f"stable rank = {lip_val} not close to max SV (impulse) = {ratio}"
-    except Exception as e:
+    except AssertionError as e:
         # test failed given the number of iterations, we have to rerun the test
         # with more iterations
         lip_val, stab_rank = get_conv_sv(
