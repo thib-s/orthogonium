@@ -1,7 +1,7 @@
-import torch
 import torch.nn as nn
 from torch.nn import AvgPool2d
 
+from orthogonium.layers.residual import PrescaledAdditiveResidual
 from orthogonium.model_factory.classparam import ClassParam
 from orthogonium.layers import AdaptiveOrthoConv2d
 from orthogonium.layers import BatchCentering2D
@@ -129,61 +129,6 @@ def ResNet50Block(in_channels, out_channels, n_blocks, norm, act, stride=2):
     return layers
 
 
-class ConcatResidual(nn.Module):
-    def __init__(self, fn):
-        super().__init__()
-        self.add_module("fn", fn)
-
-    def forward(self, x):
-        # split x
-        x1, x2 = x.chunk(2, dim=1)
-        # apply function
-        out = self.fn(x2)
-        # concat and return
-        return torch.cat([x1, out], dim=1)
-
-
-class L2NormResidual(nn.Module):
-    def __init__(self, fn, eps=1e-6):
-        super().__init__()
-        self.eps = eps
-        self.add_module("fn", fn)
-
-    def forward(self, x):
-        # apply function
-        out = self.fn(x)
-        # concat and return
-        return torch.sqrt(x**2 + out**2 + self.eps)
-
-
-# class Residual(nn.Module):
-#     def __init__(self, fn, init_val=1.0):
-#         super().__init__()
-#         self.add_module("fn", fn)
-#         self.alpha = nn.Parameter(torch.tensor(init_val), requires_grad=True)
-#
-#     def forward(self, x):
-#         # apply function
-#         out = self.fn(x)
-#         # alpha = self.alpha.clamp(0, 1)
-#         alpha = torch.sigmoid(self.alpha)  # check if alpha don't grow to infinity
-#         return alpha * x + (1 - alpha) * out
-
-
-class Residual(nn.Module):
-    def __init__(self, fn, init_val=1.0):
-        super().__init__()
-        self.add_module("fn", fn)
-        self.alpha = nn.Parameter(torch.tensor(init_val), requires_grad=True)
-
-    def forward(self, x):
-        # apply function
-        out = self.fn(x * self.alpha)
-        lip_cst = 1.0 + torch.abs(self.alpha)
-        # we divide by lip const on each branch as it is more numerically stable
-        return x / lip_cst + (1.0 / lip_cst) * out
-
-
 # def dumbNet500M(
 #     img_size=(224, 224),
 #     dim=1024,
@@ -261,7 +206,7 @@ def AOCNetV1(
     embedding_dim=1024,
     groups=8,
     skip=ClassParam(
-        Residual,
+        PrescaledAdditiveResidual,
         init_val=1.0,
     ),
     conv=ClassParam(
@@ -385,7 +330,7 @@ SplitConcatNetConfigs = {
             padding_mode="zeros",
         ),
         skip=ClassParam(
-            Residual,
+            PrescaledAdditiveResidual,
             init_val=2.0,
         ),
         act=ClassParam(MaxMin),
@@ -400,7 +345,7 @@ SplitConcatNetConfigs = {
         embedding_dim=1024,
         groups=4,
         skip=ClassParam(
-            Residual,
+            PrescaledAdditiveResidual,
             init_val=2.0,
         ),
         conv=ClassParam(
@@ -425,7 +370,7 @@ SplitConcatNetConfigs = {
         groups=None,  # None is depthwise, 1 is no groups
         # skip=None,
         skip=ClassParam(
-            Residual,
+            PrescaledAdditiveResidual,
             init_val=3.0,
         ),
         conv=ClassParam(
@@ -450,7 +395,7 @@ SplitConcatNetConfigs = {
         groups=None,  # None is depthwise, 1 is no groups
         # skip=None,
         skip=ClassParam(
-            Residual,
+            PrescaledAdditiveResidual,
             init_val=3.0,
         ),
         conv=ClassParam(
@@ -475,7 +420,7 @@ SplitConcatNetConfigs = {
         groups=None,  # None is depthwise, 1 is no groups
         # skip=None,
         skip=ClassParam(
-            Residual,
+            PrescaledAdditiveResidual,
             init_val=3.0,
         ),
         conv=ClassParam(
@@ -499,7 +444,7 @@ def LipResNet(
     img_shape=(3, 224, 224),
     n_classes=1000,
     skip=ClassParam(
-        Residual,
+        PrescaledAdditiveResidual,
         init_val=3.0,
     ),
     conv=ClassParam(
@@ -715,7 +660,7 @@ def PatchBasedExapandedCNN(
     norm=ClassParam(LayerCentering2D),
 ):
     if skip:
-        skipco = Residual
+        skipco = PrescaledAdditiveResidual
     else:
         skipco = nn.Sequential
     return nn.Sequential(

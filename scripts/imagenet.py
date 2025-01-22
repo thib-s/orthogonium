@@ -29,7 +29,7 @@ from orthogonium.losses import check_last_linear_layer_type
 from orthogonium.losses import LossXent
 from orthogonium.losses import VRA
 from orthogonium.model_factory.models_factory import AOCNetV1
-from orthogonium.model_factory.models_factory import Residual
+from orthogonium.layers.residual import PrescaledAdditiveResidual
 
 torch.backends.cudnn.benchmark = True
 torch.set_float32_matmul_precision("medium")
@@ -137,7 +137,7 @@ class ClassificationLightningModule(LightningModule):
             groups=None,  # None is depthwise, 1 is no groups
             # skip=None,
             skip=ClassParam(
-                Residual,
+                PrescaledAdditiveResidual,
                 init_val=3.0,
             ),
             conv=ClassParam(
