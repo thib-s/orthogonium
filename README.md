@@ -29,8 +29,6 @@
     <a href="#">
         <img src="https://img.shields.io/badge/License-MIT-efefef">
     </a>
-    <a href="https://arxiv.org/abs/2501.07930">
-        <img src="https://img.shields.io/badge/arXiv-2501.07930-b31b1b.svg">
     <a href="https://thib-s.github.io/orthogonium/">
         <img alt="Documentation" src="https://img.shields.io/badge/Docs-here-0000ff">
     </a>
@@ -193,21 +191,6 @@ in a larger scale setting.
 - [Efficient Bound of Lipschitz Constant for Convolutional Layers by Gram Iteration](https://arxiv.org/abs/2305.16173)
 - [github of the two papers](https://github.com/blaisedelattre/lip4conv/tree/main)
 
-
-# 📖 Citations
-If you find this repository useful for your research, please cite:
-
-```
-@misc{boissin2025adaptiveorthogonalconvolutionscheme,
-      title={An Adaptive Orthogonal Convolution Scheme for Efficient and Flexible CNN Architectures}, 
-      author={Thibaut Boissin and Franck Mamalet and Thomas Fel and Agustin Martin Picard and Thomas Massena and Mathieu Serrurier},
-      year={2025},
-      eprint={2501.07930},
-      archivePrefix={arXiv},
-      primaryClass={cs.AI},
-      url={https://arxiv.org/abs/2501.07930}, 
-}
-```
 
 # 🍻 Contributing
 
