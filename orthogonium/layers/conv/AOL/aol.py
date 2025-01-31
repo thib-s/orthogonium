@@ -2,7 +2,11 @@ import torch
 from torch import nn
 from torch.nn.utils import parametrize
 
-from orthogonium.layers.conv.AOC.fast_block_ortho_conv import conv_singular_values_numpy
+from orthogonium.layers.conv.AOC.fast_block_ortho_conv import (
+    conv_singular_values_numpy,
+    transpose_kernel,
+    fast_matrix_conv,
+)
 from orthogonium.layers.conv.SLL.sll_layer import safe_inv
 
 
@@ -11,18 +15,15 @@ class AOLReparametrizer(nn.Module):
         super(AOLReparametrizer, self).__init__()
         self.nb_features = nb_features
         self.groups = groups
-        self.q = nn.Parameter(torch.randn(nb_features))
+        self.q = nn.Parameter(torch.ones(nb_features, 1, 1, 1))
 
     def forward(self, kernel):
-        ktk = nn.functional.conv2d(
-            kernel,
-            kernel,
-            groups=1,
-            padding=kernel.shape[-1] - 1,
+        ktk = fast_matrix_conv(
+            transpose_kernel(kernel, self.groups, flip=True), kernel, self.groups
         )
         ktk = torch.abs(ktk)
-        q = torch.exp(self.q).reshape(-1, 1, 1, 1)
-        q_inv = torch.exp(-self.q).reshape(-1, 1, 1, 1)
+        q = torch.exp(self.q)
+        q_inv = torch.exp(-self.q)
         t = (q_inv * ktk * q).sum((1, 2, 3))
         t = safe_inv(torch.sqrt(t))
         t = t.reshape(-1, 1, 1, 1)
