@@ -17,8 +17,18 @@ from orthogonium.layers.conv.SLL import (
             (8, 4, 8, 8),
         ),
         (
+            SDPBasedLipschitzResBlock,
+            {"cin": 4, "inner_dim_factor": 2, "kernel_size": 3, "groups": 2},
+            (8, 4, 8, 8),
+        ),
+        (
             SLLxAOCLipschitzResBlock,
             {"cin": 4, "cout": 4, "inner_dim_factor": 2, "kernel_size": 3},
+            (8, 4, 8, 8),
+        ),
+        (
+            SLLxAOCLipschitzResBlock,
+            {"cin": 4, "cout": 4, "inner_dim_factor": 2, "kernel_size": 3, "groups": 2},
             (8, 4, 8, 8),
         ),
         (
@@ -29,6 +39,11 @@ from orthogonium.layers.conv.SLL import (
         (
             AOCLipschitzResBlock,
             {"in_channels": 4, "inner_dim_factor": 2, "kernel_size": 3},
+            (8, 4, 8, 8),
+        ),
+        (
+            AOCLipschitzResBlock,
+            {"in_channels": 4, "inner_dim_factor": 2, "kernel_size": 3, "groups": 2},
             (8, 4, 8, 8),
         ),
     ],
