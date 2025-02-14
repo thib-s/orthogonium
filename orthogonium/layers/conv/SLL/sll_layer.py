@@ -69,7 +69,9 @@ def safe_inv(x):
 
 
 class SLLxAOCLipschitzResBlock(nn.Module):
-    def __init__(self, cin, cout, inner_dim_factor, kernel_size=3, stride=2, **kwargs):
+    def __init__(
+        self, cin, cout, inner_dim_factor, kernel_size=3, stride=2, groups=1, **kwargs
+    ):
         """
         Extended SLL-based convolutional residual block. Supports arbitrary kernel sizes,
         strides, and changes in the number of channels by integrating additional
@@ -111,12 +113,15 @@ class SLLxAOCLipschitzResBlock(nn.Module):
         inner_dim = int(cout * inner_dim_factor)
         self.activation = nn.ReLU()
         self.stride = stride
+        self.groups = groups
         self.padding = kernel_size // 2
         self.kernel = nn.Parameter(
-            torch.randn(inner_dim, cin, inner_kernel_size, inner_kernel_size)
+            torch.randn(
+                inner_dim, cin // self.groups, inner_kernel_size, inner_kernel_size
+            )
         )
         self.bias = nn.Parameter(torch.empty(1, inner_dim, 1, 1))
-        self.q = nn.Parameter(torch.randn(inner_dim))
+        self.q = nn.Parameter(torch.ones(inner_dim, 1, 1, 1))
 
         nn.init.xavier_normal_(self.kernel)
         fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.kernel)
@@ -124,42 +129,62 @@ class SLLxAOCLipschitzResBlock(nn.Module):
         nn.init.uniform_(self.bias, -bound, bound)  # bias init
 
         self.pre_conv = AdaptiveOrthoConv2d(
-            cin, cin, kernel_size=stride, stride=1, bias=False, padding=0
+            cin, cin, kernel_size=stride, stride=1, bias=False, padding=0, groups=groups
         )
         self.post_conv = AdaptiveOrthoConv2d(
-            cin, cout, kernel_size=stride, stride=stride, bias=False, padding=0
+            cin,
+            cout,
+            kernel_size=stride,
+            stride=stride,
+            bias=False,
+            padding=0,
+            groups=groups,
         )
 
     def compute_t(self):
-        ktk = F.conv2d(self.kernel, self.kernel, padding=self.kernel.shape[-1] - 1)
+        ktk = fast_matrix_conv(
+            transpose_kernel(self.kernel, self.groups, flip=True),
+            self.kernel,
+            self.groups,
+        )
         ktk = torch.abs(ktk)
-        q = torch.exp(self.q).reshape(-1, 1, 1, 1)
-        q_inv = torch.exp(-self.q).reshape(-1, 1, 1, 1)
+        q = torch.exp(self.q)
+        q_inv = torch.exp(-self.q)
         t = (q_inv * ktk * q).sum((1, 2, 3))
         t = safe_inv(t)
+        t = t.reshape(-1, 1, 1, 1)
         return t
 
     def forward(self, x):
         # compute t
         t = self.compute_t()
-        t = t.reshape(1, -1, 1, 1)
         # print(self.pre_conv.weight.shape, self.kernel.shape, self.post_conv.weight.shape)
-        kernel_1a = fast_matrix_conv(self.pre_conv.weight, self.kernel, groups=1)
+        kernel_1a = fast_matrix_conv(
+            self.pre_conv.weight, self.kernel, groups=self.groups
+        )
         kernel_1b = fast_matrix_conv(
-            transpose_kernel(self.kernel, groups=1), self.post_conv.weight, groups=1
+            transpose_kernel(self.kernel, groups=self.groups),
+            self.post_conv.weight,
+            groups=self.groups,
         )
         kernel_2 = fast_matrix_conv(
-            self.pre_conv.weight, self.post_conv.weight, groups=1
+            self.pre_conv.weight, self.post_conv.weight, groups=self.groups
         )
         # first branch
         # fuse pre conv with kernel
-        res = F.conv2d(x, kernel_1a, padding=self.padding)
+        res = F.conv2d(x, kernel_1a, padding=self.padding, groups=self.groups)
         res = res + self.bias
         res = t * self.activation(res)
-        res = 2 * F.conv2d(res, kernel_1b, padding=self.padding, stride=self.stride)
+        res = 2 * F.conv2d(
+            res, kernel_1b, padding=self.padding, stride=self.stride, groups=self.groups
+        )
         # residual branch
         x = F.conv2d(
-            x, kernel_2, padding=self.skip_kernel_size // 2, stride=self.stride
+            x,
+            kernel_2,
+            padding=self.skip_kernel_size // 2,
+            stride=self.stride,
+            groups=self.groups,
         )
         # skip connection
         out = x - res
@@ -167,7 +192,7 @@ class SLLxAOCLipschitzResBlock(nn.Module):
 
 
 class SDPBasedLipschitzResBlock(nn.Module):
-    def __init__(self, cin, inner_dim_factor, kernel_size=3, **kwargs):
+    def __init__(self, cin, inner_dim_factor, kernel_size=3, groups=1, **kwargs):
         """
          Original 1-Lipschitz convolutional residual block, based on the SDP-based Lipschitz
         layer (SLL) approach [1]. It has a structure akin to:
@@ -200,14 +225,15 @@ class SDPBasedLipschitzResBlock(nn.Module):
 
         inner_dim = int(cin * inner_dim_factor)
         self.activation = nn.ReLU()
+        self.groups = groups
 
         self.padding = kernel_size // 2
 
         self.kernel = nn.Parameter(
-            torch.randn(inner_dim, cin, kernel_size, kernel_size)
+            torch.randn(inner_dim, cin // groups, kernel_size, kernel_size)
         )
         self.bias = nn.Parameter(torch.empty(1, inner_dim, 1, 1))
-        self.q = nn.Parameter(torch.randn(inner_dim))
+        self.q = nn.Parameter(torch.ones(inner_dim, 1, 1, 1))
 
         nn.init.xavier_normal_(self.kernel)
         fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.kernel)
@@ -215,21 +241,27 @@ class SDPBasedLipschitzResBlock(nn.Module):
         nn.init.uniform_(self.bias, -bound, bound)  # bias init
 
     def compute_t(self):
-        ktk = F.conv2d(self.kernel, self.kernel, padding=self.kernel.shape[-1] - 1)
+        ktk = fast_matrix_conv(
+            transpose_kernel(self.kernel, self.groups, flip=True),
+            self.kernel,
+            self.groups,
+        )
         ktk = torch.abs(ktk)
-        q = torch.exp(self.q).reshape(-1, 1, 1, 1)
-        q_inv = torch.exp(-self.q).reshape(-1, 1, 1, 1)
+        q = torch.exp(self.q)
+        q_inv = torch.exp(-self.q)
         t = (q_inv * ktk * q).sum((1, 2, 3))
         t = safe_inv(t)
+        t = t.reshape(-1, 1, 1, 1)
         return t
 
     def forward(self, x):
         t = self.compute_t()
-        t = t.reshape(1, -1, 1, 1)
-        res = F.conv2d(x, self.kernel, padding=1)
+        res = F.conv2d(x, self.kernel, padding=self.padding, groups=self.groups)
         res = res + self.bias
         res = t * self.activation(res)
-        res = 2 * F.conv_transpose2d(res, self.kernel, padding=1)
+        res = 2 * F.conv_transpose2d(
+            res, self.kernel, padding=self.padding, groups=self.groups
+        )
         out = x - res
         return out
 

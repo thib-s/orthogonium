@@ -13,8 +13,8 @@ nav:
 #      - layers.conv.AOC module: api/aoc.md
 #      - layers.conv.adaptiveSOC module: api/adaptiveSOC.md
 #      - layers.conv.SLL module: api/sll.md
-#  - Tutorials:
-#    - "Demo 0: How to use notebook in documentation": notebooks/demo_fake.ipynb
+  - Tutorials:
+    - "Demo 1: Certifiable robustness with 1-Lipschitz networks": notebooks/demo_cifar_classification.ipynb
   - Contributing: CONTRIBUTING.md
 
 theme:

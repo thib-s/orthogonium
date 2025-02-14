@@ -1,6 +1,7 @@
 import pytest
 import torch
 from orthogonium.layers.conv.AOL.aol import AOLConv2D, AOLConvTranspose2D
+from orthogonium.layers.conv.singular_values import get_conv_sv
 
 
 @pytest.mark.parametrize("convclass", [AOLConv2D, AOLConvTranspose2D])
@@ -24,10 +25,10 @@ def test_lipschitz_layers(convclass, in_channels, out_channels, kernel_size, gro
     x = torch.randn((4, in_channels, 8, 8), requires_grad=True)  # Input
 
     # Pre-optimization Lipschitz constant (if applicable)
-    pre_lipschitz_constant = compute_lipschitz_constant(layer, x)
-    print(f"{convclass.__name__} | Before: {pre_lipschitz_constant:.6f}")
+    pre_lipschitz_constant = get_conv_sv(layer, n_iter=5, agg_groups=True)
+    print(f"{convclass.__name__} | Before: {pre_lipschitz_constant}")
     assert (
-        pre_lipschitz_constant <= 1 + 1e-4
+        pre_lipschitz_constant[0] <= 1 + 1e-4
     ), "Pre-optimization Lipschitz constant violation."
 
     # Define optimizer and loss function
@@ -42,36 +43,8 @@ def test_lipschitz_layers(convclass, in_channels, out_channels, kernel_size, gro
         optimizer.step()
 
     # Post-optimization Lipschitz constant (if applicable)
-    post_lipschitz_constant = compute_lipschitz_constant(layer, x)
-    print(f"{convclass.__name__} | After: {post_lipschitz_constant:.6f}")
+    post_lipschitz_constant = get_conv_sv(layer, n_iter=5, agg_groups=True)
+    print(f"{convclass.__name__} | After: {post_lipschitz_constant}")
     assert (
-        post_lipschitz_constant <= 1 + 1e-4
+        post_lipschitz_constant[0] <= 1 + 1e-4
     ), "Post-optimization Lipschitz constant violation."
-
-
-def compute_lipschitz_constant(layer, x):
-    """
-    Calculate the Lipschitz constant for a given layer by computing the
-    maximum singular value of the Jacobian.
-    """
-    y = layer(x)
-
-    # Compute Jacobian by autograd
-    jacobian = []
-    for i in range(y.numel()):
-        grad_output = torch.zeros_like(y)
-        grad_output.view(-1)[i] = 1
-        gradients = torch.autograd.grad(
-            outputs=y,
-            inputs=x,
-            grad_outputs=grad_output,
-            retain_graph=True,
-            create_graph=True,
-            allow_unused=True,
-        )[0]
-        jacobian.append(gradients.view(-1).detach().cpu().numpy())
-    jacobian = torch.tensor(jacobian).view(y.numel(), x.numel())  # Construct Jacobian
-
-    # Compute singular values and return the maximum value
-    singular_values = torch.linalg.svdvals(jacobian).detach()
-    return singular_values.max().item()

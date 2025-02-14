@@ -1,11 +1,12 @@
 """
 This script is a quick demonstration of the behaviour of the orthogonium library.
-It trains a small CNN (4.8M params) on the CIFAR10 dataset. This script does not aim to reach state-of-the-art performance, but to provide
-decent performance in a reasonable amount of time on affordable hardware (30min for the first setup on a RTX 3080).
+It trains a small CNN (1.9M params) on the CIFAR10 dataset. This script does not aim to reach state-of-the-art performance, but to provide
+decent performance in a reasonable amount of time on affordable hardware (20min for the first setup on a RTX 3080).
 The training can be adapted for 3 different settings:
-- non robust training: the loss is the cross-entropy loss, and the model reaches 89% accuracy and 0% verified robust accuracy in 60 epochs.
-- mildly robust training: the loss is the cross-entropy loss with a high margin, and the model reaches 80% accuracy and 32% VRA in 150 epochs.
-- robust training: the loss is the cross-entropy loss with a high margin, and the model reaches 77% accuracy and 45% VRA in 150 epochs.
+- non robust training: the loss is the cross-entropy loss, and the model reaches 88.5% accuracy and 0% verified robust accuracy in 30 epochs.
+- mildly robust training: the loss is the cross-entropy loss with a high margin, and the model reaches 75% accuracy and 42% VRA in 150 epochs.
+- robust training: the loss is the cross-entropy loss with a high margin, and the model reaches 71% accuracy and 47% VRA in 150 epochs.
+you can increase the model size and number of epoch to reach performances closer to the state-of-the-art.
 """
 
 import argparse
@@ -58,8 +59,8 @@ settings = {
         "loss": ClassParam(
             LossXent,
             n_classes=10,
-            # sqrt(2) /0.1983 is the used factor in VRA computation
-            offset=(math.sqrt(2) / 0.1983) * (8 / 255),
+            offset=(math.sqrt(2) / 0.1983)
+            * (36 / 255),  # aims for 36/255 verified robust accuracy
             temperature=0.25,
         ),
         "epochs": 150,
@@ -69,7 +70,7 @@ settings = {
             LossXent,
             n_classes=10,
             offset=(math.sqrt(2) / 0.1983)
-            * (36 / 255),  # aims for 36/255 verified robust accuracy
+            * (72 / 255),  # aims for 36/255 verified robust accuracy
             temperature=0.25,
         ),
         "epochs": 150,
@@ -179,6 +180,7 @@ class ClassificationLightningModule(LightningModule):
                 AdaptiveOrthoConv2d,
                 bias=False,
                 padding="same",
+                padding_mode="zeros",
             ),
             act=ClassParam(MaxMin),
             pool=ClassParam(
