@@ -54,18 +54,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.common_types import _size_2_t
+from torch.nn.utils import parametrize
 
 from orthogonium.layers import AdaptiveOrthoConv2d
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import fast_matrix_conv
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import transpose_kernel
+from orthogonium.layers.conv.AOL.aol import AOLReparametrizer, safe_inv
 from orthogonium.reparametrizers import OrthoParams
-
-
-def safe_inv(x):
-    mask = x == 0
-    x_inv = x ** (-1)
-    x_inv[mask] = 0
-    return x_inv
 
 
 class SLLxAOCLipschitzResBlock(nn.Module):
@@ -98,6 +93,8 @@ class SLLxAOCLipschitzResBlock(nn.Module):
           - `cin` (int): Number of input channels.
           - `inner_dim_factor` (float): Multiplier for the internal channel dimension.
           - `kernel_size` (int, optional): Base kernel size for the SLL portion. Default is 3.
+          - `stride` (int, optional): Stride for the skip connection. Default is 2.
+          - `groups` (int, optional): Number of groups for the convolution. Default is 1.
           - `**kwargs`: Additional options (unused).
 
 
@@ -120,6 +117,14 @@ class SLLxAOCLipschitzResBlock(nn.Module):
                 inner_dim, cin // self.groups, inner_kernel_size, inner_kernel_size
             )
         )
+        parametrize.register_parametrization(
+            self,
+            "kernel",
+            AOLReparametrizer(
+                inner_dim,
+                groups=groups,
+            ),
+        )
         self.bias = nn.Parameter(torch.empty(1, inner_dim, 1, 1))
         self.q = nn.Parameter(torch.ones(inner_dim, 1, 1, 1))
 
@@ -141,51 +146,41 @@ class SLLxAOCLipschitzResBlock(nn.Module):
             groups=groups,
         )
 
-    def compute_t(self):
-        ktk = fast_matrix_conv(
-            transpose_kernel(self.kernel, self.groups, flip=True),
-            self.kernel,
-            self.groups,
-        )
-        ktk = torch.abs(ktk)
-        q = torch.exp(self.q)
-        q_inv = torch.exp(-self.q)
-        t = (q_inv * ktk * q).sum((1, 2, 3))
-        t = safe_inv(t)
-        t = t.reshape(-1, 1, 1, 1)
-        return t
-
     def forward(self, x):
         # compute t
-        t = self.compute_t()
         # print(self.pre_conv.weight.shape, self.kernel.shape, self.post_conv.weight.shape)
         kernel_1a = fast_matrix_conv(
             self.pre_conv.weight, self.kernel, groups=self.groups
         )
-        kernel_1b = fast_matrix_conv(
-            transpose_kernel(self.kernel, groups=self.groups),
-            self.post_conv.weight,
-            groups=self.groups,
-        )
-        kernel_2 = fast_matrix_conv(
-            self.pre_conv.weight, self.post_conv.weight, groups=self.groups
-        )
-        # first branch
-        # fuse pre conv with kernel
-        res = F.conv2d(x, kernel_1a, padding=self.padding, groups=self.groups)
-        res = res + self.bias
-        res = t * self.activation(res)
-        res = 2 * F.conv2d(
-            res, kernel_1b, padding=self.padding, stride=self.stride, groups=self.groups
-        )
-        # residual branch
-        x = F.conv2d(
-            x,
-            kernel_2,
-            padding=self.skip_kernel_size // 2,
-            stride=self.stride,
-            groups=self.groups,
-        )
+        with parametrize.cached():
+            kernel_1b = fast_matrix_conv(
+                transpose_kernel(self.kernel, groups=self.groups),
+                self.post_conv.weight,
+                groups=self.groups,
+            )
+            kernel_2 = fast_matrix_conv(
+                self.pre_conv.weight, self.post_conv.weight, groups=self.groups
+            )
+            # first branch
+            # fuse pre conv with kernel
+            res = F.conv2d(x, kernel_1a, padding=self.padding, groups=self.groups)
+            res = res + self.bias
+            res = self.activation(res)
+            res = 2 * F.conv2d(
+                res,
+                kernel_1b,
+                padding=self.padding,
+                stride=self.stride,
+                groups=self.groups,
+            )
+            # residual branch
+            x = F.conv2d(
+                x,
+                kernel_2,
+                padding=self.skip_kernel_size // 2,
+                stride=self.stride,
+                groups=self.groups,
+            )
         # skip connection
         out = x - res
         return out
@@ -211,7 +206,7 @@ class SDPBasedLipschitzResBlock(nn.Module):
           - `cout` (int): Number of output channels.
           - `inner_dim_factor` (float): Multiplier for the intermediate dimensionality.
           - `kernel_size` (int, optional): Size of the convolution kernel. Default is 3.
-          - `stride` (int, optional): Stride for the skip connection. Default is 2.
+          - `groups` (int, optional): Number of groups for the convolution. Default is 1.
           - `**kwargs`: Additional keyword arguments (unused).
 
 
@@ -232,6 +227,14 @@ class SDPBasedLipschitzResBlock(nn.Module):
         self.kernel = nn.Parameter(
             torch.randn(inner_dim, cin // groups, kernel_size, kernel_size)
         )
+        parametrize.register_parametrization(
+            self,
+            "kernel",
+            AOLReparametrizer(
+                inner_dim,
+                groups=groups,
+            ),
+        )
         self.bias = nn.Parameter(torch.empty(1, inner_dim, 1, 1))
         self.q = nn.Parameter(torch.ones(inner_dim, 1, 1, 1))
 
@@ -240,28 +243,14 @@ class SDPBasedLipschitzResBlock(nn.Module):
         bound = 1 / np.sqrt(fan_in)
         nn.init.uniform_(self.bias, -bound, bound)  # bias init
 
-    def compute_t(self):
-        ktk = fast_matrix_conv(
-            transpose_kernel(self.kernel, self.groups, flip=True),
-            self.kernel,
-            self.groups,
-        )
-        ktk = torch.abs(ktk)
-        q = torch.exp(self.q)
-        q_inv = torch.exp(-self.q)
-        t = (q_inv * ktk * q).sum((1, 2, 3))
-        t = safe_inv(t)
-        t = t.reshape(-1, 1, 1, 1)
-        return t
-
     def forward(self, x):
-        t = self.compute_t()
         res = F.conv2d(x, self.kernel, padding=self.padding, groups=self.groups)
         res = res + self.bias
-        res = t * self.activation(res)
-        res = 2 * F.conv_transpose2d(
-            res, self.kernel, padding=self.padding, groups=self.groups
-        )
+        res = self.activation(res)
+        with parametrize.cached():
+            res = 2 * F.conv_transpose2d(
+                res, self.kernel, padding=self.padding, groups=self.groups
+            )
         out = x - res
         return out
 
