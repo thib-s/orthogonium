@@ -37,34 +37,32 @@ def test_lipschitz_constant_with_various_distributions(
     x = torch.randn(batch_size, num_features, h, w) * std + mean
     x.requires_grad_(True)  # Enable gradient tracking
 
-    # Forward pass through the layer
     y = layer(x)
+    x.requires_grad_(True)  # Enable gradient tracking
 
-    # Calculate Jacobian
-    jacobian = []
-    for i in range(y.numel()):
-        grad_output = torch.zeros_like(y)
-        grad_output.view(-1)[i] = 1
-        gradients = torch.autograd.grad(
-            outputs=y,
-            inputs=x,
-            grad_outputs=grad_output,
-            retain_graph=True,
-            create_graph=True,
-            allow_unused=True,
-        )[0]
-        jacobian.append(gradients.view(-1).detach().cpu().numpy())
-    jacobian = torch.tensor(jacobian).view(
-        y.numel(), x.numel()
-    )  # Construct Jacobian matrix
+    # Compute the Jacobian using jacrev
+    batch_jacobian = torch.func.jacrev(layer)(x)
+
+    # Reshape the Jacobian to match the desired shape
+    batch_size = x.shape[0]
+    ydim = torch.prod(torch.tensor(y.shape)).item()
+    xdim = torch.prod(torch.tensor(x.shape)).item()
+
+    jacobian = batch_jacobian.view(ydim, xdim)
 
     # Validate Lipschitz constant
-    singular_values = torch.linalg.svdvals(jacobian)
-    assert singular_values.max() <= 1 + 1e-4, (
-        f"Lipschitz constraint violated for input distribution with mean={mean}, std={std}; "
-        f"max singular value: {singular_values.max()}"
-    )
     if orthogonal:
+        singular_values = torch.linalg.svdvals(jacobian)
+        assert singular_values.max() <= 1 + 1e-4, (
+            f"Lipschitz constraint violated for input distribution with mean={mean}, std={std}; "
+            f"max singular value: {singular_values.max()}"
+        )
         assert (
             singular_values.min() >= 1 - 1e-4
         ), f"Orthogonality constraint violated for input distribution with mean={mean}, std={std}; "
+    else:
+        lipschitz_constant = torch.linalg.matrix_norm(jacobian, ord=2).item()
+        assert lipschitz_constant <= 1 + 1e-4, (
+            f"Lipschitz constraint violated for input distribution with mean={mean}, std={std}; "
+            f"Lipschitz constant: {lipschitz_constant}"
+        )
