@@ -3,11 +3,16 @@ from torch import nn
 from torch.nn.utils import parametrize
 
 from orthogonium.layers.conv.AOC.fast_block_ortho_conv import (
-    conv_singular_values_numpy,
     transpose_kernel,
     fast_matrix_conv,
 )
-from orthogonium.layers.conv.SLL.sll_layer import safe_inv
+
+
+def safe_inv(x):
+    mask = x == 0
+    x_inv = x ** (-1)
+    x_inv[mask] = 0
+    return x_inv
 
 
 class AOLReparametrizer(nn.Module):
