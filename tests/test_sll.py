@@ -14,12 +14,12 @@ from orthogonium.layers.conv.SLL import (
         (
             SDPBasedLipschitzResBlock,
             {"cin": 4, "inner_dim_factor": 2, "kernel_size": 3},
-            (8, 4, 8, 8),
+            (1, 4, 8, 8),
         ),
         (
             SDPBasedLipschitzResBlock,
-            {"cin": 4, "inner_dim_factor": 2, "kernel_size": 3, "groups": 2},
-            (8, 4, 8, 8),
+            {"cin": 2, "inner_dim_factor": 2, "kernel_size": 3, "groups": 2},
+            (1, 2, 8, 8),
         ),
         (
             SLLxAOCLipschitzResBlock,
@@ -108,5 +108,6 @@ def compute_lipschitz_constant(layer, x):
     jacobian = torch.tensor(jacobian).view(y.numel(), x.numel())  # Construct Jacobian
 
     # Compute singular values and return the maximum value
-    singular_values = torch.linalg.svdvals(jacobian)
-    return singular_values.max().item()
+    # singular_values = torch.linalg.svdvals(jacobian)
+    # return singular_values.max().item()
+    return torch.linalg.matrix_norm(jacobian, ord=2).item()
