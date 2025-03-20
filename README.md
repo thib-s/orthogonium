@@ -88,26 +88,35 @@ an explicit kernel, that support all features like stride, conv transposed,
 grouped convolutions and dilation (and all compositions of these parameters). This approach is highly scalable, and can
 be applied to problems like Imagenet-1K.
 
-## Adaptive-SC-FAC:
+[//]: # (## Adaptive-SC-FAC:)
 
-As AOC is built on top of BCOP method, we can construct an equivalent method constructed on top of SC-Fac instead.
-This will allow to compare performance of the two methods given that they have very similar parametrization. (See our 
-paper for discussions about the similarities and differences between the two methods).
+[//]: # ()
+[//]: # (As AOC is built on top of BCOP method, we can construct an equivalent method constructed on top of SC-Fac instead.)
+
+[//]: # (This will allow to compare performance of the two methods given that they have very similar parametrization. &#40;See our )
+
+[//]: # (paper for discussions about the similarities and differences between the two methods&#41;.)
 
 ## Adaptive-SOC:
 
 Adaptive-SOC blend the approach of AOC and SOC. It differs from SOC in the way that it is more memory efficient and 
-sometimes faster. It also allows to handle stride, groups, dilation and transposed convolutions. However, it does not allow to 
-control the kernel size explicitly as the resulting kernel size is larger than the requested kernel size. 
-It is due to the computation to the exponential of a kernel that increases the kernel size at each iteration.
-
-Its development is still in progress, so extra testing is still require to ensure exact orthogonality.
+sometimes faster. It also allows to handle stride, groups, dilation and transposed convolutions. Also, our 
+implementation uses AOL to normalize the kernel, which is more stable, more efficient and allows a convergence with less 
+iterations. However, it does not allow to control the kernel size explicitly as the resulting kernel size is larger 
+than the requested kernel size. It is due to the computation to the exponential of a kernel that increases the kernel 
+size at each iteration.
 
 ## SLL:
 
 SLL is a method that allows to construct small residual blocks with ReLU activations. We kept most to the original 
 implementation, and added `SLLxAOCLipschitzResBlock` that construct a down-sampling residual block by fusing SLL with 
 $AOC.
+
+## AOL:
+
+AOL is a method that constructs "almost orthogonal" layers. It ensures lipschitzness of the layer while pushing toward 
+orthogonality. It is a good alternative when the orthogonality constraint is not necessary, or when the orthogonality
+constraint is too expensive to compute.
 
 ## more layers are coming soon !
 
@@ -118,7 +127,7 @@ The library is available on pip,so you can install it by running the following c
 pip install orthogonium
 ```
 
-If you wish to deep dive in the code and edit your local versin, you can clone the repository and run the following command 
+If you wish to deep dive in the code and edit your local version, you can clone the repository and run the following command 
 to install it locally:
 ```
 git clone git@github.com:thib-s/orthogonium.git
@@ -183,7 +192,7 @@ in a larger scale setting.
 - LOT: [github](https://github.com/AI-secure/Layerwise-Orthogonal-Training) and [paper](https://arxiv.org/abs/2210.11620)
 - ProjUNN-T: [github](https://github.com/facebookresearch/projUNN) and [paper](https://arxiv.org/abs/2203.05483)
 - SLL: [github](https://github.com/araujoalexandre/Lipschitz-SLL-Networks) and [paper](https://arxiv.org/abs/2303.03169)
-- Sandwish: [github](https://github.com/acfr/LBDN) and [paper](https://arxiv.org/abs/2301.11526)
+- Sandwich: [github](https://github.com/acfr/LBDN) and [paper](https://arxiv.org/abs/2301.11526)
 - AOL: [github](https://github.com/berndprach/AOL) and [paper](https://arxiv.org/abs/2208.03160)
 - SOC: [github](https://github.com/singlasahil14/SOC) and [paper 1](https://arxiv.org/abs/2105.11417), [paper 2](https://arxiv.org/abs/2211.08453)
 
@@ -233,9 +242,9 @@ Layers:
   - enable support for native stride, transposition and dilation
 - AOL:
   - torch implementation of AOL
-- Sandwish:
+- Sandwich:
   - import code
-  - plug AOC into Sandwish conv
+  - plug AOC into Sandwich conv
 
 ZOO:
 - models from the paper
